@@ -12,6 +12,54 @@ import (
 	"github.com/centrifugal/centrifuge"
 )
 
+type Category struct {
+    Name        string `json:"name"`
+    Description string `json:"description"`
+}
+
+var categories = []Category{
+    {
+        Name:        "The most cute cat 🐈",
+        Description: "A game about the cutest cat in the world. 🐱",
+    },
+    {
+        Name:        "Funniest fail video 😂",
+        Description: "Submit a hilarious fail that makes everyone laugh!",
+    },
+    {
+        Name:        "Best dance move 💃",
+        Description: "Show off your craziest or smoothest dance step.",
+    },
+    {
+        Name:        "Unexpected twist 🎭",
+        Description: "Videos that take a surprising turn. Shock us!",
+    },
+    {
+        Name:        "Cutest baby animal 🐾",
+        Description: "Puppies, kittens, ducklings... bring the awws!",
+    },
+    {
+        Name:        "Most epic moment ⚡",
+        Description: "Highlight something legendary, heroic, or just cool.",
+    },
+    {
+        Name:        "Mind-blowing magic trick 🎩✨",
+        Description: "Is it real? Is it edited? Blow our minds!",
+    },
+    {
+        Name:        "Satisfying video 🍰",
+        Description: "Soap cutting, symmetry, pouring — we want chill.",
+    },
+    {
+        Name:        "Cringe overload 😬",
+        Description: "Bring the secondhand embarrassment in a fun way.",
+    },
+    {
+        Name:        "Best pet reaction 🐶😲",
+        Description: "Pets doing something wild, unexpected, or smart!",
+    },
+}
+
 func authMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -27,13 +75,12 @@ func authMiddleware(h http.Handler) http.Handler {
 func newRouter(centrifugeHandler *centrifuge.WebsocketHandler) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/games", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		resp := map[string]string{"message": "Hello, World!!!"}
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(categories)
 	})
 
-	mux.Handle("/v1/enter", authMiddleware(centrifugeHandler))
+	mux.Handle("/v1/join", authMiddleware(centrifugeHandler))
 
 	return mux
 }

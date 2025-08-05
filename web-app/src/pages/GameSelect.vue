@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useGameStore } from "../stores/gameStore";
 
 const gameStore = useGameStore();
-const games = gameStore.games
 
 function joinGame(id: number) {
   gameStore.setGameId(id);
 }
+
+onMounted(() => {
+  gameStore.fetchGames();
+})
 
 </script>
 
@@ -16,7 +20,7 @@ function joinGame(id: number) {
 
     <ul class="divide-y divide-gray-100">
       <li
-        v-for="(game, index) in games"
+        v-for="(game, index) in gameStore.games"
         :key="index"
       >
         <button
