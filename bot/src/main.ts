@@ -14,7 +14,7 @@ bot.command("game", (ctx) => {
         {
           text: "Open Game App",
           web_app: {
-            url: "https://c83be7a91643.ngrok-free.app", // must be HTTPS
+            url: process.env.TELEGRAM_BOT_WEB_APP_URL
           },
         },
       ]],
