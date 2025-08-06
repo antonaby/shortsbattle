@@ -13,40 +13,19 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 )
 
-// func authMiddleware(h http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		ctx := r.Context()
-// 		cred := &centrifuge.Credentials{
-// 			UserID: "",
-// 		}
-// 		newCtx := centrifuge.SetCredentials(ctx, cred)
-// 		r = r.WithContext(newCtx)
-// 		h.ServeHTTP(w, r)
-// 	})
-// }
-
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 func main() {
+	cr, err := routes.NewCentrifugeRouter()
+	if err != nil {
+    log.Fatal("Can't create Centriguge router")
+  }
+
 	gs := services.NewGameService()
-	router := routes.NewHttpRouter(gs)
-	corsRouter := corsMiddleware(router.Mux)
+	router := routes.NewHttpRouter(cr, gs)
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: corsRouter,
+		Handler: router.Handler(),
 	}
 
 	quit := make(chan os.Signal, 1)
@@ -92,44 +71,6 @@ func main() {
 	// }
 	// log.Printf("Fetched player: %+v", gotPlayer)
 
-	// gameService := services.NewGameService()
-	// if err := gameService.InitGames(); err != nil {
-	// 	log.Fatalf("Failed to init game service: %v", err)
-	// }
-
-	// node, err := centrifuge.New(centrifuge.Config{})
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// node.OnConnect(func(client *centrifuge.Client) {
-	// 	transportName := client.Transport().Name()
-	// 	transportProto := client.Transport().Protocol()
-	// 	log.Printf("client connected via %s (%s)", transportName, transportProto)
-
-	// 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-	// 		log.Printf("client subscribes on channel %s", e.Channel)
-	// 		cb(centrifuge.SubscribeReply{}, nil)
-	// 	})
-
-	// 	client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
-	// 		log.Printf("client publishes into channel %s: %s", e.Channel, string(e.Data))
-	// 		cb(centrifuge.PublishReply{}, nil)
-	// 	})
-
-	// 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
-	// 		log.Printf("client disconnected")
-	// 	})
-	// })
-
-	// if err := node.Run(); err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// wsHandler := centrifuge.NewWebsocketHandler(node, centrifuge.WebsocketConfig{
-	// 	CheckOrigin: func(r *http.Request) bool {
-	// 		return true // Allow all origins for simplicity, adjust as needed
-	// 	},
-	// })
+	
 
 }
