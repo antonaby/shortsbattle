@@ -1,5 +1,10 @@
 package services
 
+import (
+	"context"
+
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
+)
 
 type GameInfo struct {
 	Name        string `json:"name"`
@@ -7,11 +12,22 @@ type GameInfo struct {
 }
 
 type GameService struct {
-
+	dbManager *db.DbManager
 }
 
-func NewGameService() *GameService {
-	return &GameService{}
+func NewGameService(dbManager *db.DbManager) *GameService {
+	return &GameService{
+		dbManager: dbManager,
+	}
+}
+
+func (g GameService) GetPlayer() (db.Player, error) {
+	player, err := g.dbManager.Querier().GetPlayer(context.Background(), 0)
+	if err != nil {
+			return db.Player{}, err
+	}
+	
+	return player, err
 }
 
 func (g GameService) GetGames() []GameInfo {

@@ -9,18 +9,24 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	routes "github.com/antonaby/shortsbattle/game-server/internal/http"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 )
 
 
 func main() {
+  dbManager, err := db.NewDbManager(context.Background())
+  if err != nil {
+    log.Fatal("Can't connect to DB")
+  }
+
 	cr, err := routes.NewCentrifugeRouter()
 	if err != nil {
     log.Fatal("Can't create Centriguge router")
   }
 
-	gs := services.NewGameService()
+	gs := services.NewGameService(dbManager)
 	router := routes.NewHttpRouter(cr, gs)
 
 	srv := &http.Server{
@@ -48,29 +54,4 @@ func main() {
 	}
 
 	log.Println("Server stopped")
-
-	// dsn := os.Getenv("DATABASE_URL")
-	// pool, err := pgxpool.New(context.Background(), dsn)
-	// if err != nil {
-	// 		log.Fatal(err)
-	// }
-	// defer pool.Close()
-
-	// queries := db.New(pool)
-	// ctx := context.Background()
-
-	// player, err := queries.CreatePlayer(ctx, "Lionel Messi")
-	// if err != nil {
-	// 		log.Fatal(err)
-	// }
-	// log.Printf("Created player: %+v", player)
-
-	// gotPlayer, err := queries.GetPlayer(ctx, player.ID)
-	// if err != nil {
-	// 		log.Fatal(err)
-	// }
-	// log.Printf("Fetched player: %+v", gotPlayer)
-
-	
-
 }
