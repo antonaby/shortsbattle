@@ -37,6 +37,12 @@ export const useGameStore = defineStore('game', {
     clearGameId() {
       this.gameId = null;
       router.push("/")
+    },
+    watchWideo() {
+      router.push('/watch');
+    },
+    backToSelect() {
+      router.push("/");
     }
   }
 });
