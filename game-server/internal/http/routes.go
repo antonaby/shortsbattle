@@ -1,10 +1,10 @@
 package http
 
 import (
-	"encoding/json"
-	"net/http"
+  "encoding/json"
+  "net/http"
 
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
+  "github.com/antonaby/shortsbattle/game-server/internal/services"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
