@@ -39,44 +39,44 @@ func (m *DbManager) Querier() Querier {
 }
 
 func WithTransaction(ctx context.Context, m *DbManager, fn TxFunc) error {
-  tx, err := m.Pool.Begin(ctx)
-  if err != nil {
-      return err
-  }
-  defer func() {
-    if p := recover(); p != nil {
-      _ = tx.Rollback(ctx)
-      panic(p)
-    }
-  }()
+	tx, err := m.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
 
-  if err := fn(tx); err != nil {
-    _ = tx.Rollback(ctx)
-    return err
-  }
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback(ctx)
+		return err
+	}
 
-  return tx.Commit(ctx)
+	return tx.Commit(ctx)
 }
 
 func WithValueTransaction[T any](ctx context.Context, m *DbManager, fn TxValueFunc[T]) (T, error) {
-  var zero T
+	var zero T
 
-  tx, err := m.Pool.Begin(ctx)
-  if err != nil {
-    return zero, err
-  }
-  defer func() {
-    if p := recover(); p != nil {
-      _ = tx.Rollback(ctx)
-      panic(p)
-    }
-  }()
+	tx, err := m.Pool.Begin(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
 
-  result, err := fn(tx)
-  if err != nil {
-    _ = tx.Rollback(ctx)
-    return zero, err
-  }
+	result, err := fn(tx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return zero, err
+	}
 
-  return result, tx.Commit(ctx)
+	return result, tx.Commit(ctx)
 }

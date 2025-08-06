@@ -14,17 +14,16 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 )
 
-
 func main() {
-  dbManager, err := db.NewDbManager(context.Background())
-  if err != nil {
-    log.Fatal("Can't connect to DB")
-  }
+	dbManager, err := db.NewDbManager(context.Background())
+	if err != nil {
+		log.Fatal("Can't connect to DB")
+	}
 
 	cr, err := routes.NewCentrifugeRouter()
 	if err != nil {
-    log.Fatal("Can't create Centriguge router")
-  }
+		log.Fatal("Can't create Centriguge router")
+	}
 
 	gs := services.NewGameService(dbManager)
 	router := routes.NewHttpRouter(cr, gs)

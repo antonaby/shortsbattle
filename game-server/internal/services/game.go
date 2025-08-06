@@ -24,9 +24,9 @@ func NewGameService(dbManager *db.DbManager) *GameService {
 func (g GameService) GetPlayer() (db.Player, error) {
 	player, err := g.dbManager.Querier().GetPlayer(context.Background(), 0)
 	if err != nil {
-			return db.Player{}, err
+		return db.Player{}, err
 	}
-	
+
 	return player, err
 }
 

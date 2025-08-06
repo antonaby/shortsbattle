@@ -50,7 +50,7 @@ func (r CentrifugeRouter) Handler() http.Handler {
 
 func (r CentrifugeRouter) Run() error {
 	if err := r.node.Run(); err != nil {
-			return err
+		return err
 	}
 
 	return nil
