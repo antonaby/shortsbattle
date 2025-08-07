@@ -31,7 +31,8 @@ func (api *GameApi) Register(g *echo.Group) {
 }
 
 func (api *GameApi) GetGames(c echo.Context) error {
-	return c.JSON(http.StatusOK, api.gs.GetGames())
+	ctx := c.Request().Context()
+	return c.JSON(http.StatusOK, api.gs.GetGames(ctx))
 }
 
 func (api *GameApi) GetPlayer(c echo.Context) error {
@@ -43,7 +44,8 @@ func (api *GameApi) GetPlayer(c echo.Context) error {
 		})
 	}
 
-	player, err := api.gs.GetPlayer(int32(playerId))
+	ctx := c.Request().Context()
+	player, err := api.gs.GetPlayer(ctx, int32(playerId))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{

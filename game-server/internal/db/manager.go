@@ -47,7 +47,7 @@ func (m *DbManager) Begin(ctx context.Context) (pgx.Tx, error) {
 	return m.Pool.Begin(ctx)
 }
 
-func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
+func WithTx(ctx context.Context, txm TxManager, fn TxFunc) error {
 	tx, err := txm.Begin(ctx)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
 	return tx.Commit(ctx)
 }
 
-func WithTransactionAndValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T]) (T, error) {
+func WithTxValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T]) (T, error) {
 	var zero T
 
 	tx, err := txm.Begin(ctx)

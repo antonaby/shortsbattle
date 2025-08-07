@@ -22,10 +22,9 @@ func NewGameService(txm db.TxManager) *GameService {
 	}
 }
 
-func (g GameService) GetPlayer(id int32) (db.Player, error) {
-	player, err := db.WithTransactionAndValue(
-		context.Background(), 
-		g.txm, 
+func (g GameService) GetPlayer(ctx context.Context, id int32) (db.Player, error) {
+	player, err := db.WithTxValue(
+		ctx, g.txm,
 		func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
 			q := g.txm.Querier(tx)
 			return q.GetPlayer(ctx, id)
@@ -38,7 +37,7 @@ func (g GameService) GetPlayer(id int32) (db.Player, error) {
 	return player, err
 }
 
-func (g GameService) GetGames() []GameInfo {
+func (g GameService) GetGames(ctx context.Context) []GameInfo {
 	return []GameInfo{
 		{
 			Name:        "The most cute cat 🐈",
