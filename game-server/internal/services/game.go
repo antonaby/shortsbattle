@@ -23,8 +23,8 @@ func NewGameService(txm db.TxManager, querier db.Querier) *GameService {
 	}
 }
 
-func (g GameService) GetPlayer() (db.Player, error) {
-	player, err := g.querier.GetPlayer(context.Background(), 0)
+func (g GameService) GetPlayer(id int32) (db.Player, error) {
+	player, err := g.querier.GetPlayer(context.Background(), id)
 	if err != nil {
 		return db.Player{}, err
 	}
