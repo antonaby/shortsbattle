@@ -9,7 +9,10 @@ import (
 )
 
 type TxFunc func(pgx.Tx) error
-type TxValueFunc[T any] func(pgx.Tx) (T, error)
+type TxFuncWithValue[T any] func(pgx.Tx) (T, error)
+type TxManager interface {
+	GetPool() *pgxpool.Pool
+}
 
 type DbManager struct {
 	Pool *pgxpool.Pool
@@ -38,8 +41,12 @@ func (m *DbManager) Querier() Querier {
 	return queries
 }
 
-func WithTransaction(ctx context.Context, m *DbManager, fn TxFunc) error {
-	tx, err := m.Pool.Begin(ctx)
+func (m *DbManager) GetPool() *pgxpool.Pool {
+	return m.Pool
+}
+
+func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
+	tx, err := txm.GetPool().Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -58,10 +65,10 @@ func WithTransaction(ctx context.Context, m *DbManager, fn TxFunc) error {
 	return tx.Commit(ctx)
 }
 
-func WithValueTransaction[T any](ctx context.Context, m *DbManager, fn TxValueFunc[T]) (T, error) {
+func WithTransactionAndValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T]) (T, error) {
 	var zero T
 
-	tx, err := m.Pool.Begin(ctx)
+	tx, err := txm.GetPool().Begin(ctx)
 	if err != nil {
 		return zero, err
 	}

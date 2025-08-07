@@ -20,8 +20,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't connect to DB")
 	}
+	defer dbManager.Close()
 
-	gs := services.NewGameService(dbManager)
+	gs := services.NewGameService(dbManager, dbManager.Querier())
 
 	cs, err := api.NewCentrifugeServer()
 	if err != nil {

@@ -12,17 +12,19 @@ type GameInfo struct {
 }
 
 type GameService struct {
-	dbManager *db.DbManager
+	txm db.TxManager
+	querier db.Querier
 }
 
-func NewGameService(dbManager *db.DbManager) *GameService {
+func NewGameService(txm db.TxManager, querier db.Querier) *GameService {
 	return &GameService{
-		dbManager: dbManager,
+		txm: txm,
+		querier: querier,
 	}
 }
 
 func (g GameService) GetPlayer() (db.Player, error) {
-	player, err := g.dbManager.Querier().GetPlayer(context.Background(), 0)
+	player, err := g.querier.GetPlayer(context.Background(), 0)
 	if err != nil {
 		return db.Player{}, err
 	}
