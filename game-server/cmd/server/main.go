@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/api"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-	routes "github.com/antonaby/shortsbattle/game-server/internal/http"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/gommon/log"
 )
 
 func main() {
@@ -20,37 +21,43 @@ func main() {
 		log.Fatal("Can't connect to DB")
 	}
 
-	cr, err := routes.NewCentrifugeRouter()
+	gs := services.NewGameService(dbManager)
+
+	cs, err := api.NewCentrifugeServer()
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
 	}
 
-	gs := services.NewGameService(dbManager)
-	router := routes.NewHttpRouter(cr, gs)
+	e := echo.New()
+	e.Logger.SetLevel(log.INFO)
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: router.Handler(),
-	}
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPut, http.MethodPost, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	}))
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	e.GET("/api/v1/join", echo.WrapHandler(cs.Handler()))
+
+	apiGroup := e.Group("/api")
+	gameApi := api.NewGameApi(gs)
+	gameApi.Register(apiGroup)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	go func() {
-		<-quit
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Fatalf("Server forced to shutdown: %v", err)
+		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
 		}
 	}()
 
-	log.Printf("Server is ready to handle requests at %s", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Could not listen on %s: %v", srv.Addr, err)
+	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
 	}
-
-	log.Println("Server stopped")
 }
