@@ -8,10 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type TxFunc func(pgx.Tx) error
-type TxFuncWithValue[T any] func(pgx.Tx) (T, error)
+type TxFunc func(context.Context, pgx.Tx) error
+type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
+
 type TxManager interface {
-	GetPool() *pgxpool.Pool
+	Begin(ctx context.Context) (pgx.Tx, error)
+	Querier(pgx.Tx) Querier
 }
 
 type DbManager struct {
@@ -36,17 +38,17 @@ func (m *DbManager) Close() {
 	m.Pool.Close()
 }
 
-func (m *DbManager) Querier() Querier {
-	queries := New(m.Pool)
+func (m *DbManager) Querier(tx pgx.Tx) Querier {
+	queries := New(tx)
 	return queries
 }
 
-func (m *DbManager) GetPool() *pgxpool.Pool {
-	return m.Pool
+func (m *DbManager) Begin(ctx context.Context) (pgx.Tx, error) {
+	return m.Pool.Begin(ctx)
 }
 
 func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
-	tx, err := txm.GetPool().Begin(ctx)
+	tx, err := txm.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -57,7 +59,7 @@ func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	if err := fn(ctx, tx); err != nil {
 		_ = tx.Rollback(ctx)
 		return err
 	}
@@ -68,7 +70,7 @@ func WithTransaction(ctx context.Context, txm TxManager, fn TxFunc) error {
 func WithTransactionAndValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T]) (T, error) {
 	var zero T
 
-	tx, err := txm.GetPool().Begin(ctx)
+	tx, err := txm.Begin(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -79,7 +81,7 @@ func WithTransactionAndValue[T any](ctx context.Context, txm TxManager, fn TxFun
 		}
 	}()
 
-	result, err := fn(tx)
+	result, err := fn(ctx, tx)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 		return zero, err

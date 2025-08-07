@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/jackc/pgx/v5"
 )
 
 type GameInfo struct {
@@ -13,18 +14,23 @@ type GameInfo struct {
 
 type GameService struct {
 	txm db.TxManager
-	querier db.Querier
 }
 
-func NewGameService(txm db.TxManager, querier db.Querier) *GameService {
+func NewGameService(txm db.TxManager) *GameService {
 	return &GameService{
 		txm: txm,
-		querier: querier,
 	}
 }
 
 func (g GameService) GetPlayer(id int32) (db.Player, error) {
-	player, err := g.querier.GetPlayer(context.Background(), id)
+	player, err := db.WithTransactionAndValue(
+		context.Background(), 
+		g.txm, 
+		func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
+			q := g.txm.Querier(tx)
+			return q.GetPlayer(ctx, id)
+		})
+
 	if err != nil {
 		return db.Player{}, err
 	}

@@ -22,7 +22,7 @@ func main() {
 	}
 	defer dbManager.Close()
 
-	gs := services.NewGameService(dbManager, dbManager.Querier())
+	gs := services.NewGameService(dbManager)
 
 	cs, err := api.NewCentrifugeServer()
 	if err != nil {
