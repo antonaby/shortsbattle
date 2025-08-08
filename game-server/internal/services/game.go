@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -22,7 +23,14 @@ func NewGameService(txm db.TxManager) *GameService {
 	}
 }
 
-func (g GameService) GetPlayer(ctx context.Context, id int32) (db.Player, error) {
+func (g GameService) CreatePlayer(ctx context.Context, params models.CreatePlayerRequest) (db.Player, error) {
+	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
+		q := g.txm.Querier(tx)
+		return q.CreatePlayer(ctx, params.Username)
+	})
+}
+
+func (g GameService) GetPlayer(ctx context.Context, id int64) (db.Player, error) {
 	player, err := db.WithTxValue(
 		ctx, g.txm,
 		func(ctx context.Context, tx pgx.Tx) (db.Player, error) {

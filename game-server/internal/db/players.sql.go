@@ -10,24 +10,49 @@ import (
 )
 
 const createPlayer = `-- name: CreatePlayer :one
-INSERT INTO players (name) VALUES ($1)
-RETURNING id, name
+INSERT INTO players (username)
+VALUES ($1)
+RETURNING id, username, created_at
 `
 
-func (q *Queries) CreatePlayer(ctx context.Context, name string) (Player, error) {
-	row := q.db.QueryRow(ctx, createPlayer, name)
+func (q *Queries) CreatePlayer(ctx context.Context, username string) (Player, error) {
+	row := q.db.QueryRow(ctx, createPlayer, username)
 	var i Player
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
 	return i, err
 }
 
-const getPlayer = `-- name: GetPlayer :one
-SELECT id, name FROM players WHERE id = $1
+const getAllPlayers = `-- name: GetAllPlayers :many
+SELECT id, username, created_at FROM players ORDER BY username
 `
 
-func (q *Queries) GetPlayer(ctx context.Context, id int32) (Player, error) {
+func (q *Queries) GetAllPlayers(ctx context.Context) ([]Player, error) {
+	rows, err := q.db.Query(ctx, getAllPlayers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Player
+	for rows.Next() {
+		var i Player
+		if err := rows.Scan(&i.ID, &i.Username, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPlayer = `-- name: GetPlayer :one
+SELECT id, username, created_at FROM players WHERE id = $1
+`
+
+func (q *Queries) GetPlayer(ctx context.Context, id int64) (Player, error) {
 	row := q.db.QueryRow(ctx, getPlayer, id)
 	var i Player
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
 	return i, err
 }

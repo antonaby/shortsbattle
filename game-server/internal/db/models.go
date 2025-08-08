@@ -4,7 +4,86 @@
 
 package db
 
+import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type GameStatus string
+
+const (
+	GameStatusLobby      GameStatus = "lobby"
+	GameStatusSubmitting GameStatus = "submitting"
+	GameStatusVoting     GameStatus = "voting"
+	GameStatusComplete   GameStatus = "complete"
+)
+
+func (e *GameStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = GameStatus(s)
+	case string:
+		*e = GameStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for GameStatus: %T", src)
+	}
+	return nil
+}
+
+type NullGameStatus struct {
+	GameStatus GameStatus `json:"game_status"`
+	Valid      bool       `json:"valid"` // Valid is true if GameStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullGameStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.GameStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.GameStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullGameStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.GameStatus), nil
+}
+
+type Game struct {
+	ID        int64            `json:"id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	Status    GameStatus       `json:"status"`
+}
+
+type GamePlayer struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+}
+
 type Player struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
+	ID        int64            `json:"id"`
+	Username  string           `json:"username"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+type Submission struct {
+	ID          int64            `json:"id"`
+	GameID      pgtype.Int8      `json:"game_id"`
+	PlayerID    pgtype.Int8      `json:"player_id"`
+	VideoUrl    string           `json:"video_url"`
+	SubmittedAt pgtype.Timestamp `json:"submitted_at"`
+}
+
+type Vote struct {
+	ID           int64            `json:"id"`
+	GameID       pgtype.Int8      `json:"game_id"`
+	SubmissionID pgtype.Int8      `json:"submission_id"`
+	VoterID      pgtype.Int8      `json:"voter_id"`
+	VotedAt      pgtype.Timestamp `json:"voted_at"`
 }
