@@ -29,7 +29,7 @@ func (api *GameApi) Register(g *echo.Group) {
 	
 	v1group.GET("/games", api.GetGames)
 	v1group.POST("/games", api.CreateGame)
-	v1group.PUT("/games/:gameId/add/:playerId", api.AddPlayerToGame)
+	v1group.PUT("/games/:gameId/players", api.AddPlayerToGame)
 
 	v1group.GET("/players/:id", api.GetPlayer)
 	v1group.POST("/players", api.CreatePlayer)
@@ -119,15 +119,15 @@ func (api *GameApi) AddPlayerToGame(c echo.Context) error {
 		})
 	}
 
-	playerId, err := parseInt64(c.Param("playerId"))
-	if err != nil {
+	request := new(m.AddPlayerToGame)
+	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: err.Error(),
 		})
 	}
 
 	ctx := c.Request().Context()
-	err = api.gs.AddPlayer(ctx, gameId, playerId)
+	err = api.gs.AddPlayer(ctx, gameId, request.PlayerId)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
