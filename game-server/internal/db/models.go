@@ -14,10 +14,10 @@ import (
 type GameStatus string
 
 const (
-	GameStatusLobby      GameStatus = "lobby"
-	GameStatusSubmitting GameStatus = "submitting"
-	GameStatusVoting     GameStatus = "voting"
-	GameStatusComplete   GameStatus = "complete"
+	GameStatusCreated  GameStatus = "created"
+	GameStatusLobby    GameStatus = "lobby"
+	GameStatusVoting   GameStatus = "voting"
+	GameStatusComplete GameStatus = "complete"
 )
 
 func (e *GameStatus) Scan(src interface{}) error {
@@ -56,9 +56,11 @@ func (ns NullGameStatus) Value() (driver.Value, error) {
 }
 
 type Game struct {
-	ID        int64            `json:"id"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	Status    GameStatus       `json:"status"`
+	ID          int64            `json:"id"`
+	Status      GameStatus       `json:"status"`
+	Name        string           `json:"name"`
+	Description pgtype.Text      `json:"description"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
 }
 
 type GamePlayer struct {

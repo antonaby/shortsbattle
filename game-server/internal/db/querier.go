@@ -12,7 +12,7 @@ import (
 
 type Querier interface {
 	AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error
-	CreateGame(ctx context.Context, status GameStatus) (Game, error)
+	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
 	CreatePlayer(ctx context.Context, username string) (Player, error)
 	CreateSubmission(ctx context.Context, arg CreateSubmissionParams) (Submission, error)
 	CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error)

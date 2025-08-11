@@ -1,6 +1,6 @@
 -- name: CreateGame :one
-INSERT INTO games (status)
-VALUES ($1)
+INSERT INTO games (status, name, description)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetGame :one

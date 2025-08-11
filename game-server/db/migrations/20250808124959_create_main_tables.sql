@@ -2,13 +2,15 @@
 -- +goose StatementBegin
 
 -- game_status enum
-CREATE TYPE game_status AS ENUM ('lobby', 'submitting', 'voting', 'complete');
+CREATE TYPE game_status AS ENUM ('created', 'lobby', 'voting', 'complete');
 
 -- games table
 CREATE TABLE games (
     id BIGSERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    status game_status NOT NULL
+    status game_status NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- players table
