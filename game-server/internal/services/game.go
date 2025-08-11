@@ -9,6 +9,29 @@ import (
 )
 
 
+type GameState struct {
+	ID int64
+	Players []db.Player
+	Submissions []db.Submission
+	Votes []db.Vote
+	Done chan struct{}
+	Ctx          context.Context
+	Cancel       context.CancelFunc
+}
+
+func NewGame(id int64) *GameState {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &GameState{
+		ID: id,
+		Done: make(chan struct{}),
+		Ctx: ctx,
+		Cancel: cancel,
+	}
+}
+
+
+
+
 type GameService struct {
 	txm db.TxManager
 }
