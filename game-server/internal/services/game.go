@@ -137,38 +137,39 @@ func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
 		state := NewGame(game, 8, 5)
 		g.games[game.ID] = state
 
-		go func() {
-			for upd := range state.StatusUpdate {
-				err := db.WithTx(context.Background(), g.txm, func(ctx context.Context, tx pgx.Tx) error {
-					q := g.txm.Querier(tx)
-					var status db.GameStatus
-					if upd.Error != nil {
-						status = db.GameStatusComplete
-					} else {
-						status = upd.Status
-					}
-
-					return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{
-						Status: status,
-						ID:     upd.GameID,
-					})
-				})
-
-				if err != nil || upd.Error != nil {
-					break 
-				}
-			}
-
-			g.mu.Lock()
-			defer g.mu.Unlock()
-
-			delete(g.games, state.Game.ID)
-		}()
-
+		go g.watchGame(state)
 		go state.Run()
 
 		return &game, nil
 	})
+}
+
+func (g *GameService) watchGame(state *GameState) {
+	for upd := range state.StatusUpdate {
+		err := db.WithTx(context.Background(), g.txm, func(ctx context.Context, tx pgx.Tx) error {
+			q := g.txm.Querier(tx)
+			var status db.GameStatus
+			if upd.Error != nil {
+				status = db.GameStatusComplete
+			} else {
+				status = upd.Status
+			}
+
+			return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{
+				Status: status,
+				ID:     upd.GameID,
+			})
+		})
+
+		if err != nil || upd.Error != nil {
+			break
+		}
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	delete(g.games, state.Game.ID)
 }
 
 func (g *GameService) GetGames(ctx context.Context) ([]db.Game, error) {
