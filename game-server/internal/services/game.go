@@ -13,13 +13,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type GameServiceErrorCode int
+
+const (
+	CodeUnknown GameServiceErrorCode = iota
+	CodeNotFound
+	CodeDbError
+	CodeTimeout
+	CodeGameComplete
+)
+
 type GameServiceError struct {
-	Code    int
+	Code    GameServiceErrorCode
 	Message string
+	Cause   error
 }
 
 func (e GameServiceError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
+	}
 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
+}
+
+func (e GameServiceError) Unwrap() error {
+	return e.Cause
 }
 
 type GameStatusUpdate struct {
@@ -44,9 +62,10 @@ type VoteSubmission struct {
 }
 
 type RoundConfig struct {
-	MinPlayers   int
-	MaxPlayers   int
-	LobbyTimeout time.Duration
+	MinPlayers       int
+	MaxPlayers       int
+	LobbyTimeout     time.Duration
+	AddPlayerTimeout time.Duration
 }
 
 type Round struct {
@@ -122,23 +141,27 @@ func (g *Round) LobbyStage() bool { // TODO: Add error
 }
 
 type GameService struct {
-	txm   db.TxManager
-	mu    sync.RWMutex
-	games map[int64]*Round
+	txm    db.TxManager
+	mu     sync.RWMutex
+	rounds map[int64]*Round
 }
 
 func NewGameService(txm db.TxManager) *GameService {
 	return &GameService{
-		txm:   txm,
-		games: make(map[int64]*Round),
+		txm:    txm,
+		rounds: make(map[int64]*Round),
 	}
 }
 
-func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (g *GameService) GetGames(ctx context.Context) ([]db.Game, error) {
+	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Game, error) {
+		q := g.txm.Querier(tx)
+		return q.GetAllGames(ctx)
+	})
+}
 
-	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
+	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
 		q := g.txm.Querier(tx)
 		params := db.CreateGameParams{
 			Status: db.GameStatusCreated,
@@ -149,21 +172,35 @@ func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
 		}
 		game, err := q.CreateGame(ctx, params)
 		if err != nil {
-			return nil, err
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "can't create game",
+				Cause:   err,
+			}
 		}
-
-		round := NewRound(game, RoundConfig{
-			MinPlayers: 5,
-			MaxPlayers: 8,
-			LobbyTimeout: 30 * time.Second,
-		})
-		g.games[game.ID] = round
-
-		go g.watchRound(round)
-		go round.Run()
 
 		return &game, nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	round := NewRound(*game, RoundConfig{
+		MinPlayers:       5,
+		MaxPlayers:       8,
+		LobbyTimeout:     30 * time.Second,
+		AddPlayerTimeout: 3 * time.Second,
+	})
+	g.rounds[game.ID] = round
+
+	go g.watchRound(round)
+	go round.Run()
+
+	return game, nil
 }
 
 func (g *GameService) watchRound(round *Round) {
@@ -180,7 +217,7 @@ func (g *GameService) watchRound(round *Round) {
 
 			return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{
 				Status: status,
-				ID:     upd.GameID,
+				ID:     upd.GameID, // TODO: add message with result
 			})
 		})
 
@@ -192,61 +229,88 @@ func (g *GameService) watchRound(round *Round) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	delete(g.games, round.Game.ID)
-}
-
-func (g *GameService) GetGames(ctx context.Context) ([]db.Game, error) {
-	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Game, error) {
-		q := g.txm.Querier(tx)
-		return q.GetAllGames(ctx)
-	})
+	delete(g.rounds, round.Game.ID)
 }
 
 func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
-	return db.WithTx(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) error {
+	round, ok := g.rounds[gameId]
+	if !ok {
+		return GameServiceError{
+			Code:    CodeNotFound,
+			Message: "round not found",
+		}
+	}
+
+	player, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
 		q := g.txm.Querier(tx)
-		err := q.AddPlayerToGame(ctx, db.AddPlayerToGameParams{
+		game, err := q.GetGame(ctx, gameId)
+		if err != nil {
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "db error fetching game",
+				Cause:   err,
+			}
+		}
+
+		if game.Status == db.GameStatusComplete {
+			return nil, GameServiceError{
+				Code:    CodeGameComplete,
+				Message: "game complete",
+			}
+		}
+
+		err = q.AddPlayerToGame(ctx, db.AddPlayerToGameParams{
 			GameID:   gameId,
 			PlayerID: playerId,
 		})
 
 		if err != nil {
-			return err
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "db error adding player",
+				Cause:   err,
+			}
 		}
 
 		player, err := q.GetPlayer(ctx, playerId)
 		if err != nil {
-			return err
-		}
-
-		game, ok := g.games[gameId]
-		if !ok {
-			return GameServiceError{
-				Code:    404,
-				Message: "Game Not Found",
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "db error fetching player",
+				Cause:   err,
 			}
 		}
 
-		timer := time.NewTimer(3 * time.Second) // TODO: set proper timeout
-		defer timer.Stop()
-
-		response := make(chan error, 1)
-		game.PlayerJoin <- PlayerJoinRequest{Player: player, Response: response}
-
-		select {
-		case err := <-response:
-			if err != nil {
-				return err
-			}
-		case <-timer.C:
-			return GameServiceError{
-				Code:    500,
-				Message: "Can't add a player",
-			}
-		}
-
-		return nil
+		return &player, nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	timer := time.NewTimer(round.Config.AddPlayerTimeout)
+	defer timer.Stop()
+
+	response := make(chan error, 1)
+	round.PlayerJoin <- PlayerJoinRequest{Player: *player, Response: response}
+
+	select {
+	case err := <-response:
+		if err != nil {
+			return GameServiceError{
+				Code:    CodeUnknown,
+				Message: "can't add player",
+				Cause:   err,
+			}
+		}
+	case <-timer.C:
+		return GameServiceError{
+			Code:    CodeTimeout,
+			Message: "can't add player",
+		}
+	}
+
+	return nil
 }
 
 func (g *GameService) GetPlayersInGame(ctx context.Context, gameId int64) ([]db.GetPlayersInGameRow, error) {
