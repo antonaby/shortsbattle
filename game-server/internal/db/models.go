@@ -76,16 +76,16 @@ type Player struct {
 
 type Video struct {
 	ID          int64            `json:"id"`
-	GameID      pgtype.Int8      `json:"game_id"`
-	PlayerID    pgtype.Int8      `json:"player_id"`
+	GameID      int64            `json:"game_id"`
+	PlayerID    int64            `json:"player_id"`
 	VideoUrl    string           `json:"video_url"`
 	SubmittedAt pgtype.Timestamp `json:"submitted_at"`
 }
 
 type Vote struct {
 	ID      int64            `json:"id"`
-	GameID  pgtype.Int8      `json:"game_id"`
-	VideoID pgtype.Int8      `json:"video_id"`
-	VoterID pgtype.Int8      `json:"voter_id"`
+	GameID  int64            `json:"game_id"`
+	VideoID int64            `json:"video_id"`
+	VoterID int64            `json:"voter_id"`
 	VotedAt pgtype.Timestamp `json:"voted_at"`
 }

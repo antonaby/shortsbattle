@@ -40,8 +40,12 @@ const deleteGame = `-- name: DeleteGame :exec
 DELETE FROM games WHERE id = $1
 `
 
-func (q *Queries) DeleteGame(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteGame, id)
+type DeleteGameParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteGame(ctx context.Context, arg DeleteGameParams) error {
+	_, err := q.db.Exec(ctx, deleteGame, arg.ID)
 	return err
 }
 
@@ -79,8 +83,12 @@ const getGame = `-- name: GetGame :one
 SELECT id, status, name, description, created_at FROM games WHERE id = $1
 `
 
-func (q *Queries) GetGame(ctx context.Context, id int64) (Game, error) {
-	row := q.db.QueryRow(ctx, getGame, id)
+type GetGameParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetGame(ctx context.Context, arg GetGameParams) (Game, error) {
+	row := q.db.QueryRow(ctx, getGame, arg.ID)
 	var i Game
 	err := row.Scan(
 		&i.ID,

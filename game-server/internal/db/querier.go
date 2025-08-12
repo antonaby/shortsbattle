@@ -6,27 +6,25 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
-	CreatePlayer(ctx context.Context, username string) (Player, error)
+	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error)
-	DeleteGame(ctx context.Context, id int64) error
+	DeleteGame(ctx context.Context, arg DeleteGameParams) error
 	GetAllGames(ctx context.Context) ([]Game, error)
 	GetAllPlayers(ctx context.Context) ([]Player, error)
-	GetGame(ctx context.Context, id int64) (Game, error)
-	GetPlayer(ctx context.Context, id int64) (Player, error)
-	GetPlayersInGame(ctx context.Context, gameID int64) ([]GetPlayersInGameRow, error)
-	GetVideosByGame(ctx context.Context, gameID pgtype.Int8) ([]Video, error)
+	GetGame(ctx context.Context, arg GetGameParams) (Game, error)
+	GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error)
+	GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]GetPlayersInGameRow, error)
+	GetVideosByGame(ctx context.Context, arg GetVideosByGameParams) ([]Video, error)
 	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error)
-	GetVoteCountsByVideo(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsByVideoRow, error)
-	GetVotesByGame(ctx context.Context, gameID pgtype.Int8) ([]Vote, error)
-	GetWinningVideo(ctx context.Context, gameID pgtype.Int8) (GetWinningVideoRow, error)
+	GetVoteCountsByVideo(ctx context.Context, arg GetVoteCountsByVideoParams) ([]GetVoteCountsByVideoRow, error)
+	GetVotesByGame(ctx context.Context, arg GetVotesByGameParams) ([]Vote, error)
+	GetWinningVideo(ctx context.Context, arg GetWinningVideoParams) (GetWinningVideoRow, error)
 	HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error)
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error

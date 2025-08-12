@@ -7,30 +7,22 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createVideo = `-- name: CreateVideo :one
-INSERT INTO videos (game_id, player_id, video_url, submitted_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO videos (game_id, player_id, video_url)
+VALUES ($1, $2, $3)
 RETURNING id, game_id, player_id, video_url, submitted_at
 `
 
 type CreateVideoParams struct {
-	GameID      pgtype.Int8      `json:"game_id"`
-	PlayerID    pgtype.Int8      `json:"player_id"`
-	VideoUrl    string           `json:"video_url"`
-	SubmittedAt pgtype.Timestamp `json:"submitted_at"`
+	GameID   int64  `json:"game_id"`
+	PlayerID int64  `json:"player_id"`
+	VideoUrl string `json:"video_url"`
 }
 
 func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo,
-		arg.GameID,
-		arg.PlayerID,
-		arg.VideoUrl,
-		arg.SubmittedAt,
-	)
+	row := q.db.QueryRow(ctx, createVideo, arg.GameID, arg.PlayerID, arg.VideoUrl)
 	var i Video
 	err := row.Scan(
 		&i.ID,
@@ -48,8 +40,12 @@ FROM videos
 WHERE game_id = $1
 `
 
-func (q *Queries) GetVideosByGame(ctx context.Context, gameID pgtype.Int8) ([]Video, error) {
-	rows, err := q.db.Query(ctx, getVideosByGame, gameID)
+type GetVideosByGameParams struct {
+	GameID int64 `json:"game_id"`
+}
+
+func (q *Queries) GetVideosByGame(ctx context.Context, arg GetVideosByGameParams) ([]Video, error) {
+	rows, err := q.db.Query(ctx, getVideosByGame, arg.GameID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +77,8 @@ WHERE game_id = $1 AND player_id = $2
 `
 
 type GetVideosByPlayerParams struct {
-	GameID   pgtype.Int8 `json:"game_id"`
-	PlayerID pgtype.Int8 `json:"player_id"`
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
 }
 
 func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error) {

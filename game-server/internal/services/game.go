@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -243,7 +242,7 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 
 	player, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
 		q := g.txm.Querier(tx)
-		game, err := q.GetGame(ctx, gameId)
+		game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
 		if err != nil {
 			return nil, GameServiceError{
 				Code:    CodeDbError,
@@ -272,7 +271,7 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 			}
 		}
 
-		player, err := q.GetPlayer(ctx, playerId)
+		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: playerId})
 		if err != nil {
 			return nil, GameServiceError{
 				Code:    CodeDbError,
@@ -313,17 +312,75 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 	return nil
 }
 
+func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
+	video, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
+		q := g.txm.Querier(tx)
+		ok, err := q.IsPlayerInGame(ctx, db.IsPlayerInGameParams{
+			GameID:   params.GameID,
+			PlayerID: params.PlayerID,
+		})
+
+		if err != nil {
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "can't find player in game",
+				Cause:   err,
+			}
+		}
+
+		if !ok {
+			return nil, GameServiceError{
+				Code:    CodeNotFound,
+				Message: "player not in game",
+			}
+		}
+
+		game, err := q.GetGame(ctx, db.GetGameParams{ID: params.GameID})
+		if err != nil {
+			return nil, GameServiceError{
+				Code: CodeDbError,
+				Message: "can't fetch game",
+				Cause: err,
+			}
+		}
+
+		if game.Status != db.GameStatusLobby {
+			return nil, GameServiceError{
+				Code: CodeGameComplete,
+				Message: "game completed or not started",
+			}
+		}
+
+		video, err := q.CreateVideo(ctx, params)
+		if err != nil {
+			return nil, GameServiceError{
+				Code:    CodeDbError,
+				Message: "can't create video",
+				Cause:   err,
+			}
+		}
+
+		return &video, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return video, nil
+}
+
 func (g *GameService) GetPlayersInGame(ctx context.Context, gameId int64) ([]db.GetPlayersInGameRow, error) {
 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.GetPlayersInGameRow, error) {
 		q := g.txm.Querier(tx)
-		return q.GetPlayersInGame(ctx, gameId)
+		return q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: gameId})
 	})
 }
 
-func (g *GameService) CreatePlayer(ctx context.Context, params models.CreatePlayerRequest) (db.Player, error) {
+func (g *GameService) CreatePlayer(ctx context.Context, params db.CreatePlayerParams) (db.Player, error) {
 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
 		q := g.txm.Querier(tx)
-		return q.CreatePlayer(ctx, params.Username)
+		return q.CreatePlayer(ctx, params)
 	})
 }
 
@@ -332,7 +389,7 @@ func (g *GameService) GetPlayer(ctx context.Context, id int64) (db.Player, error
 		ctx, g.txm,
 		func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
 			q := g.txm.Querier(tx)
-			return q.GetPlayer(ctx, id)
+			return q.GetPlayer(ctx, db.GetPlayerParams{ID: id})
 		})
 
 	if err != nil {

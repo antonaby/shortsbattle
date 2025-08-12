@@ -32,13 +32,17 @@ JOIN game_players gp ON p.id = gp.player_id
 WHERE gp.game_id = $1
 `
 
+type GetPlayersInGameParams struct {
+	GameID int64 `json:"game_id"`
+}
+
 type GetPlayersInGameRow struct {
 	ID       int64  `json:"id"`
 	Username string `json:"username"`
 }
 
-func (q *Queries) GetPlayersInGame(ctx context.Context, gameID int64) ([]GetPlayersInGameRow, error) {
-	rows, err := q.db.Query(ctx, getPlayersInGame, gameID)
+func (q *Queries) GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]GetPlayersInGameRow, error) {
+	rows, err := q.db.Query(ctx, getPlayersInGame, arg.GameID)
 	if err != nil {
 		return nil, err
 	}

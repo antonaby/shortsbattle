@@ -18,9 +18,9 @@ RETURNING id, game_id, video_id, voter_id, voted_at
 `
 
 type CreateVoteParams struct {
-	GameID  pgtype.Int8      `json:"game_id"`
-	VideoID pgtype.Int8      `json:"video_id"`
-	VoterID pgtype.Int8      `json:"voter_id"`
+	GameID  int64            `json:"game_id"`
+	VideoID int64            `json:"video_id"`
+	VoterID int64            `json:"voter_id"`
 	VotedAt pgtype.Timestamp `json:"voted_at"`
 }
 
@@ -49,13 +49,17 @@ WHERE game_id = $1
 GROUP BY video_id
 `
 
-type GetVoteCountsByVideoRow struct {
-	VideoID   pgtype.Int8 `json:"video_id"`
-	VoteCount int64       `json:"vote_count"`
+type GetVoteCountsByVideoParams struct {
+	GameID int64 `json:"game_id"`
 }
 
-func (q *Queries) GetVoteCountsByVideo(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsByVideoRow, error) {
-	rows, err := q.db.Query(ctx, getVoteCountsByVideo, gameID)
+type GetVoteCountsByVideoRow struct {
+	VideoID   int64 `json:"video_id"`
+	VoteCount int64 `json:"vote_count"`
+}
+
+func (q *Queries) GetVoteCountsByVideo(ctx context.Context, arg GetVoteCountsByVideoParams) ([]GetVoteCountsByVideoRow, error) {
+	rows, err := q.db.Query(ctx, getVoteCountsByVideo, arg.GameID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +84,12 @@ FROM votes
 WHERE game_id = $1
 `
 
-func (q *Queries) GetVotesByGame(ctx context.Context, gameID pgtype.Int8) ([]Vote, error) {
-	rows, err := q.db.Query(ctx, getVotesByGame, gameID)
+type GetVotesByGameParams struct {
+	GameID int64 `json:"game_id"`
+}
+
+func (q *Queries) GetVotesByGame(ctx context.Context, arg GetVotesByGameParams) ([]Vote, error) {
+	rows, err := q.db.Query(ctx, getVotesByGame, arg.GameID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,13 +123,17 @@ ORDER BY vote_count DESC
 LIMIT 1
 `
 
-type GetWinningVideoRow struct {
-	VideoID   pgtype.Int8 `json:"video_id"`
-	VoteCount int64       `json:"vote_count"`
+type GetWinningVideoParams struct {
+	GameID int64 `json:"game_id"`
 }
 
-func (q *Queries) GetWinningVideo(ctx context.Context, gameID pgtype.Int8) (GetWinningVideoRow, error) {
-	row := q.db.QueryRow(ctx, getWinningVideo, gameID)
+type GetWinningVideoRow struct {
+	VideoID   int64 `json:"video_id"`
+	VoteCount int64 `json:"vote_count"`
+}
+
+func (q *Queries) GetWinningVideo(ctx context.Context, arg GetWinningVideoParams) (GetWinningVideoRow, error) {
+	row := q.db.QueryRow(ctx, getWinningVideo, arg.GameID)
 	var i GetWinningVideoRow
 	err := row.Scan(&i.VideoID, &i.VoteCount)
 	return i, err
@@ -135,8 +147,8 @@ SELECT EXISTS (
 `
 
 type HasPlayerVotedParams struct {
-	GameID  pgtype.Int8 `json:"game_id"`
-	VoterID pgtype.Int8 `json:"voter_id"`
+	GameID  int64 `json:"game_id"`
+	VoterID int64 `json:"voter_id"`
 }
 
 func (q *Queries) HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error) {

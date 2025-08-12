@@ -13,7 +13,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-
 type GameApi struct {
 	gs *services.GameService
 }
@@ -26,13 +25,15 @@ func NewGameApi(gs *services.GameService) *GameApi {
 
 func (api *GameApi) Register(g *echo.Group) {
 	v1group := g.Group("/v1")
-	
+
 	v1group.GET("/games", api.GetGames)
 	v1group.POST("/games", api.CreateGame)
 	v1group.PUT("/games/:gameId/players", api.AddPlayerToGame)
 
 	v1group.GET("/players/:id", api.GetPlayer)
 	v1group.POST("/players", api.CreatePlayer)
+
+	v1group.POST("/videos", api.SubmitVideo)
 }
 
 func (api *GameApi) CreateGame(c echo.Context) error {
@@ -66,13 +67,13 @@ func (api *GameApi) GetGames(c echo.Context) error {
 }
 
 func (api *GameApi) CreatePlayer(c echo.Context) error {
-	request := new(m.CreatePlayerRequest)
+	request := new(db.CreatePlayerParams)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: err.Error(),
 		})
 	}
-	
+
 	ctx := c.Request().Context()
 	player, err := api.gs.CreatePlayer(ctx, *request)
 	if err != nil {
@@ -86,7 +87,7 @@ func (api *GameApi) CreatePlayer(c echo.Context) error {
 }
 
 func (api *GameApi) GetPlayer(c echo.Context) error {
-	playerId, err := parseInt64(c.Param("id")) 
+	playerId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: err.Error(),
@@ -132,12 +133,11 @@ func (api *GameApi) AddPlayerToGame(c echo.Context) error {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23503" { // foreign_key_violation
-					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 					Error: "Player Or Game not found",
 				})
 			}
 		}
-
 
 		c.Echo().Logger.Errorf("failed to get player: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
@@ -150,8 +150,47 @@ func (api *GameApi) AddPlayerToGame(c echo.Context) error {
 	})
 }
 
+func (api *GameApi) SubmitVideo(c echo.Context) error {
+	request := new(db.CreateVideoParams)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
+	ctx := c.Request().Context()
+	video, err := api.gs.SubmitVideo(ctx, *request)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to submit video: %v", err)
+
+		var gErr services.GameServiceError
+		if errors.As(err, &gErr) {
+			switch gErr.Code {
+			case services.CodeDbError:
+				return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+					Error: "Something went wrong",
+				})
+			case services.CodeGameComplete:
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "Game complete",
+				})
+			case services.CodeNotFound:
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "Player is not in the game",
+				})
+			}
+		}
+
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, video)
+}
+
 func parseInt64(str string) (int64, error) {
-	value, err := strconv.ParseInt(str, 10, 64) 
+	value, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0, err
 	}

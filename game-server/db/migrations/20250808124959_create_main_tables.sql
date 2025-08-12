@@ -22,16 +22,16 @@ CREATE TABLE players (
 
 -- game_players table (many-to-many between games and players)
 CREATE TABLE game_players (
-    game_id BIGINT REFERENCES games(id) ON DELETE CASCADE,
-    player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
+    game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     PRIMARY KEY (game_id, player_id)
 );
 
 -- videos table
 CREATE TABLE videos (
     id BIGSERIAL PRIMARY KEY,
-    game_id BIGINT REFERENCES games(id) ON DELETE CASCADE,
-    player_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
+    game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    player_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     video_url TEXT NOT NULL,
     submitted_at TIMESTAMP NOT NULL DEFAULT now()
 );
@@ -39,9 +39,9 @@ CREATE TABLE videos (
 -- votes table
 CREATE TABLE votes (
     id BIGSERIAL PRIMARY KEY,
-    game_id BIGINT REFERENCES games(id) ON DELETE CASCADE,
-    video_id BIGINT REFERENCES videos(id) ON DELETE CASCADE,
-    voter_id BIGINT REFERENCES players(id) ON DELETE CASCADE,
+    game_id BIGINT NOT NULL REFERENCES games(id)  ON DELETE CASCADE,
+    video_id BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    voter_id BIGINT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     voted_at TIMESTAMP NOT NULL DEFAULT now()
 );
 -- +goose StatementEnd

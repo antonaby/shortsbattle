@@ -15,8 +15,12 @@ VALUES ($1)
 RETURNING id, username, created_at
 `
 
-func (q *Queries) CreatePlayer(ctx context.Context, username string) (Player, error) {
-	row := q.db.QueryRow(ctx, createPlayer, username)
+type CreatePlayerParams struct {
+	Username string `json:"username"`
+}
+
+func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error) {
+	row := q.db.QueryRow(ctx, createPlayer, arg.Username)
 	var i Player
 	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
 	return i, err
@@ -50,8 +54,12 @@ const getPlayer = `-- name: GetPlayer :one
 SELECT id, username, created_at FROM players WHERE id = $1
 `
 
-func (q *Queries) GetPlayer(ctx context.Context, id int64) (Player, error) {
-	row := q.db.QueryRow(ctx, getPlayer, id)
+type GetPlayerParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error) {
+	row := q.db.QueryRow(ctx, getPlayer, arg.ID)
 	var i Player
 	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
 	return i, err

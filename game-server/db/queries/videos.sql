@@ -1,6 +1,6 @@
 -- name: CreateVideo :one
-INSERT INTO videos (game_id, player_id, video_url, submitted_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO videos (game_id, player_id, video_url)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetVideosByGame :many
