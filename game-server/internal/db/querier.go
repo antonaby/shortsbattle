@@ -12,14 +12,17 @@ type Querier interface {
 	AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
+	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error)
 	DeleteGame(ctx context.Context, arg DeleteGameParams) error
+	DeleteTheme(ctx context.Context, arg DeleteThemeParams) error
 	GetAllGames(ctx context.Context) ([]Game, error)
 	GetAllPlayers(ctx context.Context) ([]Player, error)
 	GetGame(ctx context.Context, arg GetGameParams) (Game, error)
 	GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error)
 	GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]GetPlayersInGameRow, error)
+	GetThemeByID(ctx context.Context, arg GetThemeByIDParams) (Theme, error)
 	GetVideosByGame(ctx context.Context, arg GetVideosByGameParams) ([]Video, error)
 	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error)
 	GetVoteCountsByVideo(ctx context.Context, arg GetVoteCountsByVideoParams) ([]GetVoteCountsByVideoRow, error)
@@ -27,7 +30,10 @@ type Querier interface {
 	GetWinningVideo(ctx context.Context, arg GetWinningVideoParams) (GetWinningVideoRow, error)
 	HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error)
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
+	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
+	SearchThemesByName(ctx context.Context, arg SearchThemesByNameParams) ([]Theme, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error
+	UpdateTheme(ctx context.Context, arg UpdateThemeParams) (Theme, error)
 }
 
 var _ Querier = (*Queries)(nil)

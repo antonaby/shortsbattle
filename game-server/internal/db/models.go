@@ -56,11 +56,10 @@ func (ns NullGameStatus) Value() (driver.Value, error) {
 }
 
 type Game struct {
-	ID          int64            `json:"id"`
-	Status      GameStatus       `json:"status"`
-	Name        string           `json:"name"`
-	Description pgtype.Text      `json:"description"`
-	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	ID        int64            `json:"id"`
+	ThemeID   int64            `json:"theme_id"`
+	Status    GameStatus       `json:"status"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type GamePlayer struct {
@@ -72,6 +71,13 @@ type Player struct {
 	ID        int64            `json:"id"`
 	Username  string           `json:"username"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+type Theme struct {
+	ID          int64            `json:"id"`
+	Name        string           `json:"name"`
+	Description pgtype.Text      `json:"description"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
 }
 
 type Video struct {

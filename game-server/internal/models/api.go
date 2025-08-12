@@ -11,3 +11,7 @@ type ErrorResponse struct {
 type AddPlayerToGame struct {
 	PlayerId int64 `json:"player_id" validate:"required"`
 }
+
+type CreateGame struct {
+	ThemeId int64 `json:"theme_id" validate:"required"`
+}

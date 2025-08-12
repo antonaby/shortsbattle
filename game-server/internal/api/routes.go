@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -38,8 +39,15 @@ func (api *GameApi) Register(g *echo.Group) {
 }
 
 func (api *GameApi) CreateGame(c echo.Context) error {
+	request := new(models.CreateGame)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
 	ctx := c.Request().Context()
-	game, err := api.gs.CreateGame(ctx)
+	game, err := api.gs.CreateGame(ctx, request.ThemeId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create game: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{

@@ -7,30 +7,26 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createGame = `-- name: CreateGame :one
-INSERT INTO games (status, name, description)
-VALUES ($1, $2, $3)
-RETURNING id, status, name, description, created_at
+INSERT INTO games (theme_id, status)
+VALUES ($1, $2)
+RETURNING id, theme_id, status, created_at
 `
 
 type CreateGameParams struct {
-	Status      GameStatus  `json:"status"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
+	ThemeID int64      `json:"theme_id"`
+	Status  GameStatus `json:"status"`
 }
 
 func (q *Queries) CreateGame(ctx context.Context, arg CreateGameParams) (Game, error) {
-	row := q.db.QueryRow(ctx, createGame, arg.Status, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createGame, arg.ThemeID, arg.Status)
 	var i Game
 	err := row.Scan(
 		&i.ID,
+		&i.ThemeID,
 		&i.Status,
-		&i.Name,
-		&i.Description,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -50,7 +46,7 @@ func (q *Queries) DeleteGame(ctx context.Context, arg DeleteGameParams) error {
 }
 
 const getAllGames = `-- name: GetAllGames :many
-SELECT id, status, name, description, created_at FROM games ORDER BY created_at DESC
+SELECT id, theme_id, status, created_at FROM games ORDER BY created_at DESC
 `
 
 func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
@@ -64,9 +60,8 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 		var i Game
 		if err := rows.Scan(
 			&i.ID,
+			&i.ThemeID,
 			&i.Status,
-			&i.Name,
-			&i.Description,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -80,7 +75,7 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 }
 
 const getGame = `-- name: GetGame :one
-SELECT id, status, name, description, created_at FROM games WHERE id = $1
+SELECT id, theme_id, status, created_at FROM games WHERE id = $1
 `
 
 type GetGameParams struct {
@@ -92,9 +87,8 @@ func (q *Queries) GetGame(ctx context.Context, arg GetGameParams) (Game, error) 
 	var i Game
 	err := row.Scan(
 		&i.ID,
+		&i.ThemeID,
 		&i.Status,
-		&i.Name,
-		&i.Description,
 		&i.CreatedAt,
 	)
 	return i, err

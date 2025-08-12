@@ -1,15 +1,22 @@
 -- +goose Up
 -- +goose StatementBegin
 
+-- games table
+CREATE TABLE themes (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
 -- game_status enum
 CREATE TYPE game_status AS ENUM ('created', 'lobby', 'voting', 'complete');
 
 -- games table
 CREATE TABLE games (
     id BIGSERIAL PRIMARY KEY,
+    theme_id BIGINT NOT NULL REFERENCES themes(id) ON DELETE CASCADE,
     status game_status NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
