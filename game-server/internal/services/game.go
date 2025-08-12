@@ -19,7 +19,7 @@ const (
 	CodeNotFound
 	CodeDbError
 	CodeTimeout
-	CodeGameComplete
+	CodeWrongGameStatus
 )
 
 type GameServiceError struct {
@@ -198,6 +198,10 @@ func (r *Round) VotingStage() error {
 			return RoundError{
 				Code: CodeRoundCanceled,
 			}
+		case v := <-r.VoteSubmission:
+			r.Votes = append(r.Votes, v.Vote)
+			v.Response <- nil
+			close(v.Response)
 		case <-timer.C:
 			return nil
 		}
@@ -318,7 +322,7 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 
 		if game.Status != db.GameStatusLobby {
 			return nil, GameServiceError{
-				Code:    CodeGameComplete,
+				Code:    CodeWrongGameStatus,
 				Message: "game complete",
 			}
 		}
@@ -407,7 +411,7 @@ func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 	return video, nil
 }
 
-func (g *GameService) SubmiteVote(ctx context.Context, params db.CreateVoteParams) (*db.Vote, error) {
+func (g *GameService) SubmitVote(ctx context.Context, params db.CreateVoteParams) (*db.Vote, error) {
 	round, err := g.getRound(params.GameID)
 	if err != nil {
 		return nil, err
@@ -495,7 +499,7 @@ func (g *GameService) checkPlayerInGameAndGameStatus(ctx context.Context, gameId
 
 	if game.Status != status {
 		return GameServiceError{
-			Code:    CodeGameComplete,
+			Code:    CodeWrongGameStatus,
 			Message: "game completed or not started",
 		}
 	}

@@ -1,6 +1,6 @@
 -- name: CreateVote :one
-INSERT INTO votes (game_id, video_id, voter_id, voted_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO votes (game_id, video_id, voter_id)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetVotesByGame :many

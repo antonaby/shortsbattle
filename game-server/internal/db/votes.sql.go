@@ -7,30 +7,22 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createVote = `-- name: CreateVote :one
-INSERT INTO votes (game_id, video_id, voter_id, voted_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO votes (game_id, video_id, voter_id)
+VALUES ($1, $2, $3)
 RETURNING id, game_id, video_id, voter_id, voted_at
 `
 
 type CreateVoteParams struct {
-	GameID  int64            `json:"game_id"`
-	VideoID int64            `json:"video_id"`
-	VoterID int64            `json:"voter_id"`
-	VotedAt pgtype.Timestamp `json:"voted_at"`
+	GameID  int64 `json:"game_id"`
+	VideoID int64 `json:"video_id"`
+	VoterID int64 `json:"voter_id"`
 }
 
 func (q *Queries) CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error) {
-	row := q.db.QueryRow(ctx, createVote,
-		arg.GameID,
-		arg.VideoID,
-		arg.VoterID,
-		arg.VotedAt,
-	)
+	row := q.db.QueryRow(ctx, createVote, arg.GameID, arg.VideoID, arg.VoterID)
 	var i Vote
 	err := row.Scan(
 		&i.ID,

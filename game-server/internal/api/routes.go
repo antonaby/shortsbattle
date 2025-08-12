@@ -34,6 +34,7 @@ func (api *GameApi) Register(g *echo.Group) {
 	v1group.POST("/players", api.CreatePlayer)
 
 	v1group.POST("/videos", api.SubmitVideo)
+	v1group.POST("/votes", api.SubmitVote)
 }
 
 func (api *GameApi) CreateGame(c echo.Context) error {
@@ -162,31 +163,52 @@ func (api *GameApi) SubmitVideo(c echo.Context) error {
 	video, err := api.gs.SubmitVideo(ctx, *request)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
-
-		var gErr services.GameServiceError
-		if errors.As(err, &gErr) {
-			switch gErr.Code {
-			case services.CodeDbError:
-				return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-					Error: "Something went wrong",
-				})
-			case services.CodeGameComplete:
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-					Error: "Game complete",
-				})
-			case services.CodeNotFound:
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-					Error: "Player is not in the game",
-				})
-			}
-		}
-
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
+		return getErrorResponse(c, err)
 	}
 
 	return c.JSON(http.StatusOK, video)
+}
+
+func (api *GameApi) SubmitVote(c echo.Context) error {
+	request := new(db.CreateVoteParams)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
+	ctx := c.Request().Context()
+	vote, err := api.gs.SubmitVote(ctx, *request)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to submit vote: %v", err)
+		return getErrorResponse(c, err)
+	}
+
+	return c.JSON(http.StatusOK, vote)
+}
+
+func getErrorResponse(c echo.Context, err error) error {
+	var gErr services.GameServiceError
+	if errors.As(err, &gErr) {
+		switch gErr.Code {
+		case services.CodeDbError:
+			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+				Error: "Something went wrong",
+			})
+		case services.CodeWrongGameStatus:
+			return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				Error: "Wrong Game Status",
+			})
+		case services.CodeNotFound:
+			return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				Error: "Player is not in the game",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+		Error: "Something went wrong",
+	})
 }
 
 func parseInt64(str string) (int64, error) {
