@@ -300,12 +300,9 @@ func (g *GameService) watchRound(round *Round) {
 }
 
 func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
-	round, ok := g.rounds[gameId]
-	if !ok {
-		return GameServiceError{
-			Code:    CodeNotFound,
-			Message: "round not found",
-		}
+	round, err := g.getRound(gameId)
+	if err != nil {
+		return err
 	}
 
 	player, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
@@ -319,7 +316,7 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 			}
 		}
 
-		if game.Status == db.GameStatusComplete {
+		if game.Status != db.GameStatusLobby {
 			return nil, GameServiceError{
 				Code:    CodeGameComplete,
 				Message: "game complete",
@@ -355,38 +352,21 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 		return err
 	}
 
-	timer := time.NewTimer(round.Config.AddPlayerTimeout)
-	defer timer.Stop()
+	err = g.submitWithTimeout(
+		round.Config.AddPlayerTimeout,
+		func(response chan error) {
+			round.PlayerJoin <- PlayerJoinRequest{Player: *player, Response: response}
+		},
+		"can't add player",
+	)
 
-	response := make(chan error, 1)
-	round.PlayerJoin <- PlayerJoinRequest{Player: *player, Response: response}
-
-	select {
-	case err := <-response:
-		if err != nil {
-			return GameServiceError{
-				Code:    CodeUnknown,
-				Message: "can't add player",
-				Cause:   err,
-			}
-		}
-	case <-timer.C:
-		return GameServiceError{
-			Code:    CodeTimeout,
-			Message: "can't add player",
-		}
-	}
-
-	return nil
+	return err
 }
 
 func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
-	round, ok := g.rounds[params.GameID]
-	if !ok {
-		return nil, GameServiceError{
-			Code:    CodeNotFound,
-			Message: "round not found",
-		}
+	round, err := g.getRound(params.GameID)
+	if err != nil {
+		return nil, err
 	}
 
 	video, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
@@ -412,38 +392,25 @@ func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 		return nil, err
 	}
 
-	timer := time.NewTimer(round.Config.AddVideoTimeout)
-	defer timer.Stop()
+	err = g.submitWithTimeout(
+		round.Config.AddVideoTimeout,
+		func(response chan error) {
+			round.VideoSubmission <- VideoSubmission{Video: *video, Response: response}
+		},
+		"can't add video",
+	)
 
-	response := make(chan error, 1)
-	round.VideoSubmission <- VideoSubmission{Video: *video, Response: response}
-
-	select {
-	case err := <-response:
-		if err != nil {
-			return nil, GameServiceError{
-				Code:    CodeUnknown,
-				Message: "can't add video",
-				Cause:   err,
-			}
-		}
-	case <-timer.C:
-		return nil, GameServiceError{
-			Code:    CodeTimeout,
-			Message: "can't add video",
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	return video, nil
 }
 
 func (g *GameService) SubmiteVote(ctx context.Context, params db.CreateVoteParams) (*db.Vote, error) {
-	round, ok := g.rounds[params.GameID]
-	if !ok {
-		return nil, GameServiceError{
-			Code:    CodeNotFound,
-			Message: "round not found",
-		}
+	round, err := g.getRound(params.GameID)
+	if err != nil {
+		return nil, err
 	}
 
 	vote, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Vote, error) {
@@ -469,29 +436,31 @@ func (g *GameService) SubmiteVote(ctx context.Context, params db.CreateVoteParam
 		return nil, err
 	}
 
-	timer := time.NewTimer(round.Config.AddVideoTimeout)
-	defer timer.Stop()
+	err = g.submitWithTimeout(
+		round.Config.AddVoteTimeout,
+		func(response chan error) {
+			round.VoteSubmission <- VoteSubmission{Vote: *vote, Response: response}
+		},
+		"can't add vote",
+	)
 
-	response := make(chan error, 1)
-	round.VoteSubmission <- VoteSubmission{Vote: *vote, Response: response}
-
-	select {
-	case err := <-response:
-		if err != nil {
-			return nil, GameServiceError{
-				Code:    CodeUnknown,
-				Message: "can't add vote",
-				Cause:   err,
-			}
-		}
-	case <-timer.C:
-		return nil, GameServiceError{
-			Code:    CodeTimeout,
-			Message: "can't add vote",
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	return vote, nil
+}
+
+func (g *GameService) getRound(gameId int64) (*Round, error) {
+	round, ok := g.rounds[gameId]
+	if !ok {
+		return nil, GameServiceError{
+			Code:    CodeNotFound,
+			Message: "round not found",
+		}
+	}
+
+	return round, nil
 }
 
 func (g *GameService) checkPlayerInGameAndGameStatus(ctx context.Context, gameId int64, playerId int64, status db.GameStatus, q db.Querier) error {
@@ -534,7 +503,30 @@ func (g *GameService) checkPlayerInGameAndGameStatus(ctx context.Context, gameId
 	return nil
 }
 
+func (g *GameService) submitWithTimeout(timeout time.Duration, sendFunc func(response chan error), errMsg string) error {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
+	response := make(chan error, 1)
+	sendFunc(response)
+
+	select {
+	case err := <-response:
+		if err != nil {
+			return GameServiceError{
+				Code:    CodeUnknown,
+				Message: errMsg,
+				Cause:   err,
+			}
+		}
+		return nil
+	case <-timer.C:
+		return GameServiceError{
+			Code:    CodeTimeout,
+			Message: errMsg,
+		}
+	}
+}
 
 func (g *GameService) GetPlayersInGame(ctx context.Context, gameId int64) ([]db.GetPlayersInGameRow, error) {
 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.GetPlayersInGameRow, error) {
