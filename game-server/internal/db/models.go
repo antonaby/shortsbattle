@@ -74,7 +74,7 @@ type Player struct {
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
-type Submission struct {
+type Video struct {
 	ID          int64            `json:"id"`
 	GameID      pgtype.Int8      `json:"game_id"`
 	PlayerID    pgtype.Int8      `json:"player_id"`
@@ -83,9 +83,9 @@ type Submission struct {
 }
 
 type Vote struct {
-	ID           int64            `json:"id"`
-	GameID       pgtype.Int8      `json:"game_id"`
-	SubmissionID pgtype.Int8      `json:"submission_id"`
-	VoterID      pgtype.Int8      `json:"voter_id"`
-	VotedAt      pgtype.Timestamp `json:"voted_at"`
+	ID      int64            `json:"id"`
+	GameID  pgtype.Int8      `json:"game_id"`
+	VideoID pgtype.Int8      `json:"video_id"`
+	VoterID pgtype.Int8      `json:"voter_id"`
+	VotedAt pgtype.Timestamp `json:"voted_at"`
 }

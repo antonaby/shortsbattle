@@ -12,22 +12,22 @@ import (
 )
 
 const createVote = `-- name: CreateVote :one
-INSERT INTO votes (game_id, submission_id, voter_id, voted_at)
+INSERT INTO votes (game_id, video_id, voter_id, voted_at)
 VALUES ($1, $2, $3, $4)
-RETURNING id, game_id, submission_id, voter_id, voted_at
+RETURNING id, game_id, video_id, voter_id, voted_at
 `
 
 type CreateVoteParams struct {
-	GameID       pgtype.Int8      `json:"game_id"`
-	SubmissionID pgtype.Int8      `json:"submission_id"`
-	VoterID      pgtype.Int8      `json:"voter_id"`
-	VotedAt      pgtype.Timestamp `json:"voted_at"`
+	GameID  pgtype.Int8      `json:"game_id"`
+	VideoID pgtype.Int8      `json:"video_id"`
+	VoterID pgtype.Int8      `json:"voter_id"`
+	VotedAt pgtype.Timestamp `json:"voted_at"`
 }
 
 func (q *Queries) CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error) {
 	row := q.db.QueryRow(ctx, createVote,
 		arg.GameID,
-		arg.SubmissionID,
+		arg.VideoID,
 		arg.VoterID,
 		arg.VotedAt,
 	)
@@ -35,35 +35,35 @@ func (q *Queries) CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, e
 	err := row.Scan(
 		&i.ID,
 		&i.GameID,
-		&i.SubmissionID,
+		&i.VideoID,
 		&i.VoterID,
 		&i.VotedAt,
 	)
 	return i, err
 }
 
-const getVoteCountsBySubmission = `-- name: GetVoteCountsBySubmission :many
-SELECT submission_id, COUNT(*) AS vote_count
+const getVoteCountsByVideo = `-- name: GetVoteCountsByVideo :many
+SELECT video_id, COUNT(*) AS vote_count
 FROM votes
 WHERE game_id = $1
-GROUP BY submission_id
+GROUP BY video_id
 `
 
-type GetVoteCountsBySubmissionRow struct {
-	SubmissionID pgtype.Int8 `json:"submission_id"`
-	VoteCount    int64       `json:"vote_count"`
+type GetVoteCountsByVideoRow struct {
+	VideoID   pgtype.Int8 `json:"video_id"`
+	VoteCount int64       `json:"vote_count"`
 }
 
-func (q *Queries) GetVoteCountsBySubmission(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsBySubmissionRow, error) {
-	rows, err := q.db.Query(ctx, getVoteCountsBySubmission, gameID)
+func (q *Queries) GetVoteCountsByVideo(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsByVideoRow, error) {
+	rows, err := q.db.Query(ctx, getVoteCountsByVideo, gameID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetVoteCountsBySubmissionRow
+	var items []GetVoteCountsByVideoRow
 	for rows.Next() {
-		var i GetVoteCountsBySubmissionRow
-		if err := rows.Scan(&i.SubmissionID, &i.VoteCount); err != nil {
+		var i GetVoteCountsByVideoRow
+		if err := rows.Scan(&i.VideoID, &i.VoteCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -75,7 +75,7 @@ func (q *Queries) GetVoteCountsBySubmission(ctx context.Context, gameID pgtype.I
 }
 
 const getVotesByGame = `-- name: GetVotesByGame :many
-SELECT id, game_id, submission_id, voter_id, voted_at
+SELECT id, game_id, video_id, voter_id, voted_at
 FROM votes
 WHERE game_id = $1
 `
@@ -92,7 +92,7 @@ func (q *Queries) GetVotesByGame(ctx context.Context, gameID pgtype.Int8) ([]Vot
 		if err := rows.Scan(
 			&i.ID,
 			&i.GameID,
-			&i.SubmissionID,
+			&i.VideoID,
 			&i.VoterID,
 			&i.VotedAt,
 		); err != nil {
@@ -106,24 +106,24 @@ func (q *Queries) GetVotesByGame(ctx context.Context, gameID pgtype.Int8) ([]Vot
 	return items, nil
 }
 
-const getWinningSubmission = `-- name: GetWinningSubmission :one
-SELECT submission_id, COUNT(*) AS vote_count
+const getWinningVideo = `-- name: GetWinningVideo :one
+SELECT video_id, COUNT(*) AS vote_count
 FROM votes
 WHERE game_id = $1
-GROUP BY submission_id
+GROUP BY video_id
 ORDER BY vote_count DESC
 LIMIT 1
 `
 
-type GetWinningSubmissionRow struct {
-	SubmissionID pgtype.Int8 `json:"submission_id"`
-	VoteCount    int64       `json:"vote_count"`
+type GetWinningVideoRow struct {
+	VideoID   pgtype.Int8 `json:"video_id"`
+	VoteCount int64       `json:"vote_count"`
 }
 
-func (q *Queries) GetWinningSubmission(ctx context.Context, gameID pgtype.Int8) (GetWinningSubmissionRow, error) {
-	row := q.db.QueryRow(ctx, getWinningSubmission, gameID)
-	var i GetWinningSubmissionRow
-	err := row.Scan(&i.SubmissionID, &i.VoteCount)
+func (q *Queries) GetWinningVideo(ctx context.Context, gameID pgtype.Int8) (GetWinningVideoRow, error) {
+	row := q.db.QueryRow(ctx, getWinningVideo, gameID)
+	var i GetWinningVideoRow
+	err := row.Scan(&i.VideoID, &i.VoteCount)
 	return i, err
 }
 

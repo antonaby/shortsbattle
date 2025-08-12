@@ -33,33 +33,51 @@ type PlayerJoinRequest struct {
 	Response chan error
 }
 
-type GameState struct {
-	Game         db.Game
-	MaxPlayers   int
-	MinPlayers   int
-	Players      []db.Player
-	Submissions  []db.Submission
-	Votes        []db.Vote
-	PlayerJoin   chan PlayerJoinRequest
-	StatusUpdate chan GameStatusUpdate
-	Ctx          context.Context
-	Cancel       context.CancelFunc
+type VideoSubmission struct {
+	Submission db.Video
+	Response   error
 }
 
-func NewGame(game db.Game, maxPlayers int, minPlayers int) *GameState {
+type VoteSubmission struct {
+	Vote     db.Vote
+	Response error
+}
+
+type RoundConfig struct {
+	MinPlayers   int
+	MaxPlayers   int
+	LobbyTimeout time.Duration
+}
+
+type Round struct {
+	Game            db.Game
+	Config          RoundConfig
+	Players         []db.Player
+	Videos          []db.Video
+	Votes           []db.Vote
+	PlayerJoin      chan PlayerJoinRequest
+	VideoSubmission chan VideoSubmission
+	VoteSubmission  chan VoteSubmission
+	StatusUpdate    chan GameStatusUpdate
+	Ctx             context.Context
+	Cancel          context.CancelFunc
+}
+
+func NewRound(game db.Game, config RoundConfig) *Round {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &GameState{
-		Game:         game,
-		MaxPlayers:   maxPlayers,
-		MinPlayers:   minPlayers,
-		PlayerJoin:   make(chan PlayerJoinRequest),
-		StatusUpdate: make(chan GameStatusUpdate),
-		Ctx:          ctx,
-		Cancel:       cancel,
+	return &Round{
+		Game:            game,
+		Config:          config,
+		PlayerJoin:      make(chan PlayerJoinRequest),
+		StatusUpdate:    make(chan GameStatusUpdate),
+		VideoSubmission: make(chan VideoSubmission),
+		VoteSubmission:  make(chan VoteSubmission),
+		Ctx:             ctx,
+		Cancel:          cancel,
 	}
 }
 
-func (g *GameState) Run() {
+func (g *Round) Run() {
 	defer g.Cancel()
 
 	g.StatusUpdate <- GameStatusUpdate{
@@ -68,7 +86,7 @@ func (g *GameState) Run() {
 		Error:  nil,
 	}
 
-	if !g.LobbyStage(10 * time.Second) {
+	if !g.LobbyStage() {
 		log.Println("Not enought players have joined")
 	}
 
@@ -81,8 +99,8 @@ func (g *GameState) Run() {
 	close(g.StatusUpdate)
 }
 
-func (g *GameState) LobbyStage(timeout time.Duration) bool { // TODO: Add error
-	timer := time.NewTimer(timeout)
+func (g *Round) LobbyStage() bool { // TODO: Add error
+	timer := time.NewTimer(g.Config.LobbyTimeout)
 	defer timer.Stop()
 
 	for {
@@ -94,11 +112,11 @@ func (g *GameState) LobbyStage(timeout time.Duration) bool { // TODO: Add error
 			p.Response <- nil
 			close(p.Response)
 			log.Println("Player has been added")
-			if len(g.Players) >= g.MaxPlayers {
+			if len(g.Players) >= g.Config.MaxPlayers {
 				return true
 			}
 		case <-timer.C:
-			return len(g.Players) >= g.MinPlayers
+			return len(g.Players) >= g.Config.MinPlayers
 		}
 	}
 }
@@ -106,13 +124,13 @@ func (g *GameState) LobbyStage(timeout time.Duration) bool { // TODO: Add error
 type GameService struct {
 	txm   db.TxManager
 	mu    sync.RWMutex
-	games map[int64]*GameState
+	games map[int64]*Round
 }
 
 func NewGameService(txm db.TxManager) *GameService {
 	return &GameService{
 		txm:   txm,
-		games: make(map[int64]*GameState),
+		games: make(map[int64]*Round),
 	}
 }
 
@@ -134,20 +152,25 @@ func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
 			return nil, err
 		}
 
-		state := NewGame(game, 8, 5)
-		g.games[game.ID] = state
+		round := NewRound(game, RoundConfig{
+			MinPlayers: 5,
+			MaxPlayers: 8,
+			LobbyTimeout: 30 * time.Second,
+		})
+		g.games[game.ID] = round
 
-		go g.watchGame(state)
-		go state.Run()
+		go g.watchRound(round)
+		go round.Run()
 
 		return &game, nil
 	})
 }
 
-func (g *GameService) watchGame(state *GameState) {
-	for upd := range state.StatusUpdate {
+func (g *GameService) watchRound(round *Round) {
+	for upd := range round.StatusUpdate {
 		err := db.WithTx(context.Background(), g.txm, func(ctx context.Context, tx pgx.Tx) error {
 			q := g.txm.Querier(tx)
+
 			var status db.GameStatus
 			if upd.Error != nil {
 				status = db.GameStatusComplete
@@ -169,7 +192,7 @@ func (g *GameService) watchGame(state *GameState) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	delete(g.games, state.Game.ID)
+	delete(g.games, round.Game.ID)
 }
 
 func (g *GameService) GetGames(ctx context.Context) ([]db.Game, error) {

@@ -14,7 +14,7 @@ type Querier interface {
 	AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
 	CreatePlayer(ctx context.Context, username string) (Player, error)
-	CreateSubmission(ctx context.Context, arg CreateSubmissionParams) (Submission, error)
+	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error)
 	DeleteGame(ctx context.Context, id int64) error
 	GetAllGames(ctx context.Context) ([]Game, error)
@@ -22,11 +22,11 @@ type Querier interface {
 	GetGame(ctx context.Context, id int64) (Game, error)
 	GetPlayer(ctx context.Context, id int64) (Player, error)
 	GetPlayersInGame(ctx context.Context, gameID int64) ([]GetPlayersInGameRow, error)
-	GetSubmissionByPlayer(ctx context.Context, arg GetSubmissionByPlayerParams) (Submission, error)
-	GetSubmissionsByGame(ctx context.Context, gameID pgtype.Int8) ([]Submission, error)
-	GetVoteCountsBySubmission(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsBySubmissionRow, error)
+	GetVideosByGame(ctx context.Context, gameID pgtype.Int8) ([]Video, error)
+	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error)
+	GetVoteCountsByVideo(ctx context.Context, gameID pgtype.Int8) ([]GetVoteCountsByVideoRow, error)
 	GetVotesByGame(ctx context.Context, gameID pgtype.Int8) ([]Vote, error)
-	GetWinningSubmission(ctx context.Context, gameID pgtype.Int8) (GetWinningSubmissionRow, error)
+	GetWinningVideo(ctx context.Context, gameID pgtype.Int8) (GetWinningVideoRow, error)
 	HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error)
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error
