@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -39,6 +40,31 @@ func (e GameServiceError) Unwrap() error {
 	return e.Cause
 }
 
+type RoundErrorCode int
+
+const (
+	CodeNotEnoughtPlayers = iota
+	CodeLobbyTimeout
+	CodeRoundCanceled
+)
+
+type RoundError struct {
+	Code    RoundErrorCode
+	Message string
+	Cause   error
+}
+
+func (e RoundError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
+	}
+	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
+}
+
+func (e RoundError) Unwrap() error {
+	return e.Cause
+}
+
 type GameStatusUpdate struct {
 	GameID int64
 	Status db.GameStatus
@@ -51,13 +77,13 @@ type PlayerJoinRequest struct {
 }
 
 type VideoSubmission struct {
-	Submission db.Video
-	Response   error
+	Video    db.Video
+	Response chan error
 }
 
 type VoteSubmission struct {
 	Vote     db.Vote
-	Response error
+	Response chan error
 }
 
 type RoundConfig struct {
@@ -65,6 +91,7 @@ type RoundConfig struct {
 	MaxPlayers       int
 	LobbyTimeout     time.Duration
 	AddPlayerTimeout time.Duration
+	AddVideoTimeout  time.Duration
 }
 
 type Round struct {
@@ -95,46 +122,62 @@ func NewRound(game db.Game, config RoundConfig) *Round {
 	}
 }
 
-func (g *Round) Run() {
-	defer g.Cancel()
+func (r *Round) Run() {
+	defer r.Cancel()
 
-	g.StatusUpdate <- GameStatusUpdate{
-		GameID: g.Game.ID,
+	r.StatusUpdate <- GameStatusUpdate{
+		GameID: r.Game.ID,
 		Status: db.GameStatusLobby,
 		Error:  nil,
 	}
 
-	if !g.LobbyStage() {
+	err := r.LobbyStage()
+
+	if err != nil {
 		log.Println("Not enought players have joined")
+		r.completeRound(err)
+		return
 	}
 
-	g.StatusUpdate <- GameStatusUpdate{
-		GameID: g.Game.ID,
-		Status: db.GameStatusComplete,
-		Error:  nil,
-	}
-
-	close(g.StatusUpdate)
+	r.completeRound(nil)
 }
 
-func (g *Round) LobbyStage() bool { // TODO: Add error
-	timer := time.NewTimer(g.Config.LobbyTimeout)
+func (r *Round) completeRound(err error) {
+	r.StatusUpdate <- GameStatusUpdate{
+		GameID: r.Game.ID,
+		Status: db.GameStatusComplete,
+		Error:  err,
+	}
+
+	close(r.StatusUpdate)
+}
+
+func (r *Round) LobbyStage() error {
+	timer := time.NewTimer(r.Config.LobbyTimeout)
 	defer timer.Stop()
 
 	for {
 		select {
-		case <-g.Ctx.Done():
-			return false
-		case p := <-g.PlayerJoin:
-			g.Players = append(g.Players, p.Player)
+		case <-r.Ctx.Done():
+			return RoundError{
+				Code: CodeRoundCanceled,
+			}
+		case p := <-r.PlayerJoin:
+			r.Players = append(r.Players, p.Player)
 			p.Response <- nil
 			close(p.Response)
 			log.Println("Player has been added")
-			if len(g.Players) >= g.Config.MaxPlayers {
-				return true
-			}
+		case v := <-r.VideoSubmission:
+			r.Videos = append(r.Videos, v.Video)
+			v.Response <- nil
+			close(v.Response)
+			log.Println("Video has been added")
 		case <-timer.C:
-			return len(g.Players) >= g.Config.MinPlayers
+			if len(r.Players) >= r.Config.MinPlayers {
+				return nil
+			}
+
+			return RoundError{Code: CodeNotEnoughtPlayers}
 		}
 	}
 }
@@ -193,6 +236,7 @@ func (g *GameService) CreateGame(ctx context.Context) (*db.Game, error) {
 		MaxPlayers:       8,
 		LobbyTimeout:     30 * time.Second,
 		AddPlayerTimeout: 3 * time.Second,
+		AddVideoTimeout:  3 * time.Second,
 	})
 	g.rounds[game.ID] = round
 
@@ -313,6 +357,14 @@ func (g *GameService) AddPlayer(ctx context.Context, gameId int64, playerId int6
 }
 
 func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
+	round, ok := g.rounds[params.GameID]
+	if !ok {
+		return nil, GameServiceError{
+			Code:    CodeNotFound,
+			Message: "round not found",
+		}
+	}
+
 	video, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
 		q := g.txm.Querier(tx)
 		ok, err := q.IsPlayerInGame(ctx, db.IsPlayerInGameParams{
@@ -322,7 +374,7 @@ func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 
 		if err != nil {
 			return nil, GameServiceError{
-				Code:    CodeDbError,
+				Code:    getErrorCode(err),
 				Message: "can't find player in game",
 				Cause:   err,
 			}
@@ -338,15 +390,15 @@ func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 		game, err := q.GetGame(ctx, db.GetGameParams{ID: params.GameID})
 		if err != nil {
 			return nil, GameServiceError{
-				Code: CodeDbError,
+				Code:    getErrorCode(err),
 				Message: "can't fetch game",
-				Cause: err,
+				Cause:   err,
 			}
 		}
 
 		if game.Status != db.GameStatusLobby {
 			return nil, GameServiceError{
-				Code: CodeGameComplete,
+				Code:    CodeGameComplete,
 				Message: "game completed or not started",
 			}
 		}
@@ -365,6 +417,28 @@ func (g *GameService) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 
 	if err != nil {
 		return nil, err
+	}
+
+	timer := time.NewTimer(round.Config.AddVideoTimeout)
+	defer timer.Stop()
+
+	response := make(chan error, 1)
+	round.VideoSubmission <- VideoSubmission{Video: *video, Response: response}
+
+	select {
+	case err := <-response:
+		if err != nil {
+			return nil, GameServiceError{
+				Code:    CodeUnknown,
+				Message: "can't add video",
+				Cause:   err,
+			}
+		}
+	case <-timer.C:
+		return nil, GameServiceError{
+			Code:    CodeTimeout,
+			Message: "can't add video",
+		}
 	}
 
 	return video, nil
@@ -397,4 +471,12 @@ func (g *GameService) GetPlayer(ctx context.Context, id int64) (db.Player, error
 	}
 
 	return player, err
+}
+
+func getErrorCode(err error) GameServiceErrorCode {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return CodeNotFound
+	}
+
+	return CodeDbError
 }
