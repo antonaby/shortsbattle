@@ -110,7 +110,7 @@ func (api *GameApi) CreateGame(c echo.Context) error {
 		var gsErr services.GameManagerError
 		if errors.As(err, &gsErr) {
 			if gsErr.Code == services.GameManagerConstraintViolationErrroCode {
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "Theme not found",
 				})
 			}

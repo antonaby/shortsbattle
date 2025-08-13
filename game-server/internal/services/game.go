@@ -65,8 +65,8 @@ func (g *GameManager) CreateGame(ctx context.Context, themeId int64) (*db.Game, 
 	round := NewRound(g.txm, *game, g.getDefaultRoundConfig())
 	g.rounds[game.ID] = round
 
-	// 	go g.watchRound(round)
-	// 	go round.Run()
+	go g.watchRound(round)
+	go round.Run()
 
 	return game, nil
 }
@@ -107,34 +107,18 @@ func (g *GameManager) getDefaultRoundConfig() RoundConfig {
 	}
 }
 
-// func (g *GameManager) watchRound(round *Round) {
-// 	for upd := range round.StatusUpdate {
-// 		err := db.WithTx(context.Background(), g.txm, func(ctx context.Context, tx pgx.Tx) error {
-// 			q := g.txm.Querier(tx)
+func (g *GameManager) watchRound(round *Round) {
+	for upd := range round.StatusUpdate {
+		if upd.Error != nil {
+			break
+		}
+	}
 
-// 			var status db.GameStatus
-// 			if upd.Error != nil {
-// 				status = db.GameStatusComplete
-// 			} else {
-// 				status = upd.Status
-// 			}
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-// 			return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{
-// 				Status: status,
-// 				ID:     upd.GameID, // TODO: add message with result
-// 			})
-// 		})
-
-// 		if err != nil || upd.Error != nil {
-// 			break
-// 		}
-// 	}
-
-// 	g.mu.Lock()
-// 	defer g.mu.Unlock()
-
-// 	delete(g.rounds, round.Game.ID)
-// }
+	delete(g.rounds, round.Game.ID)
+}
 
 // func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
 // 	round, err := g.getRound(gameId)

@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/jackc/pgx/v5"
 )
 
 type RoundErrorCode int
 
 const (
-	RoundErrorLobbyTimeoutCode = iota
+	RoundErrorUnknownCode = iota
+	RoundErrorLobbyTimeoutCode
 	RoundErrorCanceledCode
 )
 
@@ -93,73 +95,79 @@ func NewRound(txm db.TxManager, game db.Game, config RoundConfig) *Round {
 	}
 }
 
+func (r *Round) Run() {
+	defer r.Cancel()
 
+	err := r.updateGameStatus(db.GameStatusLobby, nil)
+	if err != nil {
+		return
+	}
 
-// func (r *Round) Run() {
-// 	defer r.Cancel()
+	err = r.lobbyStage()
+	if err != nil {
+		_ = r.updateGameStatus(db.GameStatusComplete, err)
+		return
+	}
 
-// 	r.updateGameStatus(db.GameStatusLobby)
-// 	err := r.LobbyStage()
-// 	if err != nil {
-// 		r.completeRound(err)
-// 		return
-// 	}
+	_ = r.updateGameStatus(db.GameStatusComplete, nil)
+	close(r.StatusUpdate)
+}
 
-// 	r.updateGameStatus(db.GameStatusVoting)
-// 	err = r.VotingStage()
-// 	if err != nil {
-// 		r.completeRound(err)
-// 		return
-// 	}
+func (r *Round) updateGameStatus(status db.GameStatus, stErr error) error {
+	err := db.WithTx(r.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) error {
+		q := r.txm.Querier(tx)
+		return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{ID: r.Game.ID, Status: status})
+	})
 
-// 	r.completeRound(nil)
-// }
+	if err != nil {
+		r.StatusUpdate <- GameStatusUpdate{
+			GameID: r.Game.ID,
+			Status: status,
+			Error:  RoundError{
+				Code: RoundErrorUnknownCode,
+				Message: "failed to update game status",
+				Cause: err,
+			},
+		}
+		return err
+	}
 
-// func (r *Round) updateGameStatus(status db.GameStatus) {
-// 	r.StatusUpdate <- GameStatusUpdate{
-// 		GameID: r.Game.ID,
-// 		Status: status,
-// 		Error:  nil,
-// 	}
-// }
+	r.StatusUpdate <- GameStatusUpdate{
+		GameID: r.Game.ID,
+		Status: status,
+		Error:  stErr,
+	}
 
-// func (r *Round) completeRound(err error) {
-// 	r.StatusUpdate <- GameStatusUpdate{
-// 		GameID: r.Game.ID,
-// 		Status: db.GameStatusComplete,
-// 		Error:  err,
-// 	}
+	return nil
+}
 
-// 	close(r.StatusUpdate)
-// }
+func (r *Round) lobbyStage() error {
+	timer := time.NewTimer(r.Config.LobbyTimeout)
+	defer timer.Stop()
 
-// func (r *Round) LobbyStage() error {
-// 	timer := time.NewTimer(r.Config.LobbyTimeout)
-// 	defer timer.Stop()
+	for {
+		select {
+		case <-r.Ctx.Done():
+			return RoundError{
+				Code: RoundErrorCanceledCode,
+			}
+		case p := <-r.PlayerJoin:
+			r.Players = append(r.Players, p.Player)
+			p.Response <- nil
+			close(p.Response)
+		case v := <-r.VideoSubmission:
+			r.Videos = append(r.Videos, v.Video)
+			v.Response <- nil
+			close(v.Response)
+		case <-timer.C:
+			if len(r.Players) >= r.Config.MinPlayers && len(r.Videos) == len(r.Players) {
+				return nil
+			}
 
-// 	for {
-// 		select {
-// 		case <-r.Ctx.Done():
-// 			return RoundError{
-// 				Code: RoundErrorCanceledCode,
-// 			}
-// 		case p := <-r.PlayerJoin:
-// 			r.Players = append(r.Players, p.Player)
-// 			p.Response <- nil
-// 			close(p.Response)
-// 		case v := <-r.VideoSubmission:
-// 			r.Videos = append(r.Videos, v.Video)
-// 			v.Response <- nil
-// 			close(v.Response)
-// 		case <-timer.C:
-// 			if len(r.Players) >= r.Config.MinPlayers && len(r.Videos) == len(r.Players) {
-// 				return nil
-// 			}
-
-// 			return RoundError{Code: RoundErrorLobbyTimeoutCode}
-// 		}
-// 	}
-// }
+			return RoundError{Code: RoundErrorLobbyTimeoutCode}
+		}
+	}
+}
 
 // func (r *Round) VotingStage() error {
 // 	timer := time.NewTimer(r.Config.LobbyTimeout)
