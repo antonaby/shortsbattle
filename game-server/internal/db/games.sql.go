@@ -94,8 +94,8 @@ func (q *Queries) GetGame(ctx context.Context, arg GetGameParams) (Game, error) 
 	return i, err
 }
 
-const updateGameStatus = `-- name: UpdateGameStatus :exec
-UPDATE games SET status = $1 WHERE id = $2
+const updateGameStatus = `-- name: UpdateGameStatus :one
+UPDATE games SET status = $1 WHERE id = $2 RETURNING id, theme_id, status, created_at
 `
 
 type UpdateGameStatusParams struct {
@@ -103,7 +103,14 @@ type UpdateGameStatusParams struct {
 	ID     int64      `json:"id"`
 }
 
-func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error {
-	_, err := q.db.Exec(ctx, updateGameStatus, arg.Status, arg.ID)
-	return err
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error) {
+	row := q.db.QueryRow(ctx, updateGameStatus, arg.Status, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
 }

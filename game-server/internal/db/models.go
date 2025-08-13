@@ -14,10 +14,12 @@ import (
 type GameStatus string
 
 const (
-	GameStatusCreated  GameStatus = "created"
-	GameStatusLobby    GameStatus = "lobby"
-	GameStatusVoting   GameStatus = "voting"
-	GameStatusComplete GameStatus = "complete"
+	GameStatusCreated    GameStatus = "created"
+	GameStatusLobby      GameStatus = "lobby"
+	GameStatusSubmitting GameStatus = "submitting"
+	GameStatusVoting     GameStatus = "voting"
+	GameStatusWinner     GameStatus = "winner"
+	GameStatusComplete   GameStatus = "complete"
 )
 
 func (e *GameStatus) Scan(src interface{}) error {

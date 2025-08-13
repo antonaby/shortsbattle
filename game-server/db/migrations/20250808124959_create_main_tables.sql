@@ -10,7 +10,7 @@ CREATE TABLE themes (
 );
 
 -- game_status enum
-CREATE TYPE game_status AS ENUM ('created', 'lobby', 'voting', 'complete');
+CREATE TYPE game_status AS ENUM ('created', 'lobby', 'submitting', 'voting', 'winner', 'complete');
 
 -- games table
 CREATE TABLE games (

@@ -34,6 +34,51 @@ func (e RoundError) Unwrap() error {
 	return e.Cause
 }
 
+type Countdown struct {
+	timer    *time.Timer
+	started  time.Time
+	duration time.Duration
+}
+
+func NewCountdown(d time.Duration) Countdown {
+	return Countdown{
+		timer:    time.NewTimer(d),
+		started:  time.Now(),
+		duration: d,
+	}
+}
+
+func (c *Countdown) Remaining() time.Duration {
+	if c.timer == nil {
+		return 0
+	}
+
+	r := c.duration - time.Since(c.started)
+	if r < 0 {
+		return 0
+	}
+
+	return r
+}
+
+func (c *Countdown) Reset(d time.Duration) {
+	if !c.timer.Stop() {
+		select {
+		case <-c.timer.C:
+		default:
+		}
+	}
+	c.timer.Reset(d)
+	c.started = time.Now()
+	c.duration = d
+}
+
+func (c *Countdown) Stop() {
+	if c.timer != nil {
+		c.timer.Stop()
+	}
+}
+
 type GameStatusUpdate struct {
 	GameID int64
 	Status db.GameStatus
@@ -56,19 +101,21 @@ type VoteSubmission struct {
 }
 
 type RoundConfig struct {
-	MinPlayers       int
-	MaxPlayers       int
-	LobbyTimeout     time.Duration
-	VotingTimeout    time.Duration
-	AddPlayerTimeout time.Duration
-	AddVideoTimeout  time.Duration
-	AddVoteTimeout   time.Duration
+	MinPlayers        int
+	MaxPlayers        int
+	LobbyTimeout      time.Duration
+	SubmittingTimeout time.Duration
+	VotingTimeout     time.Duration
+	AddPlayerTimeout  time.Duration
+	AddVideoTimeout   time.Duration
+	AddVoteTimeout    time.Duration
 }
 
 type Round struct {
 	txm             db.TxManager
 	Game            db.Game
 	Config          RoundConfig
+	StageCountdown  Countdown
 	Players         []db.Player
 	Videos          []db.Video
 	Votes           []db.Vote
@@ -97,94 +144,151 @@ func NewRound(txm db.TxManager, game db.Game, config RoundConfig) *Round {
 
 func (r *Round) Run() {
 	defer r.Cancel()
-
-	err := r.updateGameStatus(db.GameStatusLobby, nil)
-	if err != nil {
-		return
-	}
-
-	err = r.lobbyStage()
-	if err != nil {
-		_ = r.updateGameStatus(db.GameStatusComplete, err)
-		return
-	}
-
-	_ = r.updateGameStatus(db.GameStatusComplete, nil)
-	close(r.StatusUpdate)
+	r.gameLoop()
 }
 
-func (r *Round) updateGameStatus(status db.GameStatus, stErr error) error {
-	err := db.WithTx(r.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) error {
+func (r *Round) updateGameStatus(status db.GameStatus) error {
+	game, err := db.WithTxValue(r.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) (db.Game, error) {
 		q := r.txm.Querier(tx)
 		return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{ID: r.Game.ID, Status: status})
 	})
 
 	if err != nil {
-		r.StatusUpdate <- GameStatusUpdate{
-			GameID: r.Game.ID,
-			Status: status,
-			Error:  RoundError{
-				Code: RoundErrorUnknownCode,
-				Message: "failed to update game status",
-				Cause: err,
-			},
+		return RoundError{
+			Code:    RoundErrorUnknownCode,
+			Message: "failed to update game status",
+			Cause:   err,
 		}
-		return err
 	}
 
-	r.StatusUpdate <- GameStatusUpdate{
-		GameID: r.Game.ID,
-		Status: status,
-		Error:  stErr,
-	}
+	r.Game = game
 
 	return nil
 }
 
-func (r *Round) lobbyStage() error {
-	timer := time.NewTimer(r.Config.LobbyTimeout)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-r.Ctx.Done():
-			return RoundError{
-				Code: RoundErrorCanceledCode,
-			}
-		case p := <-r.PlayerJoin:
-			r.Players = append(r.Players, p.Player)
-			p.Response <- nil
-			close(p.Response)
-		case v := <-r.VideoSubmission:
-			r.Videos = append(r.Videos, v.Video)
-			v.Response <- nil
-			close(v.Response)
-		case <-timer.C:
-			if len(r.Players) >= r.Config.MinPlayers && len(r.Videos) == len(r.Players) {
-				return nil
-			}
-
-			return RoundError{Code: RoundErrorLobbyTimeoutCode}
-		}
+func (r *Round) updateRound(err error) {
+	r.StatusUpdate <- GameStatusUpdate{
+		GameID: r.Game.ID,
+		Status: r.Game.Status,
+		Error:  err,
 	}
 }
 
-// func (r *Round) VotingStage() error {
-// 	timer := time.NewTimer(r.Config.LobbyTimeout)
-// 	defer timer.Stop()
+func (r *Round) gameLoop() {
+	defer r.StageCountdown.Stop()
 
-// 	for {
-// 		select {
-// 		case <-r.Ctx.Done():
-// 			return RoundError{
-// 				Code: RoundErrorCanceledCode,
-// 			}
-// 		case v := <-r.VoteSubmission:
-// 			r.Votes = append(r.Votes, v.Vote)
-// 			v.Response <- nil
-// 			close(v.Response)
-// 		case <-timer.C:
-// 			return nil
-// 		}
-// 	}
-// }
+	err := r.toLobbyStage()
+	if err != nil {
+		return
+	}
+
+Loop:
+	for {
+		select {
+		case <-r.Ctx.Done():
+			break Loop
+		case p := <-r.PlayerJoin:
+			r.addPlayer(p)
+		case v := <-r.VideoSubmission:
+			r.addVideo(v)
+		case v := <-r.VoteSubmission:
+			r.addVote(v)
+		case <-r.StageCountdown.timer.C:
+			err := r.nextStage()
+			if err != nil {
+				break Loop
+			}
+		}
+
+		if r.Game.Status == db.GameStatusWinner {
+			break Loop
+		}
+	}
+
+	r.toCompleteStage()
+}
+
+func (r *Round) nextStage() error {
+	switch r.Game.Status {
+	case db.GameStatusLobby:
+		return r.toSubmittingStage()
+	case db.GameStatusSubmitting:
+		return r.toVotingStage()
+	case db.GameStatusVoting:
+		return r.toWinnerStage()
+	}
+
+	err := r.updateGameStatus(db.GameStatusWinner)
+	r.updateRound(err)
+
+	return err
+}
+
+func (r *Round) toLobbyStage() error {
+	err := r.updateGameStatus(db.GameStatusLobby)
+	r.updateRound(err)
+	if err != nil {
+		return err
+	}
+	r.StageCountdown.Stop()
+	r.StageCountdown = NewCountdown(r.Config.LobbyTimeout)
+
+	return nil
+}
+
+func (r *Round) toSubmittingStage() error {
+	err := r.updateGameStatus(db.GameStatusSubmitting)
+	r.updateRound(err)
+	if err != nil {
+		return err
+	}
+	r.StageCountdown.Stop()
+	r.StageCountdown = NewCountdown(r.Config.SubmittingTimeout)
+
+	return nil
+}
+
+func (r *Round) toVotingStage() error {
+	err := r.updateGameStatus(db.GameStatusVoting)
+	r.updateRound(err)
+	if err != nil {
+		return err
+	}
+	r.StageCountdown.Stop()
+	r.StageCountdown = NewCountdown(r.Config.VotingTimeout)
+
+	return nil
+}
+
+func (r *Round) toWinnerStage() error {
+	err := r.updateGameStatus(db.GameStatusWinner)
+	r.updateRound(err)
+	return err
+}
+
+func (r *Round) toCompleteStage() {
+	err := r.updateGameStatus(db.GameStatusComplete)
+	r.updateRound(err)
+	close(r.StatusUpdate)
+}
+
+func (r *Round) addPlayer(pj PlayerJoin) error {
+	r.Players = append(r.Players, pj.Player)
+	pj.Response <- nil
+	close(pj.Response)
+	return nil
+}
+
+func (r *Round) addVideo(v VideoSubmission) error {
+	r.Videos = append(r.Videos, v.Video)
+	v.Response <- nil
+	close(v.Response)
+	return nil
+}
+
+func (r *Round) addVote(v VoteSubmission) error {
+	r.Votes = append(r.Votes, v.Vote)
+	v.Response <- nil
+	close(v.Response)
+	return nil
+}

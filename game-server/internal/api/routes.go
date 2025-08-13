@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
@@ -30,9 +31,10 @@ func (api *GameApi) Register(g *echo.Group) {
 	v1group.GET("/themes", api.ListAllThemes)
 
 	v1group.POST("/games", api.CreateGame)
+	v1group.GET("/games/:id", api.GetGame)
 
 	// v1group.GET("/games", api.GetGames)
-	// 
+	//
 	// v1group.PUT("/games/:gameId/players", api.AddPlayerToGame)
 
 	// v1group.GET("/players/:id", api.GetPlayer)
@@ -115,13 +117,52 @@ func (api *GameApi) CreateGame(c echo.Context) error {
 				})
 			}
 		}
-		
+
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: "Something went wrong",
 		})
 	}
 
 	return c.JSON(http.StatusOK, game)
+}
+
+func (api *GameApi) GetGame(c echo.Context) error {
+	gameId, err := parseInt64(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
+	ctx := c.Request().Context()
+	details, err := api.gm.GetGame(ctx, gameId)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to get game: %v", err)
+
+		var gsErr services.GameManagerError
+		if errors.As(err, &gsErr) {
+			if gsErr.Code == services.GameManagerNotFoundErrorCode {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "Game not found",
+				})
+			}
+		}
+
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, details)
+}
+
+func parseInt64(str string) (int64, error) {
+	value, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
 }
 
 // func (api *GameApi) GetGames(c echo.Context) error {
@@ -283,13 +324,4 @@ func (api *GameApi) CreateGame(c echo.Context) error {
 // 	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 // 		Error: "Something went wrong",
 // 	})
-// }
-
-// func parseInt64(str string) (int64, error) {
-// 	value, err := strconv.ParseInt(str, 10, 64)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-
-// 	return value, nil
 // }

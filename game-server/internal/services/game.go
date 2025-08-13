@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"fmt"
 
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
 	"github.com/jackc/pgx/v5"
 )
@@ -97,13 +99,14 @@ func (g *GameManager) createGame(ctx context.Context, themeId int64) (*db.Game, 
 
 func (g *GameManager) getDefaultRoundConfig() RoundConfig {
 	return RoundConfig{
-		MinPlayers:       1,
-		MaxPlayers:       8,
-		LobbyTimeout:     30 * time.Second,
-		VotingTimeout:    30 * time.Second,
-		AddPlayerTimeout: 3 * time.Second,
-		AddVideoTimeout:  3 * time.Second,
-		AddVoteTimeout:   3 * time.Second,
+		MinPlayers:        1,
+		MaxPlayers:        8,
+		LobbyTimeout:      30 * time.Second,
+		SubmittingTimeout: 30 * time.Second,
+		VotingTimeout:     30 * time.Second,
+		AddPlayerTimeout:  3 * time.Second,
+		AddVideoTimeout:   3 * time.Second,
+		AddVoteTimeout:    3 * time.Second,
 	}
 }
 
@@ -118,6 +121,64 @@ func (g *GameManager) watchRound(round *Round) {
 	defer g.mu.Unlock()
 
 	delete(g.rounds, round.Game.ID)
+}
+
+func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDetails, error) {
+	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+		q := g.txm.Querier(tx)
+		game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
+
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, GameManagerError{
+					Code:    GameManagerNotFoundErrorCode,
+					Message: "game not found",
+				}
+			}
+
+			return nil, GameManagerError{
+				Code:    GameManagerDbErrorCode,
+				Message: "can't get game",
+				Cause:   err,
+			}
+		}
+
+		return &game, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	details := &models.GameDetails{
+		ID:                 game.ID,
+		ThemeID:            game.ThemeID,
+		Status:             game.Status,
+		CreatedAt:          game.CreatedAt,
+		StageTimeRemaining: 0,
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	round, err := g.getRound(game.ID)
+	if err == nil {
+		details.StageTimeRemaining = round.StageCountdown.Remaining()
+	}
+
+	return details, nil
+}
+
+func (g *GameManager) getRound(gameId int64) (*Round, error) {
+	round, ok := g.rounds[gameId]
+	if !ok {
+		return nil, GameManagerError{
+			Code:    GameManagerNotFoundErrorCode,
+			Message: "round not found",
+		}
+	}
+
+	return round, nil
 }
 
 // func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
@@ -270,18 +331,6 @@ func (g *GameManager) watchRound(round *Round) {
 // 	}
 
 // 	return vote, nil
-// }
-
-// func (g *GameManager) getRound(gameId int64) (*Round, error) {
-// 	round, ok := g.rounds[gameId]
-// 	if !ok {
-// 		return nil, GameManagerError{
-// 			Code:    CodeNotFound,
-// 			Message: "round not found",
-// 		}
-// 	}
-
-// 	return round, nil
 // }
 
 // func (g *GameManager) checkPlayerInGameAndGameStatus(ctx context.Context, gameId int64, playerId int64, status db.GameStatus, q db.Querier) error {
