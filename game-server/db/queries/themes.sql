@@ -7,6 +7,9 @@ SELECT * FROM themes WHERE id = $1;
 -- name: ListThemes :many
 SELECT * FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2;
 
+-- name: ListAllThemes :many
+SELECT * FROM themes ORDER BY created_at;
+
 -- name: UpdateTheme :one
 UPDATE themes SET name = $1, description = $2 WHERE id = $3 RETURNING *;
 

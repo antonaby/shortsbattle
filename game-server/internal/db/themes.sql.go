@@ -65,6 +65,35 @@ func (q *Queries) GetThemeByID(ctx context.Context, arg GetThemeByIDParams) (The
 	return i, err
 }
 
+const listAllThemes = `-- name: ListAllThemes :many
+SELECT id, name, description, created_at FROM themes ORDER BY created_at
+`
+
+func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
+	rows, err := q.db.Query(ctx, listAllThemes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Theme
+	for rows.Next() {
+		var i Theme
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listThemes = `-- name: ListThemes :many
 SELECT id, name, description, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
 `

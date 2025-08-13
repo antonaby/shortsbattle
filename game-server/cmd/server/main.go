@@ -22,6 +22,7 @@ func main() {
 	}
 	defer dbManager.Close()
 
+	ts := services.NewThemeService(dbManager)
 	gs := services.NewGameService(dbManager)
 
 	cs, err := api.NewCentrifugeServer()
@@ -43,7 +44,7 @@ func main() {
 	e.GET("/api/v1/join", echo.WrapHandler(cs.Handler()))
 
 	apiGroup := e.Group("/api")
-	gameApi := api.NewGameApi(gs)
+	gameApi := api.NewGameApi(ts, gs)
 	gameApi.Register(apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

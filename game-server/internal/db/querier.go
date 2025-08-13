@@ -30,6 +30,7 @@ type Querier interface {
 	GetWinningVideo(ctx context.Context, arg GetWinningVideoParams) (GetWinningVideoRow, error)
 	HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error)
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
+	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 	SearchThemesByName(ctx context.Context, arg SearchThemesByNameParams) ([]Theme, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error

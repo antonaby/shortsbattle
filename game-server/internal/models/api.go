@@ -5,7 +5,7 @@ type OkResponse struct {
 }
 
 type ErrorResponse struct {
-  Error string `json:"error"`
+	Error string `json:"error"`
 }
 
 type AddPlayerToGame struct {
@@ -14,4 +14,9 @@ type AddPlayerToGame struct {
 
 type CreateGame struct {
 	ThemeId int64 `json:"theme_id" validate:"required"`
+}
+
+type CreateThemeParams struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
 }
