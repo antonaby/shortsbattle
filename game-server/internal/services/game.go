@@ -23,6 +23,7 @@ const (
 	GMErrConstraintViolation
 	GMErrDbError
 	GMErrTimeout
+	GMErrCanceled
 )
 
 type GameManagerError struct {
@@ -101,7 +102,7 @@ func (g *GameManager) createGame(ctx context.Context, themeId int64) (*db.Game, 
 func (g *GameManager) getDefaultRoundConfig() RoundConfig {
 	return RoundConfig{
 		MinPlayers:        1,
-		MaxPlayers:        8,
+		MaxPlayers:        3,
 		LobbyTimeout:      30 * time.Second,
 		SubmittingTimeout: 30 * time.Second,
 		VotingTimeout:     30 * time.Second,
@@ -157,6 +158,9 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 		Status:             game.Status,
 		CreatedAt:          game.CreatedAt,
 		StageTimeRemaining: 0,
+		Players:            []db.Player{},
+		Videos:             []db.Video{},
+		Votes:              []db.Vote{},
 	}
 
 	g.mu.Lock()
@@ -165,7 +169,11 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 	round, err := g.getRound(game.ID)
 	if err == nil {
 		details.StageTimeRemaining = round.StageCountdown.Remaining()
-	}
+		details.Players = round.Players
+		details.Videos = round.Videos
+		details.Votes = round.Votes
+	} 
+	// TODO: load players, videos and votes from db
 
 	return details, nil
 }
@@ -182,7 +190,7 @@ func (g *GameManager) getRound(gameId int64) (*Round, error) {
 	return round, nil
 }
 
-func (g *GameManager) AddPlayer(gameId int64, playerId int64) error {
+func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
 	round, err := g.getRound(gameId)
 	if err != nil {
 		return err
@@ -195,6 +203,12 @@ func (g *GameManager) AddPlayer(gameId int64, playerId int64) error {
 	round.PlayerJoin <- PlayerJoin{GameID: gameId, PlayerID: playerId, Response: response}
 
 	select {
+	case <-ctx.Done():
+		return GameManagerError{
+			Code:    GMErrCanceled,
+			Message: "context canceled",
+			Cause:   ctx.Err(),
+		}
 	case err := <-response:
 		return err
 	case <-timer.C:
