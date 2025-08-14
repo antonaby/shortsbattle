@@ -26,7 +26,7 @@ func (q *Queries) AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams
 }
 
 const getPlayersInGame = `-- name: GetPlayersInGame :many
-SELECT p.id, p.username
+SELECT p.id, p.username, p.created_at
 FROM players p
 JOIN game_players gp ON p.id = gp.player_id
 WHERE gp.game_id = $1
@@ -36,21 +36,16 @@ type GetPlayersInGameParams struct {
 	GameID int64 `json:"game_id"`
 }
 
-type GetPlayersInGameRow struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
-}
-
-func (q *Queries) GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]GetPlayersInGameRow, error) {
+func (q *Queries) GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]Player, error) {
 	rows, err := q.db.Query(ctx, getPlayersInGame, arg.GameID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPlayersInGameRow
+	var items []Player
 	for rows.Next() {
-		var i GetPlayersInGameRow
-		if err := rows.Scan(&i.ID, &i.Username); err != nil {
+		var i Player
+		if err := rows.Scan(&i.ID, &i.Username, &i.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

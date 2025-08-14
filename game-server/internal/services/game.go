@@ -126,7 +126,7 @@ func (g *GameManager) watchRound(round *Round) {
 }
 
 func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDetails, error) {
-	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+	details, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
 		q := g.txm.Querier(tx)
 		game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
 
@@ -145,35 +145,68 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 			}
 		}
 
-		return &game, nil
+		players, err := q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: game.ID})
+		if err != nil {
+			return nil, GameManagerError{
+				Code:    GMErrDbError,
+				Message: "can't get players",
+				Cause:   err,
+			}
+		}
+
+		if len(players) == 0 {
+			players = []db.Player{}
+		}
+
+		videos, err := q.GetVideosByGame(ctx, db.GetVideosByGameParams{GameID: game.ID})
+		if err != nil {
+			return nil, GameManagerError{
+				Code:    GMErrDbError,
+				Message: "can't get videos",
+				Cause:   err,
+			}
+		}
+
+		if len(videos) == 0 {
+			videos = []db.Video{}
+		}
+
+		votes, err := q.GetVotesByGame(ctx, db.GetVotesByGameParams{GameID: game.ID})
+		if err != nil {
+			return nil, GameManagerError{
+				Code:    GMErrDbError,
+				Message: "can't get votes",
+				Cause:   err,
+			}
+		}
+
+		if len(votes) == 0 {
+			votes = []db.Vote{}
+		}
+
+		return &models.GameDetails{
+			ID:                 game.ID,
+			ThemeID:            game.ThemeID,
+			Status:             game.Status,
+			CreatedAt:          game.CreatedAt,
+			StageTimeRemaining: 0,
+			Players:            players,
+			Videos:             videos,
+			Votes:              votes,
+		}, nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	details := &models.GameDetails{
-		ID:                 game.ID,
-		ThemeID:            game.ThemeID,
-		Status:             game.Status,
-		CreatedAt:          game.CreatedAt,
-		StageTimeRemaining: 0,
-		Players:            []db.Player{},
-		Videos:             []db.Video{},
-		Votes:              []db.Vote{},
-	}
-
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	round, err := g.getRound(game.ID)
+	round, err := g.getRound(details.ID)
 	if err == nil {
 		details.StageTimeRemaining = round.StageCountdown.Remaining()
-		details.Players = round.Players
-		details.Videos = round.Videos
-		details.Votes = round.Votes
 	}
-	// TODO: load players, videos and votes from db
 
 	return details, nil
 }
