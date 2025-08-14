@@ -24,11 +24,12 @@ type Querier interface {
 	GetPlayersInGame(ctx context.Context, arg GetPlayersInGameParams) ([]GetPlayersInGameRow, error)
 	GetThemeByID(ctx context.Context, arg GetThemeByIDParams) (Theme, error)
 	GetVideosByGame(ctx context.Context, arg GetVideosByGameParams) ([]Video, error)
-	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error)
+	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (GetVideosByPlayerRow, error)
 	GetVoteCountsByVideo(ctx context.Context, arg GetVoteCountsByVideoParams) ([]GetVoteCountsByVideoRow, error)
 	GetVotesByGame(ctx context.Context, arg GetVotesByGameParams) ([]Vote, error)
 	GetWinningVideo(ctx context.Context, arg GetWinningVideoParams) (GetWinningVideoRow, error)
 	HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) (bool, error)
+	InvalidateOtherVideos(ctx context.Context, arg InvalidateOtherVideosParams) error
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)

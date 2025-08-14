@@ -7,35 +7,44 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createVideo = `-- name: CreateVideo :one
-INSERT INTO videos (game_id, player_id, video_url)
-VALUES ($1, $2, $3)
-RETURNING id, game_id, player_id, video_url, submitted_at
+INSERT INTO videos (game_id, player_id, video_url, is_actual)
+VALUES ($1, $2, $3, $4)
+RETURNING id, game_id, player_id, video_url, is_actual, submitted_at
 `
 
 type CreateVideoParams struct {
 	GameID   int64  `json:"game_id"`
 	PlayerID int64  `json:"player_id"`
 	VideoUrl string `json:"video_url"`
+	IsActual bool   `json:"is_actual"`
 }
 
 func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo, arg.GameID, arg.PlayerID, arg.VideoUrl)
+	row := q.db.QueryRow(ctx, createVideo,
+		arg.GameID,
+		arg.PlayerID,
+		arg.VideoUrl,
+		arg.IsActual,
+	)
 	var i Video
 	err := row.Scan(
 		&i.ID,
 		&i.GameID,
 		&i.PlayerID,
 		&i.VideoUrl,
+		&i.IsActual,
 		&i.SubmittedAt,
 	)
 	return i, err
 }
 
 const getVideosByGame = `-- name: GetVideosByGame :many
-SELECT id, game_id, player_id, video_url, submitted_at
+SELECT id, game_id, player_id, video_url, is_actual, submitted_at
 FROM videos
 WHERE game_id = $1
 `
@@ -58,6 +67,7 @@ func (q *Queries) GetVideosByGame(ctx context.Context, arg GetVideosByGameParams
 			&i.GameID,
 			&i.PlayerID,
 			&i.VideoUrl,
+			&i.IsActual,
 			&i.SubmittedAt,
 		); err != nil {
 			return nil, err
@@ -81,9 +91,17 @@ type GetVideosByPlayerParams struct {
 	PlayerID int64 `json:"player_id"`
 }
 
-func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (Video, error) {
+type GetVideosByPlayerRow struct {
+	ID          int64              `json:"id"`
+	GameID      int64              `json:"game_id"`
+	PlayerID    int64              `json:"player_id"`
+	VideoUrl    string             `json:"video_url"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+}
+
+func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) (GetVideosByPlayerRow, error) {
 	row := q.db.QueryRow(ctx, getVideosByPlayer, arg.GameID, arg.PlayerID)
-	var i Video
+	var i GetVideosByPlayerRow
 	err := row.Scan(
 		&i.ID,
 		&i.GameID,
@@ -92,4 +110,19 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 		&i.SubmittedAt,
 	)
 	return i, err
+}
+
+const invalidateOtherVideos = `-- name: InvalidateOtherVideos :exec
+UPDATE videos SET is_actual = FALSE WHERE game_id = $1 AND player_id = $2 AND id <> $3
+`
+
+type InvalidateOtherVideosParams struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+	ID       int64 `json:"id"`
+}
+
+func (q *Queries) InvalidateOtherVideos(ctx context.Context, arg InvalidateOtherVideosParams) error {
+	_, err := q.db.Exec(ctx, invalidateOtherVideos, arg.GameID, arg.PlayerID, arg.ID)
+	return err
 }

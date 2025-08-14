@@ -34,12 +34,12 @@ type CreateThemeParams struct {
 }
 
 type GameDetails struct {
-	ID                 int64            `json:"id"`
-	ThemeID            int64            `json:"theme_id"`
-	Status             db.GameStatus    `json:"status"`
-	CreatedAt          pgtype.Timestamp `json:"created_at"`
-	StageTimeRemaining time.Duration    `json:"stage_time_remaining"`
-	Players            []db.Player      `json:"players"`
-	Videos             []db.Video       `json:"videos"`
-	Votes              []db.Vote        `json:"votes"`
+	ID                 int64              `json:"id"`
+	ThemeID            int64              `json:"theme_id"`
+	Status             db.GameStatus      `json:"status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	StageTimeRemaining time.Duration      `json:"stage_time_remaining"`
+	Players            []db.Player        `json:"players"`
+	Videos             []db.Video         `json:"videos"`
+	Votes              []db.Vote          `json:"votes"`
 }

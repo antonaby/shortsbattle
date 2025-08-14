@@ -361,15 +361,7 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 		return err
 	}
 
-	// TODO: add what video is actual
-	// for _, p := range r.Videos {
-	// 	if p.PlayerID == v.Video.PlayerID {
-
-	// 		return nil
-	// 	}
-	// }
-
-	video, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
+	videos, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Video, error) {
 		q := r.txm.Querier(tx)
 
 		video, err := q.CreateVideo(ctx, vs.Video)
@@ -389,11 +381,34 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 			}
 		}
 
-		return &video, nil
+		err = q.InvalidateOtherVideos(ctx, db.InvalidateOtherVideosParams{
+			GameID: vs.Video.GameID, 
+			PlayerID: vs.Video.PlayerID, 
+			ID: video.ID,
+		})
+
+		if err != nil {
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create video",
+				Cause:   err,
+			}
+		}
+
+		videos, err := q.GetVideosByGame(ctx, db.GetVideosByGameParams{GameID: r.Game.ID})
+		if err != nil {
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create video",
+				Cause:   err,
+			}
+		}
+
+		return videos, nil
 	})
 
-	if video != nil {
-		r.Videos = append(r.Videos, *video)
+	if videos != nil {
+		r.Videos = videos
 	}
 
 	responseAndClose(vs.Response, err)

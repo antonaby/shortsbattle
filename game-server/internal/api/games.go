@@ -164,6 +164,7 @@ func (api *GameApi) submitVideo(c echo.Context) error {
 		GameID:   gameId,
 		PlayerID: request.PlayerId,
 		VideoUrl: request.VideoUrl,
+		IsActual: true,
 	})
 
 	if err != nil {

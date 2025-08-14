@@ -58,10 +58,10 @@ func (ns NullGameStatus) Value() (driver.Value, error) {
 }
 
 type Game struct {
-	ID        int64            `json:"id"`
-	ThemeID   int64            `json:"theme_id"`
-	Status    GameStatus       `json:"status"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ID        int64              `json:"id"`
+	ThemeID   int64              `json:"theme_id"`
+	Status    GameStatus         `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type GamePlayer struct {
@@ -70,30 +70,31 @@ type GamePlayer struct {
 }
 
 type Player struct {
-	ID        int64            `json:"id"`
-	Username  string           `json:"username"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ID        int64              `json:"id"`
+	Username  string             `json:"username"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type Theme struct {
-	ID          int64            `json:"id"`
-	Name        string           `json:"name"`
-	Description pgtype.Text      `json:"description"`
-	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Description pgtype.Text        `json:"description"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type Video struct {
-	ID          int64            `json:"id"`
-	GameID      int64            `json:"game_id"`
-	PlayerID    int64            `json:"player_id"`
-	VideoUrl    string           `json:"video_url"`
-	SubmittedAt pgtype.Timestamp `json:"submitted_at"`
+	ID          int64              `json:"id"`
+	GameID      int64              `json:"game_id"`
+	PlayerID    int64              `json:"player_id"`
+	VideoUrl    string             `json:"video_url"`
+	IsActual    bool               `json:"is_actual"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 }
 
 type Vote struct {
-	ID      int64            `json:"id"`
-	GameID  int64            `json:"game_id"`
-	VideoID int64            `json:"video_id"`
-	VoterID int64            `json:"voter_id"`
-	VotedAt pgtype.Timestamp `json:"voted_at"`
+	ID      int64              `json:"id"`
+	GameID  int64              `json:"game_id"`
+	VideoID int64              `json:"video_id"`
+	VoterID int64              `json:"voter_id"`
+	VotedAt pgtype.Timestamptz `json:"voted_at"`
 }
