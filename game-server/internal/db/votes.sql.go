@@ -10,25 +10,35 @@ import (
 )
 
 const createVote = `-- name: CreateVote :one
-INSERT INTO votes (game_id, video_id, voter_id)
-VALUES ($1, $2, $3)
-RETURNING id, game_id, video_id, voter_id, voted_at
+INSERT INTO votes (game_id, video_id, voter_id, value, is_actual)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, game_id, video_id, voter_id, value, is_actual, voted_at
 `
 
 type CreateVoteParams struct {
-	GameID  int64 `json:"game_id"`
-	VideoID int64 `json:"video_id"`
-	VoterID int64 `json:"voter_id"`
+	GameID   int64     `json:"game_id"`
+	VideoID  int64     `json:"video_id"`
+	VoterID  int64     `json:"voter_id"`
+	Value    VoteValue `json:"value"`
+	IsActual bool      `json:"is_actual"`
 }
 
 func (q *Queries) CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error) {
-	row := q.db.QueryRow(ctx, createVote, arg.GameID, arg.VideoID, arg.VoterID)
+	row := q.db.QueryRow(ctx, createVote,
+		arg.GameID,
+		arg.VideoID,
+		arg.VoterID,
+		arg.Value,
+		arg.IsActual,
+	)
 	var i Vote
 	err := row.Scan(
 		&i.ID,
 		&i.GameID,
 		&i.VideoID,
 		&i.VoterID,
+		&i.Value,
+		&i.IsActual,
 		&i.VotedAt,
 	)
 	return i, err
@@ -71,7 +81,7 @@ func (q *Queries) GetVoteCountsByVideo(ctx context.Context, arg GetVoteCountsByV
 }
 
 const getVotesByGame = `-- name: GetVotesByGame :many
-SELECT id, game_id, video_id, voter_id, voted_at
+SELECT id, game_id, video_id, voter_id, value, is_actual, voted_at
 FROM votes
 WHERE game_id = $1
 `
@@ -94,6 +104,8 @@ func (q *Queries) GetVotesByGame(ctx context.Context, arg GetVotesByGameParams) 
 			&i.GameID,
 			&i.VideoID,
 			&i.VoterID,
+			&i.Value,
+			&i.IsActual,
 			&i.VotedAt,
 		); err != nil {
 			return nil, err
@@ -148,4 +160,25 @@ func (q *Queries) HasPlayerVoted(ctx context.Context, arg HasPlayerVotedParams) 
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const invalidateOtherVotes = `-- name: InvalidateOtherVotes :exec
+UPDATE votes SET is_actual = FALSE WHERE game_id = $1 AND video_id = $2 AND voter_id = $3 AND id <> $4
+`
+
+type InvalidateOtherVotesParams struct {
+	GameID  int64 `json:"game_id"`
+	VideoID int64 `json:"video_id"`
+	VoterID int64 `json:"voter_id"`
+	ID      int64 `json:"id"`
+}
+
+func (q *Queries) InvalidateOtherVotes(ctx context.Context, arg InvalidateOtherVotesParams) error {
+	_, err := q.db.Exec(ctx, invalidateOtherVotes,
+		arg.GameID,
+		arg.VideoID,
+		arg.VoterID,
+		arg.ID,
+	)
+	return err
 }

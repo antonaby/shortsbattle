@@ -28,6 +28,7 @@ func (api *GameApi) Register(g *echo.Group) {
 	v1group.GET("/games/:id", api.getGame)
 	v1group.PUT("/games/:gameId/players", api.addPlayerToGame)
 	v1group.PUT("/games/:gameId/videos", api.submitVideo)
+	v1group.PUT("/games/:gameId/votes", api.submitVote)
 }
 
 func (api *GameApi) createGame(c echo.Context) error {
@@ -204,20 +205,63 @@ func (api *GameApi) submitVideo(c echo.Context) error {
 	})
 }
 
-// func (api *GameApi) SubmitVote(c echo.Context) error {
-// 	request := new(db.CreateVoteParams)
-// 	if err := c.Bind(request); err != nil {
-// 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-// 			Error: err.Error(),
-// 		})
-// 	}
+func (api *GameApi) submitVote(c echo.Context) error {
+	gameId, err := parseInt64(c.Param("gameId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
 
-// 	ctx := c.Request().Context()
-// 	vote, err := api.gm.SubmitVote(ctx, *request)
-// 	if err != nil {
-// 		c.Echo().Logger.Errorf("failed to submit vote: %v", err)
-// 		return getErrorResponse(c, err)
-// 	}
+	request := new(m.SubmitVoteToGame)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
 
-// 	return c.JSON(http.StatusOK, vote)
-// }
+	ctx := c.Request().Context()
+	err = api.gm.SubmitVote(ctx, db.CreateVoteParams{
+		GameID:   gameId,
+		VideoID:  request.VideoID,
+		VoterID:  request.VoterID,
+		Value:    request.Value,
+		IsActual: true,
+	})
+
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to submit vote to game: %v", err)
+
+		var gErr services.GameManagerError
+		if errors.As(err, &gErr) {
+			if gErr.Code == services.GMErrNotFound {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "Game not found",
+				})
+			}
+		}
+
+		var rErr services.RoundError
+		if errors.As(err, &rErr) {
+			if rErr.Code == services.RoundErrWrongGameState {
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "Voting closed",
+				})
+			}
+
+			if rErr.Code == services.RoundErrConstraintViolation {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "Game, Player or Video not found",
+				})
+			}
+		}
+
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, m.OkResponse{
+		Msg: "Vote has been submitted to the game",
+	})
+}

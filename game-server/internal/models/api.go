@@ -24,6 +24,13 @@ type SubmitVideoToGame struct {
 	VideoUrl string `json:"video_url" validate:"required"`
 }
 
+type SubmitVoteToGame struct {
+	GameID  int64        `json:"game_id" validate:"required"`
+	VideoID int64        `json:"video_id" validate:"required"`
+	VoterID int64        `json:"voter_id" validate:"required"`
+	Value   db.VoteValue `json:"value" validate:"required"`
+}
+
 type CreateGame struct {
 	ThemeId int64 `json:"theme_id" validate:"required"`
 }

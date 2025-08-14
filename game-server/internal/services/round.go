@@ -101,7 +101,7 @@ type VideoSubmission struct {
 }
 
 type VoteSubmission struct {
-	Vote     db.Vote
+	Vote     db.CreateVoteParams
 	Response chan error
 }
 
@@ -364,6 +364,7 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 	videos, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Video, error) {
 		q := r.txm.Querier(tx)
 
+		vs.Video.IsActual = true
 		video, err := q.CreateVideo(ctx, vs.Video)
 		if err != nil {
 			if utils.IsClass23(err) {
@@ -415,10 +416,69 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 	return nil
 }
 
-func (r *Round) addVote(v VoteSubmission) error {
-	r.Votes = append(r.Votes, v.Vote)
-	v.Response <- nil
-	close(v.Response)
+func (r *Round) addVote(vs VoteSubmission) error {
+	if r.Game.Status != db.GameStatusVoting {
+		err := RoundError{
+			Code: RoundErrWrongGameState,
+		}
+
+		responseAndClose(vs.Response, err)
+		return err
+	}
+
+	votes, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Vote, error) {
+		q := r.txm.Querier(tx)
+
+		vs.Vote.IsActual = true
+		vote, err := q.CreateVote(ctx, vs.Vote)
+		if err != nil {
+			if utils.IsClass23(err) {
+				return nil, RoundError{
+					Code:    RoundErrConstraintViolation,
+					Message: "constrain violation adding vote",
+					Cause:   err,
+				}
+			}
+
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create vote",
+				Cause:   err,
+			}
+		}
+
+		err = q.InvalidateOtherVotes(ctx, db.InvalidateOtherVotesParams{
+			GameID: vs.Vote.GameID,
+			VoterID: vs.Vote.VoterID,
+			VideoID: vs.Vote.VideoID,
+			ID: vote.ID,
+		})
+
+		if err != nil {
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create vote",
+				Cause:   err,
+			}
+		}
+
+		votes, err := q.GetVotesByGame(ctx, db.GetVotesByGameParams{GameID: r.Game.ID})
+		if err != nil {
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create vote",
+				Cause:   err,
+			}
+		}
+
+		return votes, nil
+	})
+
+	if votes != nil {
+		r.Votes = votes
+	}
+
+	responseAndClose(vs.Response, err)
 	return nil
 }
 

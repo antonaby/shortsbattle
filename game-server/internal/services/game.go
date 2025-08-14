@@ -254,71 +254,34 @@ func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 	}
 }
 
-// func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
-// 	round, err := g.getRound(params.GameID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (g *GameManager) SubmitVote(ctx context.Context, params db.CreateVoteParams) error {
+	round, err := g.getRound(params.GameID)
+	if err != nil {
+		return err
+	}
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	timer := time.NewTimer(round.Config.AddVoteTimeout)
+	defer timer.Stop()
 
-// 	err = g.submitWithTimeout(
-// 		round.Config.AddVideoTimeout,
-// 		func(response chan error) {
-// 			round.VideoSubmission <- VideoSubmission{Video: *video, Response: response}
-// 		},
-// 		"can't add video",
-// 	)
+	response := make(chan error, 1)
+	round.VoteSubmission <- VoteSubmission{
+		Vote:     params,
+		Response: response,
+	}
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return video, nil
-// }
-
-// func (g *GameManager) SubmitVote(ctx context.Context, params db.CreateVoteParams) (*db.Vote, error) {
-// 	round, err := g.getRound(params.GameID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	vote, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Vote, error) {
-// 		q := g.txm.Querier(tx)
-// 		err := g.checkPlayerInGameAndGameStatus(ctx, params.GameID, params.VoterID, db.GameStatusVoting, q)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		vote, err := q.CreateVote(ctx, params)
-// 		if err != nil {
-// 			return nil, GameManagerError{
-// 				Code:    CodeDbError,
-// 				Message: "can't create vote",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		return &vote, nil
-// 	})
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	err = g.submitWithTimeout(
-// 		round.Config.AddVoteTimeout,
-// 		func(response chan error) {
-// 			round.VoteSubmission <- VoteSubmission{Vote: *vote, Response: response}
-// 		},
-// 		"can't add vote",
-// 	)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return vote, nil
-// }
+	select {
+	case <-ctx.Done():
+		return GameManagerError{
+			Code:    GMErrCanceled,
+			Message: "context canceled",
+			Cause:   ctx.Err(),
+		}
+	case err := <-response:
+		return err
+	case <-timer.C:
+		return GameManagerError{
+			Code:    GMErrTimeout,
+			Message: "timeout adding vote",
+		}
+	}
+}

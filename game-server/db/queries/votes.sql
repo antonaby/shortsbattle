@@ -1,10 +1,13 @@
 -- name: CreateVote :one
-INSERT INTO votes (game_id, video_id, voter_id)
-VALUES ($1, $2, $3)
+INSERT INTO votes (game_id, video_id, voter_id, value, is_actual)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- name: InvalidateOtherVotes :exec
+UPDATE votes SET is_actual = FALSE WHERE game_id = $1 AND video_id = $2 AND voter_id = $3 AND id <> $4;
+
 -- name: GetVotesByGame :many
-SELECT id, game_id, video_id, voter_id, voted_at
+SELECT id, game_id, video_id, voter_id, value, is_actual, voted_at
 FROM votes
 WHERE game_id = $1;
 
