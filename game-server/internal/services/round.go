@@ -91,13 +91,12 @@ type GameStatusUpdate struct {
 }
 
 type PlayerJoin struct {
-	GameID   int64
-	PlayerID int64
+	Player   db.AddPlayerToGameParams
 	Response chan error
 }
 
 type VideoSubmission struct {
-	Video    db.Video
+	Video    db.CreateVideoParams
 	Response chan error
 }
 
@@ -290,14 +289,14 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 		responseAndClose(pj.Response, err)
 		return err
 	}
-	
+
 	for _, p := range r.Players {
-		if p.ID == pj.PlayerID { 	
-			responseAndClose(pj.Response, nil)	
+		if p.ID == pj.Player.PlayerID {
+			responseAndClose(pj.Response, nil)
 			return nil
 		}
 	}
-	
+
 	if len(r.Players) > r.Config.MaxPlayers {
 		err := RoundError{
 			Code: RoundErrTooManyPlayers,
@@ -310,10 +309,7 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 	player, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
 		q := r.txm.Querier(tx)
 
-		err := q.AddPlayerToGame(ctx, db.AddPlayerToGameParams{
-			GameID:   pj.GameID,
-			PlayerID: pj.PlayerID,
-		})
+		err := q.AddPlayerToGame(ctx, pj.Player)
 
 		if err != nil {
 			if utils.IsClass23(err) {
@@ -331,7 +327,7 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 			}
 		}
 
-		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: pj.PlayerID})
+		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: pj.Player.PlayerID})
 		if err != nil {
 			return nil, RoundError{
 				Code:    RoundErrDbError,
@@ -355,10 +351,52 @@ func (r *Round) checkEnoughtPlayers() bool {
 	return r.Game.Status == db.GameStatusLobby && len(r.Players) >= r.Config.MaxPlayers
 }
 
-func (r *Round) addVideo(v VideoSubmission) error {
-	r.Videos = append(r.Videos, v.Video)
-	v.Response <- nil
-	close(v.Response)
+func (r *Round) addVideo(vs VideoSubmission) error {
+	if r.Game.Status != db.GameStatusLobby && r.Game.Status != db.GameStatusSubmitting {
+		err := RoundError{
+			Code: RoundErrWrongGameState,
+		}
+
+		responseAndClose(vs.Response, err)
+		return err
+	}
+
+	// TODO: add what video is actual
+	// for _, p := range r.Videos {
+	// 	if p.PlayerID == v.Video.PlayerID {
+
+	// 		return nil
+	// 	}
+	// }
+
+	video, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
+		q := r.txm.Querier(tx)
+
+		video, err := q.CreateVideo(ctx, vs.Video)
+		if err != nil {
+			if utils.IsClass23(err) {
+				return nil, RoundError{
+					Code:    RoundErrConstraintViolation,
+					Message: "constrain violation adding video",
+					Cause:   err,
+				}
+			}
+
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "can't create video",
+				Cause:   err,
+			}
+		}
+
+		return &video, nil
+	})
+
+	if video != nil {
+		r.Videos = append(r.Videos, *video)
+	}
+
+	responseAndClose(vs.Response, err)
 	return nil
 }
 

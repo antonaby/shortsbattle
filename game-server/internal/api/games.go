@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
@@ -26,9 +27,7 @@ func (api *GameApi) Register(g *echo.Group) {
 	v1group.POST("/games", api.createGame)
 	v1group.GET("/games/:id", api.getGame)
 	v1group.PUT("/games/:gameId/players", api.addPlayerToGame)
-
-	// v1group.POST("/videos", api.SubmitVideo)
-	// v1group.POST("/votes", api.SubmitVote)
+	v1group.PUT("/games/:gameId/videos", api.submitVideo)
 }
 
 func (api *GameApi) createGame(c echo.Context) error {
@@ -107,7 +106,7 @@ func (api *GameApi) addPlayerToGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	err = api.gm.AddPlayer(ctx, gameId, request.PlayerId)
+	err = api.gm.AddPlayer(ctx, db.AddPlayerToGameParams{GameID: gameId, PlayerID: request.PlayerId})
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to add player to game: %v", err)
 
@@ -145,23 +144,64 @@ func (api *GameApi) addPlayerToGame(c echo.Context) error {
 	})
 }
 
-// func (api *GameApi) SubmitVideo(c echo.Context) error {
-// 	request := new(db.CreateVideoParams)
-// 	if err := c.Bind(request); err != nil {
-// 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-// 			Error: err.Error(),
-// 		})
-// 	}
+func (api *GameApi) submitVideo(c echo.Context) error {
+	gameId, err := parseInt64(c.Param("gameId"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
 
-// 	ctx := c.Request().Context()
-// 	video, err := api.gm.SubmitVideo(ctx, *request)
-// 	if err != nil {
-// 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
-// 		return getErrorResponse(c, err)
-// 	}
+	request := new(m.SubmitVideoToGame)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
 
-// 	return c.JSON(http.StatusOK, video)
-// }
+	ctx := c.Request().Context()
+	err = api.gm.SubmitVideo(ctx, db.CreateVideoParams{
+		GameID:   gameId,
+		PlayerID: request.PlayerId,
+		VideoUrl: request.VideoUrl,
+	})
+
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to submit video to game: %v", err)
+
+		var gErr services.GameManagerError
+		if errors.As(err, &gErr) {
+			if gErr.Code == services.GMErrNotFound {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "Game not found",
+				})
+			}
+		}
+
+		var rErr services.RoundError
+		if errors.As(err, &rErr) {
+			if rErr.Code == services.RoundErrWrongGameState {
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "Lobby closed",
+				})
+			}
+
+			if rErr.Code == services.RoundErrConstraintViolation {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "Game or Player not found",
+				})
+			}
+		}
+
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, m.OkResponse{
+		Msg: "Video has been submitted to the game",
+	})
+}
 
 // func (api *GameApi) SubmitVote(c echo.Context) error {
 // 	request := new(db.CreateVoteParams)

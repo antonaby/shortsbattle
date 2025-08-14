@@ -172,7 +172,7 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 		details.Players = round.Players
 		details.Videos = round.Videos
 		details.Votes = round.Votes
-	} 
+	}
 	// TODO: load players, videos and votes from db
 
 	return details, nil
@@ -190,8 +190,8 @@ func (g *GameManager) getRound(gameId int64) (*Round, error) {
 	return round, nil
 }
 
-func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
-	round, err := g.getRound(gameId)
+func (g *GameManager) AddPlayer(ctx context.Context, params db.AddPlayerToGameParams) error {
+	round, err := g.getRound(params.GameID)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,10 @@ func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int6
 	defer timer.Stop()
 
 	response := make(chan error, 1)
-	round.PlayerJoin <- PlayerJoin{GameID: gameId, PlayerID: playerId, Response: response}
+	round.PlayerJoin <- PlayerJoin{
+		Player:   params,
+		Response: response,
+	}
 
 	select {
 	case <-ctx.Done():
@@ -219,30 +222,43 @@ func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int6
 	}
 }
 
+func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoParams) error {
+	round, err := g.getRound(params.GameID)
+	if err != nil {
+		return err
+	}
+
+	timer := time.NewTimer(round.Config.AddVideoTimeout)
+	defer timer.Stop()
+
+	response := make(chan error, 1)
+	round.VideoSubmission <- VideoSubmission{
+		Video:    params,
+		Response: response,
+	}
+
+	select {
+	case <-ctx.Done():
+		return GameManagerError{
+			Code:    GMErrCanceled,
+			Message: "context canceled",
+			Cause:   ctx.Err(),
+		}
+	case err := <-response:
+		return err
+	case <-timer.C:
+		return GameManagerError{
+			Code:    GMErrTimeout,
+			Message: "timeout adding video",
+		}
+	}
+}
+
 // func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
 // 	round, err := g.getRound(params.GameID)
 // 	if err != nil {
 // 		return nil, err
 // 	}
-
-// 	video, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Video, error) {
-// 		q := g.txm.Querier(tx)
-// 		err := g.checkPlayerInGameAndGameStatus(ctx, params.GameID, params.PlayerID, db.GameStatusLobby, q)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		video, err := q.CreateVideo(ctx, params)
-// 		if err != nil {
-// 			return nil, GameManagerError{
-// 				Code:    CodeDbError,
-// 				Message: "can't create video",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		return &video, nil
-// 	})
 
 // 	if err != nil {
 // 		return nil, err
@@ -305,66 +321,4 @@ func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int6
 // 	}
 
 // 	return vote, nil
-// }
-
-// func (g *GameManager) checkPlayerInGameAndGameStatus(ctx context.Context, gameId int64, playerId int64, status db.GameStatus, q db.Querier) error {
-// 	ok, err := q.IsPlayerInGame(ctx, db.IsPlayerInGameParams{
-// 		GameID:   gameId,
-// 		PlayerID: playerId,
-// 	})
-
-// 	if err != nil {
-// 		return GameManagerError{
-// 			Code:    getErrorCode(err),
-// 			Message: "can't find player in game",
-// 			Cause:   err,
-// 		}
-// 	}
-
-// 	if !ok {
-// 		return GameManagerError{
-// 			Code:    CodeNotFound,
-// 			Message: "player not in game",
-// 		}
-// 	}
-
-// 	game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
-// 	if err != nil {
-// 		return GameManagerError{
-// 			Code:    getErrorCode(err),
-// 			Message: "can't fetch game",
-// 			Cause:   err,
-// 		}
-// 	}
-
-// 	if game.Status != status {
-// 		return GameManagerError{
-// 			Code:    CodeWrongGameStatus,
-// 			Message: "game completed or not started",
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-// func (g *GameManager) GetPlayersInGame(ctx context.Context, gameId int64) ([]db.GetPlayersInGameRow, error) {
-// 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.GetPlayersInGameRow, error) {
-// 		q := g.txm.Querier(tx)
-// 		return q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: gameId})
-// 	})
-// }
-
-// func (g *GameManager) GetGames(ctx context.Context) ([]db.Game, error) {
-// 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Game, error) {
-// 		q := g.txm.Querier(tx)
-// 		return q.GetAllGames(ctx)
-// 	})
-// }
-
-// func getErrorCode(err error) GameManagerErrorCode {
-// 	if errors.Is(err, pgx.ErrNoRows) {
-// 		return CodeNotFound
-// 	}
-
-// 	return CodeDbError
 // }

@@ -19,6 +19,11 @@ type AddPlayerToGame struct {
 	PlayerId int64 `json:"player_id" validate:"required"`
 }
 
+type SubmitVideoToGame struct {
+	PlayerId int64  `json:"player_id" validate:"required"`
+	VideoUrl string `json:"video_url" validate:"required"`
+}
+
 type CreateGame struct {
 	ThemeId int64 `json:"theme_id" validate:"required"`
 }
