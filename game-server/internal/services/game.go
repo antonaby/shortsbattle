@@ -15,17 +15,18 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type GameManagerErrorCode int
+type GMErrorCode int
 
 const (
-	GameManagerUnknownErrorCode GameManagerErrorCode = iota
-	GameManagerNotFoundErrorCode
-	GameManagerConstraintViolationErrroCode
-	GameManagerDbErrorCode
+	GMErrUnknown GMErrorCode = iota
+	GMErrNotFound
+	GMErrConstraintViolation
+	GMErrDbError
+	GMErrTimeout
 )
 
 type GameManagerError struct {
-	Code    GameManagerErrorCode
+	Code    GMErrorCode
 	Message string
 	Cause   error
 }
@@ -80,14 +81,14 @@ func (g *GameManager) createGame(ctx context.Context, themeId int64) (*db.Game, 
 		if err != nil {
 			if utils.IsClass23(err) {
 				return nil, GameManagerError{
-					Code:    GameManagerConstraintViolationErrroCode,
+					Code:    GMErrConstraintViolation,
 					Message: "can't create game",
 					Cause:   err,
 				}
 			}
 
 			return nil, GameManagerError{
-				Code:    GameManagerDbErrorCode,
+				Code:    GMErrDbError,
 				Message: "can't create game",
 				Cause:   err,
 			}
@@ -131,13 +132,13 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, GameManagerError{
-					Code:    GameManagerNotFoundErrorCode,
+					Code:    GMErrNotFound,
 					Message: "game not found",
 				}
 			}
 
 			return nil, GameManagerError{
-				Code:    GameManagerDbErrorCode,
+				Code:    GMErrDbError,
 				Message: "can't get game",
 				Cause:   err,
 			}
@@ -173,7 +174,7 @@ func (g *GameManager) getRound(gameId int64) (*Round, error) {
 	round, ok := g.rounds[gameId]
 	if !ok {
 		return nil, GameManagerError{
-			Code:    GameManagerNotFoundErrorCode,
+			Code:    GMErrNotFound,
 			Message: "round not found",
 		}
 	}
@@ -181,69 +182,28 @@ func (g *GameManager) getRound(gameId int64) (*Round, error) {
 	return round, nil
 }
 
-// func (g *GameManager) AddPlayer(ctx context.Context, gameId int64, playerId int64) error {
-// 	round, err := g.getRound(gameId)
-// 	if err != nil {
-// 		return err
-// 	}
+func (g *GameManager) AddPlayer(gameId int64, playerId int64) error {
+	round, err := g.getRound(gameId)
+	if err != nil {
+		return err
+	}
 
-// 	player, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
-// 		q := g.txm.Querier(tx)
-// 		game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
-// 		if err != nil {
-// 			return nil, GameManagerError{
-// 				Code:    CodeDbError,
-// 				Message: "db error fetching game",
-// 				Cause:   err,
-// 			}
-// 		}
+	timer := time.NewTimer(round.Config.AddPlayerTimeout)
+	defer timer.Stop()
 
-// 		if game.Status != db.GameStatusLobby {
-// 			return nil, GameManagerError{
-// 				Code:    CodeWrongGameStatus,
-// 				Message: "game complete",
-// 			}
-// 		}
+	response := make(chan error, 1)
+	round.PlayerJoin <- PlayerJoin{GameID: gameId, PlayerID: playerId, Response: response}
 
-// 		err = q.AddPlayerToGame(ctx, db.AddPlayerToGameParams{
-// 			GameID:   gameId,
-// 			PlayerID: playerId,
-// 		})
-
-// 		if err != nil {
-// 			return nil, GameManagerError{
-// 				Code:    CodeDbError,
-// 				Message: "db error adding player",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: playerId})
-// 		if err != nil {
-// 			return nil, GameManagerError{
-// 				Code:    CodeDbError,
-// 				Message: "db error fetching player",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		return &player, nil
-// 	})
-
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	err = g.submitWithTimeout(
-// 		round.Config.AddPlayerTimeout,
-// 		func(response chan error) {
-// 			round.PlayerJoin <- PlayerJoin{Player: *player, Response: response}
-// 		},
-// 		"can't add player",
-// 	)
-
-// 	return err
-// }
+	select {
+	case err := <-response:
+		return err
+	case <-timer.C:
+		return GameManagerError{
+			Code:    GMErrTimeout,
+			Message: "timeout adding player",
+		}
+	}
+}
 
 // func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoParams) (*db.Video, error) {
 // 	round, err := g.getRound(params.GameID)
@@ -373,58 +333,11 @@ func (g *GameManager) getRound(gameId int64) (*Round, error) {
 // 	return nil
 // }
 
-// func (g *GameManager) submitWithTimeout(timeout time.Duration, sendFunc func(response chan error), errMsg string) error {
-// 	timer := time.NewTimer(timeout)
-// 	defer timer.Stop()
-
-// 	response := make(chan error, 1)
-// 	sendFunc(response)
-
-// 	select {
-// 	case err := <-response:
-// 		if err != nil {
-// 			return GameManagerError{
-// 				Code:    CodeUnknown,
-// 				Message: errMsg,
-// 				Cause:   err,
-// 			}
-// 		}
-// 		return nil
-// 	case <-timer.C:
-// 		return GameManagerError{
-// 			Code:    CodeTimeout,
-// 			Message: errMsg,
-// 		}
-// 	}
-// }
-
 // func (g *GameManager) GetPlayersInGame(ctx context.Context, gameId int64) ([]db.GetPlayersInGameRow, error) {
 // 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) ([]db.GetPlayersInGameRow, error) {
 // 		q := g.txm.Querier(tx)
 // 		return q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: gameId})
 // 	})
-// }
-
-// func (g *GameManager) CreatePlayer(ctx context.Context, params db.CreatePlayerParams) (db.Player, error) {
-// 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
-// 		q := g.txm.Querier(tx)
-// 		return q.CreatePlayer(ctx, params)
-// 	})
-// }
-
-// func (g *GameManager) GetPlayer(ctx context.Context, id int64) (db.Player, error) {
-// 	player, err := db.WithTxValue(
-// 		ctx, g.txm,
-// 		func(ctx context.Context, tx pgx.Tx) (db.Player, error) {
-// 			q := g.txm.Querier(tx)
-// 			return q.GetPlayer(ctx, db.GetPlayerParams{ID: id})
-// 		})
-
-// 	if err != nil {
-// 		return db.Player{}, err
-// 	}
-
-// 	return player, err
 // }
 
 // func (g *GameManager) GetGames(ctx context.Context) ([]db.Game, error) {

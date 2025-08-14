@@ -6,15 +6,20 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/utils"
 	"github.com/jackc/pgx/v5"
 )
 
 type RoundErrorCode int
 
 const (
-	RoundErrorUnknownCode = iota
-	RoundErrorLobbyTimeoutCode
-	RoundErrorCanceledCode
+	RoundErrUnknown = iota
+	RoundErrCanceled
+	RoundErrDbError
+	RoundErrNotFound
+	RoundErrConstraintViolation
+	RoundErrTooManyPlayers
+	RoundErrWrongGameState
 )
 
 type RoundError struct {
@@ -86,7 +91,8 @@ type GameStatusUpdate struct {
 }
 
 type PlayerJoin struct {
-	Player   db.Player
+	GameID   int64
+	PlayerID int64
 	Response chan error
 }
 
@@ -155,7 +161,7 @@ func (r *Round) updateGameStatus(status db.GameStatus) error {
 
 	if err != nil {
 		return RoundError{
-			Code:    RoundErrorUnknownCode,
+			Code:    RoundErrUnknown,
 			Message: "failed to update game status",
 			Cause:   err,
 		}
@@ -188,7 +194,10 @@ Loop:
 		case <-r.Ctx.Done():
 			break Loop
 		case p := <-r.PlayerJoin:
-			r.addPlayer(p)
+			_ = r.addPlayer(p)
+			if r.checkEnoughtPlayers() {
+				r.toSubmittingStage()
+			}
 		case v := <-r.VideoSubmission:
 			r.addVideo(v)
 		case v := <-r.VoteSubmission:
@@ -273,10 +282,77 @@ func (r *Round) toCompleteStage() {
 }
 
 func (r *Round) addPlayer(pj PlayerJoin) error {
-	r.Players = append(r.Players, pj.Player)
-	pj.Response <- nil
-	close(pj.Response)
-	return nil
+	if r.Game.Status != db.GameStatusLobby {
+		err := RoundError{
+			Code: RoundErrWrongGameState,
+		}
+
+		responseAndClose(pj.Response, err)
+		return err
+	}
+	
+	for _, p := range r.Players {
+		if p.ID == pj.PlayerID { 	
+			responseAndClose(pj.Response, nil)	
+			return nil
+		}
+	}
+	
+	if len(r.Players) > r.Config.MaxPlayers {
+		err := RoundError{
+			Code: RoundErrTooManyPlayers,
+		}
+
+		responseAndClose(pj.Response, err)
+		return err
+	}
+
+	player, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
+		q := r.txm.Querier(tx)
+
+		err := q.AddPlayerToGame(ctx, db.AddPlayerToGameParams{
+			GameID:   pj.GameID,
+			PlayerID: pj.PlayerID,
+		})
+
+		if err != nil {
+			if utils.IsClass23(err) {
+				return nil, RoundError{
+					Code:    RoundErrConstraintViolation,
+					Message: "constrain violation adding player",
+					Cause:   err,
+				}
+			}
+
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "db error adding player",
+				Cause:   err,
+			}
+		}
+
+		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: pj.PlayerID})
+		if err != nil {
+			return nil, RoundError{
+				Code:    RoundErrDbError,
+				Message: "db error getting player",
+				Cause:   err,
+			}
+		}
+
+		return &player, nil
+	})
+
+	if player != nil {
+		r.Players = append(r.Players, *player)
+	}
+
+	responseAndClose(pj.Response, err)
+	return err
+}
+
+func (r *Round) checkEnoughtPlayers() bool {
+	return r.Game.Status == db.GameStatusLobby && len(r.Players) >= r.Config.MaxPlayers
 }
 
 func (r *Round) addVideo(v VideoSubmission) error {
@@ -291,4 +367,9 @@ func (r *Round) addVote(v VoteSubmission) error {
 	v.Response <- nil
 	close(v.Response)
 	return nil
+}
+
+func responseAndClose(re chan error, err error) {
+	re <- err
+	close(re)
 }

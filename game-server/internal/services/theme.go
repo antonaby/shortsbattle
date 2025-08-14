@@ -12,8 +12,8 @@ import (
 type ThemeServiceErrorCode int
 
 const (
-	ThemeServiceDbErrorCode = iota
-	ThemeServiceNotFoundErrorCode
+	TSErrDbError = iota
+	TSErrNotFound
 )
 
 type ThemeServiceError struct {
@@ -49,7 +49,7 @@ func (ts *ThemeService) CreateTheme(ctx context.Context, params db.CreateThemePa
 		theme, err := q.CreateTheme(ctx, params)
 		if err != nil {
 			return nil, ThemeServiceError{
-				Code:    ThemeServiceDbErrorCode,
+				Code:    TSErrDbError,
 				Message: "can't create theme",
 				Cause:   err,
 			}
@@ -66,14 +66,14 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]db.Theme, error) {
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil, ThemeServiceError{
-					Code:    ThemeServiceNotFoundErrorCode,
+					Code:    TSErrNotFound,
 					Message: "no themes found",
 					Cause:   err,
 				}
 			}
 
 			return nil, ThemeServiceError{
-				Code:    ThemeServiceDbErrorCode,
+				Code:    TSErrDbError,
 				Message: "can't list all themes",
 				Cause:   err,
 			}
@@ -82,4 +82,3 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]db.Theme, error) {
 		return themes, nil
 	})
 }
-
