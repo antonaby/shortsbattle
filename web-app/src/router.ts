@@ -1,18 +1,18 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import GameSelect from './pages/GameSelect.vue'
-import GameLobby from './pages/GameLobby.vue'
+import GameList from './pages/GameList.vue'
+import Game from './pages/Game.vue'
 import GameWatch from './pages/GameWatch.vue'
 
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'select',
-    component: GameSelect,
+    name: 'list',
+    component: GameList,
   },{
     path: '/game',
     name: 'game',
-    component: GameLobby
+    component: Game
   },{
     path: '/watch',
     name: 'watch',

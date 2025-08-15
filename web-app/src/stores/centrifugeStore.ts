@@ -1,11 +1,16 @@
 import { defineStore } from "pinia";
 import { Centrifuge, Subscription } from "centrifuge";
 
+interface GameUpdate {
+  id: number;
+  status: string;
+}
+
 interface CentrifugeStoreState {
   client: Centrifuge | null;
   sub: Subscription | null;
   connected: boolean;
-  messages: any[];
+  lastGameUpdate: GameUpdate | null;
 }
 
 export const useCentrifugeStore = defineStore("centrifuge", {
@@ -13,18 +18,17 @@ export const useCentrifugeStore = defineStore("centrifuge", {
     client: null,
     sub: null,
     connected: false,
-    messages: [],
+    lastGameUpdate: null,
   }),
   actions: {
     connect(gameInstanceId: number) {
       const cf = new Centrifuge("ws://localhost:8080/api/v1/join");
 
       const sub = cf.newSubscription(`game_${gameInstanceId}`);
-      sub.on("publication", function (ctx) {
-        console.log(ctx.data);
+      sub.on("publication", (ctx) => {
+        this.lastGameUpdate = ctx.data;
       });
       sub.subscribe();
-
       this.sub = sub;
 
       cf.on("connected", () => {
@@ -38,8 +42,10 @@ export const useCentrifugeStore = defineStore("centrifuge", {
       this.client = cf;
     },
     disconnect() {
-      this.sub?.unsubscribe()
-      this.client?.disconnect()
-    }
+      this.sub?.unsubscribe();
+      this.sub = null;
+      this.client?.disconnect();
+      this.client = null;
+    },
   },
 });

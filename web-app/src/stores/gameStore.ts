@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import router from "../router";
-import { useCentrifugeStore } from "./centrifuge";
+import { useCentrifugeStore } from "./centrifugeStore";
 
 interface Game {
   id: number;
@@ -37,6 +37,9 @@ export const useGameStore = defineStore("game", {
         ? state.games.find((game) => game.id === state.gameId) || null
         : null;
     },
+    currentGameInstance: (state) => {
+      return state.gameInstance;
+    },
   },
   actions: {
     async fetchGames() {
@@ -64,18 +67,13 @@ export const useGameStore = defineStore("game", {
         );
         this.gameInstance = response.data;
       } catch (error) {
-        console.error("Failed to fetch games:", error);
-      }
-
-      if (this.gameInstance?.id) {
-        let cfStore = useCentrifugeStore();
-        cfStore.connect(this.gameInstance?.id);
+        console.error("Failed to fetch the game:", error);
       }
 
       this.loading = false;
       router.push("/game");
     },
-    clearGameId() {
+    leaveGame() {
       let cfStore = useCentrifugeStore();
       cfStore.disconnect();
 

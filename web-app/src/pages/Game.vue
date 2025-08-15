@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import { onMounted, onUnmounted } from "vue";
 import { useGameStore } from "../stores/gameStore";
+import { useCentrifugeStore } from "../stores/centrifugeStore";
 
 const gameStore = useGameStore();
 const game = gameStore.currentGame;
+const gameInstance = gameStore.currentGameInstance;
 
+const centrifugeStore = useCentrifugeStore()
+
+onMounted(() => {
+  if (game && gameInstance) {
+    centrifugeStore.connect(gameInstance.id)
+  }
+})
+
+onUnmounted(() => {
+  centrifugeStore.disconnect();
+})
 </script>
 
 <template>
@@ -14,13 +28,14 @@ const game = gameStore.currentGame;
       <div class="text-center">
         <h2 class="text-xl font-bold text-gray-900">{{ game.name }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ game.description }}</p>
+        <p class="text-sm text-gray-500 mt-1" v-if="centrifugeStore.lastGameUpdate">{{ centrifugeStore.lastGameUpdate.status }}</p>
       </div>
     </div>
 
     <!-- Bottom Button -->
     <div class="pt-4 flex justify-center gap-3">
       <button
-        @click="gameStore.clearGameId()"
+        @click="gameStore.leaveGame()"
         class="w-35 py-3 text-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 active:bg-gray-300 transition"
       >
         🔙 Back
@@ -32,7 +47,7 @@ const game = gameStore.currentGame;
   <div v-else class="text-center mt-6">
     <p class="text-gray-500">No game selected.</p>
     <button
-      @click="gameStore.clearGameId()"
+      @click="gameStore.leaveGame()"
       class="mt-3 py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300"
     >
       Go Back
