@@ -1,9 +1,11 @@
 package ws
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/centrifugal/centrifuge"
 )
 
@@ -56,8 +58,13 @@ func (r *CentrifugeServer) Run() error {
 	return nil
 }
 
-func (r *CentrifugeServer) Publish(channel string, data []byte) (centrifuge.PublishResult, error) {
-	return r.Node.Publish(channel, data)
+func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) (centrifuge.PublishResult, error) {
+	jsonBytes, err := json.Marshal(upd)
+	if err != nil {
+		return centrifuge.PublishResult{}, err
+	}
+
+	return r.Node.Publish(channel, jsonBytes)
 }
 
 func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {

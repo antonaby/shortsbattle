@@ -50,3 +50,8 @@ type GameDetails struct {
 	Videos             []db.Video         `json:"videos"`
 	Votes              []db.Vote          `json:"votes"`
 }
+
+type GameUpdate struct {
+	ID                 int64         `json:"id"`
+	Status             db.GameStatus `json:"status"`
+}

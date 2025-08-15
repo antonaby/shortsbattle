@@ -171,7 +171,12 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 
 func (g *GameManager) watchGame(game *GameInstance) {
 	for upd := range game.StatusUpdate {
-		_, _ = g.cf.Publish(fmt.Sprintf("game_%d", upd.GameID), []byte(upd.Status))
+		update := models.GameUpdate{
+			ID: upd.GameID,
+			Status: upd.Status,
+		}
+
+		_, _ = g.cf.PublishGameUpdate(fmt.Sprintf("game_%d", upd.GameID), update)
 
 		if upd.Error != nil {
 			break

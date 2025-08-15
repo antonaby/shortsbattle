@@ -27,6 +27,10 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
 	}
+	err = cf.Run()
+	if err != nil {
+		log.Fatal("Can't start Centriguge router")
+	}
 
 	ts := services.NewThemeService(dbManager)
 	gm := services.NewGameManager(dbManager, cf)
