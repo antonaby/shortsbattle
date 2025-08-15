@@ -10,32 +10,32 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type RoundErrorCode int
+type GameInstanceErrorCode int
 
 const (
-	RoundErrUnknown = iota
-	RoundErrCanceled
-	RoundErrDbError
-	RoundErrNotFound
-	RoundErrConstraintViolation
-	RoundErrTooManyPlayers
-	RoundErrWrongGameState
+	GIErrUnknown = iota
+	GIErrCanceled
+	GIErrDbError
+	GIErrNotFound
+	GIErrConstraintViolation
+	GIErrTooManyPlayers
+	GIErrWrongGameState
 )
 
-type RoundError struct {
-	Code    RoundErrorCode
+type GameInstanceError struct {
+	Code    GameInstanceErrorCode
 	Message string
 	Cause   error
 }
 
-func (e RoundError) Error() string {
+func (e GameInstanceError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
 	}
 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
 }
 
-func (e RoundError) Unwrap() error {
+func (e GameInstanceError) Unwrap() error {
 	return e.Cause
 }
 
@@ -105,7 +105,7 @@ type VoteSubmission struct {
 	Response chan error
 }
 
-type RoundConfig struct {
+type GameInstanceConfig struct {
 	MinPlayers        int
 	MaxPlayers        int
 	LobbyTimeout      time.Duration
@@ -116,10 +116,10 @@ type RoundConfig struct {
 	AddVoteTimeout    time.Duration
 }
 
-type Round struct {
+type GameInstance struct {
 	txm             db.TxManager
 	Game            db.Game
-	Config          RoundConfig
+	Config          GameInstanceConfig
 	StageCountdown  Countdown
 	Players         []db.Player
 	Videos          []db.Video
@@ -132,9 +132,9 @@ type Round struct {
 	Cancel          context.CancelFunc
 }
 
-func NewRound(txm db.TxManager, game db.Game, config RoundConfig) *Round {
+func NewGameInstance(txm db.TxManager, game db.Game, config GameInstanceConfig) *GameInstance {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Round{
+	return &GameInstance{
 		txm:             txm,
 		Game:            game,
 		Config:          config,
@@ -147,20 +147,20 @@ func NewRound(txm db.TxManager, game db.Game, config RoundConfig) *Round {
 	}
 }
 
-func (r *Round) Run() {
+func (r *GameInstance) Run() {
 	defer r.Cancel()
 	r.gameLoop()
 }
 
-func (r *Round) updateGameStatus(status db.GameStatus) error {
+func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
 	game, err := db.WithTxValue(r.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) (db.Game, error) {
 		q := r.txm.Querier(tx)
 		return q.UpdateGameStatus(ctx, db.UpdateGameStatusParams{ID: r.Game.ID, Status: status})
 	})
 
 	if err != nil {
-		return RoundError{
-			Code:    RoundErrUnknown,
+		return GameInstanceError{
+			Code:    GIErrUnknown,
 			Message: "failed to update game status",
 			Cause:   err,
 		}
@@ -171,7 +171,7 @@ func (r *Round) updateGameStatus(status db.GameStatus) error {
 	return nil
 }
 
-func (r *Round) updateRound(err error) {
+func (r *GameInstance) updateGame(err error) {
 	r.StatusUpdate <- GameStatusUpdate{
 		GameID: r.Game.ID,
 		Status: r.Game.Status,
@@ -179,7 +179,7 @@ func (r *Round) updateRound(err error) {
 	}
 }
 
-func (r *Round) gameLoop() {
+func (r *GameInstance) gameLoop() {
 	defer r.StageCountdown.Stop()
 
 	err := r.toLobbyStage()
@@ -216,7 +216,7 @@ Loop:
 	r.toCompleteStage()
 }
 
-func (r *Round) nextStage() error {
+func (r *GameInstance) nextStage() error {
 	switch r.Game.Status {
 	case db.GameStatusLobby:
 		return r.toSubmittingStage()
@@ -227,14 +227,14 @@ func (r *Round) nextStage() error {
 	}
 
 	err := r.updateGameStatus(db.GameStatusWinner)
-	r.updateRound(err)
+	r.updateGame(err)
 
 	return err
 }
 
-func (r *Round) toLobbyStage() error {
+func (r *GameInstance) toLobbyStage() error {
 	err := r.updateGameStatus(db.GameStatusLobby)
-	r.updateRound(err)
+	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -244,9 +244,9 @@ func (r *Round) toLobbyStage() error {
 	return nil
 }
 
-func (r *Round) toSubmittingStage() error {
+func (r *GameInstance) toSubmittingStage() error {
 	err := r.updateGameStatus(db.GameStatusSubmitting)
-	r.updateRound(err)
+	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -256,9 +256,9 @@ func (r *Round) toSubmittingStage() error {
 	return nil
 }
 
-func (r *Round) toVotingStage() error {
+func (r *GameInstance) toVotingStage() error {
 	err := r.updateGameStatus(db.GameStatusVoting)
-	r.updateRound(err)
+	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -268,22 +268,22 @@ func (r *Round) toVotingStage() error {
 	return nil
 }
 
-func (r *Round) toWinnerStage() error {
+func (r *GameInstance) toWinnerStage() error {
 	err := r.updateGameStatus(db.GameStatusWinner)
-	r.updateRound(err)
+	r.updateGame(err)
 	return err
 }
 
-func (r *Round) toCompleteStage() {
+func (r *GameInstance) toCompleteStage() {
 	err := r.updateGameStatus(db.GameStatusComplete)
-	r.updateRound(err)
+	r.updateGame(err)
 	close(r.StatusUpdate)
 }
 
-func (r *Round) addPlayer(pj PlayerJoin) error {
+func (r *GameInstance) addPlayer(pj PlayerJoin) error {
 	if r.Game.Status != db.GameStatusLobby {
-		err := RoundError{
-			Code: RoundErrWrongGameState,
+		err := GameInstanceError{
+			Code: GIErrWrongGameState,
 		}
 
 		responseAndClose(pj.Response, err)
@@ -298,8 +298,8 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 	}
 
 	if len(r.Players) > r.Config.MaxPlayers {
-		err := RoundError{
-			Code: RoundErrTooManyPlayers,
+		err := GameInstanceError{
+			Code: GIErrTooManyPlayers,
 		}
 
 		responseAndClose(pj.Response, err)
@@ -313,15 +313,15 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 
 		if err != nil {
 			if utils.IsClass23(err) {
-				return nil, RoundError{
-					Code:    RoundErrConstraintViolation,
+				return nil, GameInstanceError{
+					Code:    GIErrConstraintViolation,
 					Message: "constrain violation adding player",
 					Cause:   err,
 				}
 			}
 
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "db error adding player",
 				Cause:   err,
 			}
@@ -329,8 +329,8 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 
 		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: pj.Player.PlayerID})
 		if err != nil {
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "db error getting player",
 				Cause:   err,
 			}
@@ -347,14 +347,14 @@ func (r *Round) addPlayer(pj PlayerJoin) error {
 	return err
 }
 
-func (r *Round) checkEnoughtPlayers() bool {
+func (r *GameInstance) checkEnoughtPlayers() bool {
 	return r.Game.Status == db.GameStatusLobby && len(r.Players) >= r.Config.MaxPlayers
 }
 
-func (r *Round) addVideo(vs VideoSubmission) error {
+func (r *GameInstance) addVideo(vs VideoSubmission) error {
 	if r.Game.Status != db.GameStatusLobby && r.Game.Status != db.GameStatusSubmitting {
-		err := RoundError{
-			Code: RoundErrWrongGameState,
+		err := GameInstanceError{
+			Code: GIErrWrongGameState,
 		}
 
 		responseAndClose(vs.Response, err)
@@ -368,29 +368,29 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 		video, err := q.CreateVideo(ctx, vs.Video)
 		if err != nil {
 			if utils.IsClass23(err) {
-				return nil, RoundError{
-					Code:    RoundErrConstraintViolation,
+				return nil, GameInstanceError{
+					Code:    GIErrConstraintViolation,
 					Message: "constrain violation adding video",
 					Cause:   err,
 				}
 			}
 
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create video",
 				Cause:   err,
 			}
 		}
 
 		err = q.InvalidateOtherVideos(ctx, db.InvalidateOtherVideosParams{
-			GameID: vs.Video.GameID, 
-			PlayerID: vs.Video.PlayerID, 
-			ID: video.ID,
+			GameID:   vs.Video.GameID,
+			PlayerID: vs.Video.PlayerID,
+			ID:       video.ID,
 		})
 
 		if err != nil {
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create video",
 				Cause:   err,
 			}
@@ -398,8 +398,8 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 
 		videos, err := q.GetVideosByGame(ctx, db.GetVideosByGameParams{GameID: r.Game.ID})
 		if err != nil {
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create video",
 				Cause:   err,
 			}
@@ -416,10 +416,10 @@ func (r *Round) addVideo(vs VideoSubmission) error {
 	return nil
 }
 
-func (r *Round) addVote(vs VoteSubmission) error {
+func (r *GameInstance) addVote(vs VoteSubmission) error {
 	if r.Game.Status != db.GameStatusVoting {
-		err := RoundError{
-			Code: RoundErrWrongGameState,
+		err := GameInstanceError{
+			Code: GIErrWrongGameState,
 		}
 
 		responseAndClose(vs.Response, err)
@@ -433,30 +433,30 @@ func (r *Round) addVote(vs VoteSubmission) error {
 		vote, err := q.CreateVote(ctx, vs.Vote)
 		if err != nil {
 			if utils.IsClass23(err) {
-				return nil, RoundError{
-					Code:    RoundErrConstraintViolation,
+				return nil, GameInstanceError{
+					Code:    GIErrConstraintViolation,
 					Message: "constrain violation adding vote",
 					Cause:   err,
 				}
 			}
 
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create vote",
 				Cause:   err,
 			}
 		}
 
 		err = q.InvalidateOtherVotes(ctx, db.InvalidateOtherVotesParams{
-			GameID: vs.Vote.GameID,
+			GameID:  vs.Vote.GameID,
 			VoterID: vs.Vote.VoterID,
 			VideoID: vs.Vote.VideoID,
-			ID: vote.ID,
+			ID:      vote.ID,
 		})
 
 		if err != nil {
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create vote",
 				Cause:   err,
 			}
@@ -464,8 +464,8 @@ func (r *Round) addVote(vs VoteSubmission) error {
 
 		votes, err := q.GetVotesByGame(ctx, db.GetVotesByGameParams{GameID: r.Game.ID})
 		if err != nil {
-			return nil, RoundError{
-				Code:    RoundErrDbError,
+			return nil, GameInstanceError{
+				Code:    GIErrDbError,
 				Message: "can't create vote",
 				Cause:   err,
 			}

@@ -74,3 +74,43 @@ func (q *Queries) IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) 
 	err := row.Scan(&exists)
 	return exists, err
 }
+
+const listGamesWithPlayerCounts = `-- name: ListGamesWithPlayerCounts :many
+SELECT
+  g.id,
+  COUNT(gp.player_id) AS player_count
+FROM games AS g
+LEFT JOIN game_players AS gp
+  ON gp.game_id = g.id
+WHERE g.id = ANY($1::bigint[])
+GROUP BY g.id ORDER BY player_count LIMIT 1
+`
+
+type ListGamesWithPlayerCountsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+type ListGamesWithPlayerCountsRow struct {
+	ID          int64 `json:"id"`
+	PlayerCount int64 `json:"player_count"`
+}
+
+func (q *Queries) ListGamesWithPlayerCounts(ctx context.Context, arg ListGamesWithPlayerCountsParams) ([]ListGamesWithPlayerCountsRow, error) {
+	rows, err := q.db.Query(ctx, listGamesWithPlayerCounts, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGamesWithPlayerCountsRow
+	for rows.Next() {
+		var i ListGamesWithPlayerCountsRow
+		if err := rows.Scan(&i.ID, &i.PlayerCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

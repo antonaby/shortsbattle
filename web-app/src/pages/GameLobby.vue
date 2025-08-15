@@ -2,12 +2,12 @@
 import { useGameStore } from "../stores/gameStore";
 
 const gameStore = useGameStore();
-const game = gameStore.games[gameStore.gameId || 0];
+const game = gameStore.currentGame;
 
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col" v-if="game">
     <!-- Top Content -->
     <div class="flex-1">
       <h1 class="text-2xl font-bold text-center mb-6">🎮 Game Lobby</h1>
@@ -25,11 +25,17 @@ const game = gameStore.games[gameStore.gameId || 0];
       >
         🔙 Back
       </button>
-      <button 
-        @click="gameStore.watchWideo()"
-        class="w-35 py-3 text-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 active:bg-gray-300 transition">
-        🎮 Join
-      </button>
     </div>
+  </div>
+
+  <!-- Fallback when game is null -->
+  <div v-else class="text-center mt-6">
+    <p class="text-gray-500">No game selected.</p>
+    <button
+      @click="gameStore.clearGameId()"
+      class="mt-3 py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300"
+    >
+      Go Back
+    </button>
   </div>
 </template>

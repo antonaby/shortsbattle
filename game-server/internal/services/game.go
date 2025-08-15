@@ -44,63 +44,117 @@ func (e GameManagerError) Unwrap() error {
 }
 
 type GameManager struct {
-	txm    db.TxManager
-	mu     sync.RWMutex
-	rounds map[int64]*Round
+	txm   db.TxManager
+	mu    sync.RWMutex
+	games map[int64]*GameInstance
 }
 
 func NewGameManager(txm db.TxManager) *GameManager {
 	return &GameManager{
-		txm:    txm,
-		rounds: make(map[int64]*Round),
+		txm:   txm,
+		games: make(map[int64]*GameInstance),
 	}
 }
 
-func (g *GameManager) CreateGame(ctx context.Context, themeId int64) (*db.Game, error) {
-	game, err := g.createGame(ctx, themeId)
+func (g *GameManager) JoinGame(ctx context.Context, themeId int64) (*db.Game, error) {
+	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+		q := g.txm.Querier(tx)
+		games, err := q.FindGamesForTheme(ctx, db.FindGamesForThemeParams{
+			ThemeID: themeId,
+			Status:  db.GameStatusLobby,
+		})
+
+		if err != nil {
+			return nil, GameManagerError{
+				Code:    GMErrDbError,
+				Message: "can't fetch games",
+				Cause:   err,
+			}
+		}
+
+		if len(games) != 0 {
+			return g.getGameWithLessPlayers(ctx, games, q)
+		}
+
+		return g.createGame(ctx, themeId, q)
+	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	round := NewRound(g.txm, *game, g.getDefaultRoundConfig())
-	g.rounds[game.ID] = round
-
-	go g.watchRound(round)
-	go round.Run()
+	_, ok := g.games[game.ID]
+	if !ok {
+		g.createGameInstance(*game)
+	}
 
 	return game, nil
 }
 
-func (g *GameManager) createGame(ctx context.Context, themeId int64) (*db.Game, error) {
-	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
-		q := g.txm.Querier(tx)
-		game, err := q.CreateGame(ctx, db.CreateGameParams{ThemeID: themeId, Status: db.GameStatusCreated})
-		if err != nil {
-			if utils.IsClass23(err) {
-				return nil, GameManagerError{
-					Code:    GMErrConstraintViolation,
-					Message: "can't create game",
-					Cause:   err,
-				}
-			}
-
+func (g *GameManager) createGame(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
+	game, err := q.CreateGame(ctx, db.CreateGameParams{ThemeID: themeId, Status: db.GameStatusCreated})
+	if err != nil {
+		if utils.IsClass23(err) {
 			return nil, GameManagerError{
-				Code:    GMErrDbError,
+				Code:    GMErrConstraintViolation,
 				Message: "can't create game",
 				Cause:   err,
 			}
 		}
 
-		return &game, nil
-	})
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't create game",
+			Cause:   err,
+		}
+	}
+
+	return &game, nil
 }
 
-func (g *GameManager) getDefaultRoundConfig() RoundConfig {
-	return RoundConfig{
+func (g *GameManager) getGameWithLessPlayers(ctx context.Context, games []db.Game, q db.Querier) (*db.Game, error) {
+	var ids []int64
+	for _, g := range games {
+		ids = append(ids, g.ID)
+	}
+
+	playersInGames, err := q.ListGamesWithPlayerCounts(ctx, db.ListGamesWithPlayerCountsParams{
+		Ids: ids,
+	})
+
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't fetch players",
+			Cause:   err,
+		}
+	}
+
+	if len(playersInGames) > 0 {
+		players := playersInGames[0]
+		for _, g := range games {
+			if g.ID == players.ID {
+				return &g, nil
+			}
+		}	
+	}
+
+	return &games[0], nil
+}
+
+func (g *GameManager) createGameInstance(game db.Game) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	gi := NewGameInstance(g.txm, game, g.defaultGameConfig())
+	g.games[game.ID] = gi
+
+	go g.watchGame(gi)
+	go gi.Run()
+}
+
+func (g *GameManager) defaultGameConfig() GameInstanceConfig {
+	return GameInstanceConfig{
 		MinPlayers:        1,
 		MaxPlayers:        3,
 		LobbyTimeout:      30 * time.Second,
@@ -112,8 +166,8 @@ func (g *GameManager) getDefaultRoundConfig() RoundConfig {
 	}
 }
 
-func (g *GameManager) watchRound(round *Round) {
-	for upd := range round.StatusUpdate {
+func (g *GameManager) watchGame(game *GameInstance) {
+	for upd := range game.StatusUpdate {
 		if upd.Error != nil {
 			break
 		}
@@ -122,7 +176,7 @@ func (g *GameManager) watchRound(round *Round) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	delete(g.rounds, round.Game.ID)
+	delete(g.games, game.Game.ID)
 }
 
 func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDetails, error) {
@@ -203,37 +257,37 @@ func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDe
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	round, err := g.getRound(details.ID)
+	gi, err := g.getGameInstance(details.ID)
 	if err == nil {
-		details.StageTimeRemaining = round.StageCountdown.Remaining()
+		details.StageTimeRemaining = gi.StageCountdown.Remaining()
 	}
 
 	return details, nil
 }
 
-func (g *GameManager) getRound(gameId int64) (*Round, error) {
-	round, ok := g.rounds[gameId]
+func (g *GameManager) getGameInstance(gameId int64) (*GameInstance, error) {
+	gi, ok := g.games[gameId]
 	if !ok {
 		return nil, GameManagerError{
 			Code:    GMErrNotFound,
-			Message: "round not found",
+			Message: "game instance not found",
 		}
 	}
 
-	return round, nil
+	return gi, nil
 }
 
 func (g *GameManager) AddPlayer(ctx context.Context, params db.AddPlayerToGameParams) error {
-	round, err := g.getRound(params.GameID)
+	gi, err := g.getGameInstance(params.GameID)
 	if err != nil {
 		return err
 	}
 
-	timer := time.NewTimer(round.Config.AddPlayerTimeout)
+	timer := time.NewTimer(gi.Config.AddPlayerTimeout)
 	defer timer.Stop()
 
 	response := make(chan error, 1)
-	round.PlayerJoin <- PlayerJoin{
+	gi.PlayerJoin <- PlayerJoin{
 		Player:   params,
 		Response: response,
 	}
@@ -256,16 +310,16 @@ func (g *GameManager) AddPlayer(ctx context.Context, params db.AddPlayerToGamePa
 }
 
 func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoParams) error {
-	round, err := g.getRound(params.GameID)
+	gi, err := g.getGameInstance(params.GameID)
 	if err != nil {
 		return err
 	}
 
-	timer := time.NewTimer(round.Config.AddVideoTimeout)
+	timer := time.NewTimer(gi.Config.AddVideoTimeout)
 	defer timer.Stop()
 
 	response := make(chan error, 1)
-	round.VideoSubmission <- VideoSubmission{
+	gi.VideoSubmission <- VideoSubmission{
 		Video:    params,
 		Response: response,
 	}
@@ -288,16 +342,16 @@ func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 }
 
 func (g *GameManager) SubmitVote(ctx context.Context, params db.CreateVoteParams) error {
-	round, err := g.getRound(params.GameID)
+	gi, err := g.getGameInstance(params.GameID)
 	if err != nil {
 		return err
 	}
 
-	timer := time.NewTimer(round.Config.AddVoteTimeout)
+	timer := time.NewTimer(gi.Config.AddVoteTimeout)
 	defer timer.Stop()
 
 	response := make(chan error, 1)
-	round.VoteSubmission <- VoteSubmission{
+	gi.VoteSubmission <- VoteSubmission{
 		Vote:     params,
 		Response: response,
 	}

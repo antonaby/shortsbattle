@@ -40,7 +40,7 @@ func (api *GameApi) createGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	game, err := api.gm.CreateGame(ctx, request.ThemeId)
+	game, err := api.gm.JoinGame(ctx, request.ThemeId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create game: %v", err)
 
@@ -120,15 +120,15 @@ func (api *GameApi) addPlayerToGame(c echo.Context) error {
 			}
 		}
 
-		var rErr services.RoundError
+		var rErr services.GameInstanceError
 		if errors.As(err, &rErr) {
-			if rErr.Code == services.RoundErrTooManyPlayers || rErr.Code == services.RoundErrWrongGameState {
+			if rErr.Code == services.GIErrTooManyPlayers || rErr.Code == services.GIErrWrongGameState {
 				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 					Error: "Too many players or lobby closed",
 				})
 			}
 
-			if rErr.Code == services.RoundErrConstraintViolation {
+			if rErr.Code == services.GIErrConstraintViolation {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "Game or Player not found",
 				})
@@ -180,15 +180,15 @@ func (api *GameApi) submitVideo(c echo.Context) error {
 			}
 		}
 
-		var rErr services.RoundError
+		var rErr services.GameInstanceError
 		if errors.As(err, &rErr) {
-			if rErr.Code == services.RoundErrWrongGameState {
+			if rErr.Code == services.GIErrWrongGameState {
 				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 					Error: "Lobby closed",
 				})
 			}
 
-			if rErr.Code == services.RoundErrConstraintViolation {
+			if rErr.Code == services.GIErrConstraintViolation {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "Game or Player not found",
 				})
@@ -241,15 +241,15 @@ func (api *GameApi) submitVote(c echo.Context) error {
 			}
 		}
 
-		var rErr services.RoundError
+		var rErr services.GameInstanceError
 		if errors.As(err, &rErr) {
-			if rErr.Code == services.RoundErrWrongGameState {
+			if rErr.Code == services.GIErrWrongGameState {
 				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 					Error: "Voting closed",
 				})
 			}
 
-			if rErr.Code == services.RoundErrConstraintViolation {
+			if rErr.Code == services.GIErrConstraintViolation {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "Game, Player or Video not found",
 				})

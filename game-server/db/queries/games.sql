@@ -9,6 +9,9 @@ SELECT * FROM games WHERE id = $1;
 -- name: GetAllGames :many
 SELECT * FROM games ORDER BY created_at DESC;
 
+-- name: FindGamesForTheme :many
+SELECT * FROM games WHERE theme_id = $1 AND status = $2;
+
 -- name: UpdateGameStatus :one
 UPDATE games SET status = $1 WHERE id = $2 RETURNING *;
 
