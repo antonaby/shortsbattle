@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/api"
+	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/labstack/echo/v4"
@@ -22,14 +23,14 @@ func main() {
 	}
 	defer dbManager.Close()
 
-	ts := services.NewThemeService(dbManager)
-	gm := services.NewGameManager(dbManager)
-	ps := services.NewPlayersService(dbManager)
-
-	cs, err := api.NewCentrifugeServer()
+	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
 	}
+
+	ts := services.NewThemeService(dbManager)
+	gm := services.NewGameManager(dbManager, cf)
+	ps := services.NewPlayersService(dbManager)
 
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
@@ -42,7 +43,7 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
-	e.GET("/api/v1/join", echo.WrapHandler(cs.Handler()))
+	e.GET("/api/v1/join", echo.WrapHandler(cf.Handler()))
 
 	apiGroup := e.Group("/api")
 

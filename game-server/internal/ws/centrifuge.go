@@ -1,4 +1,4 @@
-package api
+package ws
 
 import (
 	"log"
@@ -20,7 +20,7 @@ func authMiddleware(h http.Handler) http.Handler {
 }
 
 type CentrifugeServer struct {
-	node *centrifuge.Node
+	Node *centrifuge.Node
 }
 
 func NewCentrifugeServer() (*CentrifugeServer, error) {
@@ -30,7 +30,7 @@ func NewCentrifugeServer() (*CentrifugeServer, error) {
 	}
 
 	r := &CentrifugeServer{
-		node: node,
+		Node: node,
 	}
 
 	node.OnConnect(r.handleConnection)
@@ -39,7 +39,7 @@ func NewCentrifugeServer() (*CentrifugeServer, error) {
 }
 
 func (r CentrifugeServer) Handler() http.Handler {
-	wsHandler := centrifuge.NewWebsocketHandler(r.node, centrifuge.WebsocketConfig{
+	wsHandler := centrifuge.NewWebsocketHandler(r.Node, centrifuge.WebsocketConfig{
 		CheckOrigin: func(r *http.Request) bool {
 			return true // Allow all origins for simplicity, adjust as needed
 		},
@@ -48,15 +48,19 @@ func (r CentrifugeServer) Handler() http.Handler {
 	return authMiddleware(wsHandler)
 }
 
-func (r CentrifugeServer) Run() error {
-	if err := r.node.Run(); err != nil {
+func (r *CentrifugeServer) Run() error {
+	if err := r.Node.Run(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r CentrifugeServer) handleConnection(client *centrifuge.Client) {
+func (r *CentrifugeServer) Publish(channel string, data []byte) (centrifuge.PublishResult, error) {
+	return r.Node.Publish(channel, data)
+}
+
+func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	transportName := client.Transport().Name()
 	transportProto := client.Transport().Protocol()
 	log.Printf("client connected via %s (%s)", transportName, transportProto)

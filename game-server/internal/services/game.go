@@ -12,6 +12,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
+	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -45,13 +46,15 @@ func (e GameManagerError) Unwrap() error {
 
 type GameManager struct {
 	txm   db.TxManager
+	cf    *ws.CentrifugeServer
 	mu    sync.RWMutex
 	games map[int64]*GameInstance
 }
 
-func NewGameManager(txm db.TxManager) *GameManager {
+func NewGameManager(txm db.TxManager, cf *ws.CentrifugeServer) *GameManager {
 	return &GameManager{
 		txm:   txm,
+		cf:    cf,
 		games: make(map[int64]*GameInstance),
 	}
 }
@@ -136,7 +139,7 @@ func (g *GameManager) getGameWithLessPlayers(ctx context.Context, games []db.Gam
 			if g.ID == players.ID {
 				return &g, nil
 			}
-		}	
+		}
 	}
 
 	return &games[0], nil
@@ -168,6 +171,8 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 
 func (g *GameManager) watchGame(game *GameInstance) {
 	for upd := range game.StatusUpdate {
+		_, _ = g.cf.Publish(fmt.Sprintf("game_%d", upd.GameID), []byte(upd.Status))
+
 		if upd.Error != nil {
 			break
 		}
