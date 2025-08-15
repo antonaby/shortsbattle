@@ -12,7 +12,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
-	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -46,15 +45,13 @@ func (e GameManagerError) Unwrap() error {
 
 type GameManager struct {
 	txm   db.TxManager
-	cf    *ws.CentrifugeServer
 	mu    sync.RWMutex
 	games map[int64]*GameInstance
 }
 
-func NewGameManager(txm db.TxManager, cf *ws.CentrifugeServer) *GameManager {
+func NewGameManager(txm db.TxManager) *GameManager {
 	return &GameManager{
 		txm:   txm,
-		cf:    cf,
 		games: make(map[int64]*GameInstance),
 	}
 }
@@ -152,8 +149,7 @@ func (g *GameManager) createGameInstance(game db.Game) {
 	gi := NewGameInstance(g.txm, game, g.defaultGameConfig())
 	g.games[game.ID] = gi
 
-	go g.watchGame(gi)
-	go gi.Run()
+	go g.runGame(gi)
 }
 
 func (g *GameManager) defaultGameConfig() GameInstanceConfig {
@@ -169,24 +165,16 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 	}
 }
 
-func (g *GameManager) watchGame(game *GameInstance) {
-	for upd := range game.StatusUpdate {
-		update := models.GameUpdate{
-			ID: upd.GameID,
-			Status: upd.Status,
-		}
-
-		_, _ = g.cf.PublishGameUpdate(fmt.Sprintf("game_%d", upd.GameID), update)
-
-		if upd.Error != nil {
-			break
-		}
+func (g *GameManager) runGame(gi *GameInstance) {
+	err := gi.Run()
+	if err != nil {
+		// Handle error
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	delete(g.games, game.Game.ID)
+	delete(g.games, gi.Game.ID)
 }
 
 func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDetails, error) {

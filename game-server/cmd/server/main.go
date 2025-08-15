@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/api"
-	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
@@ -23,6 +23,10 @@ func main() {
 	}
 	defer dbManager.Close()
 
+	ts := services.NewThemeService(dbManager)
+	gm := services.NewGameManager(dbManager)
+	ps := services.NewPlayersService(dbManager)
+
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
@@ -31,10 +35,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't start Centriguge router")
 	}
-
-	ts := services.NewThemeService(dbManager)
-	gm := services.NewGameManager(dbManager, cf)
-	ps := services.NewPlayersService(dbManager)
 
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)

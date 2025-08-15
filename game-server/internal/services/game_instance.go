@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
@@ -127,7 +128,8 @@ type GameInstance struct {
 	PlayerJoin      chan PlayerJoin
 	VideoSubmission chan VideoSubmission
 	VoteSubmission  chan VoteSubmission
-	StatusUpdate    chan GameStatusUpdate
+	statusMU        sync.RWMutex
+	statusUpdateChs []chan GameStatusUpdate
 	Ctx             context.Context
 	Cancel          context.CancelFunc
 }
@@ -139,7 +141,6 @@ func NewGameInstance(txm db.TxManager, game db.Game, config GameInstanceConfig) 
 		Game:            game,
 		Config:          config,
 		PlayerJoin:      make(chan PlayerJoin),
-		StatusUpdate:    make(chan GameStatusUpdate),
 		VideoSubmission: make(chan VideoSubmission),
 		VoteSubmission:  make(chan VoteSubmission),
 		Ctx:             ctx,
@@ -147,9 +148,17 @@ func NewGameInstance(txm db.TxManager, game db.Game, config GameInstanceConfig) 
 	}
 }
 
-func (r *GameInstance) Run() {
+func (r *GameInstance) Run() error {
 	defer r.Cancel()
 	r.gameLoop()
+	return nil
+}
+
+func (r *GameInstance) AddStatusUpdateListener(h chan GameStatusUpdate) {
+	r.statusMU.Lock()
+	defer r.statusMU.Unlock()
+
+	r.statusUpdateChs = append(r.statusUpdateChs, h)
 }
 
 func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
@@ -168,15 +177,17 @@ func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
 
 	r.Game = game
 
-	return nil
-}
-
-func (r *GameInstance) updateGame(err error) {
-	r.StatusUpdate <- GameStatusUpdate{
-		GameID: r.Game.ID,
-		Status: r.Game.Status,
+	statusUpdate := GameStatusUpdate{
+		GameID: game.ID,
+		Status: game.Status,
 		Error:  err,
 	}
+
+	for _, ch := range r.statusUpdateChs {
+		ch <- statusUpdate
+	}
+
+	return nil
 }
 
 func (r *GameInstance) gameLoop() {
@@ -227,14 +238,12 @@ func (r *GameInstance) nextStage() error {
 	}
 
 	err := r.updateGameStatus(db.GameStatusWinner)
-	r.updateGame(err)
 
 	return err
 }
 
 func (r *GameInstance) toLobbyStage() error {
 	err := r.updateGameStatus(db.GameStatusLobby)
-	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -246,7 +255,6 @@ func (r *GameInstance) toLobbyStage() error {
 
 func (r *GameInstance) toSubmittingStage() error {
 	err := r.updateGameStatus(db.GameStatusSubmitting)
-	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -258,7 +266,6 @@ func (r *GameInstance) toSubmittingStage() error {
 
 func (r *GameInstance) toVotingStage() error {
 	err := r.updateGameStatus(db.GameStatusVoting)
-	r.updateGame(err)
 	if err != nil {
 		return err
 	}
@@ -270,14 +277,11 @@ func (r *GameInstance) toVotingStage() error {
 
 func (r *GameInstance) toWinnerStage() error {
 	err := r.updateGameStatus(db.GameStatusWinner)
-	r.updateGame(err)
 	return err
 }
 
 func (r *GameInstance) toCompleteStage() {
-	err := r.updateGameStatus(db.GameStatusComplete)
-	r.updateGame(err)
-	close(r.StatusUpdate)
+	_ = r.updateGameStatus(db.GameStatusComplete)
 }
 
 func (r *GameInstance) addPlayer(pj PlayerJoin) error {
