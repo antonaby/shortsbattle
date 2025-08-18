@@ -37,6 +37,7 @@ type Querier interface {
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
+	RemovePlayerFromGame(ctx context.Context, arg RemovePlayerFromGameParams) error
 	SearchThemesByName(ctx context.Context, arg SearchThemesByNameParams) ([]Theme, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error)
 	UpdateTheme(ctx context.Context, arg UpdateThemeParams) (Theme, error)

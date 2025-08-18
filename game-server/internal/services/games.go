@@ -121,6 +121,26 @@ func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int6
 	}
 }
 
+func (g *GameManager) PlayerLeave(ctx context.Context, gameId int64, playerId int64) error {
+	return db.WithTx(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) error {
+		q := g.txm.Querier(tx)
+		err := q.RemovePlayerFromGame(ctx, db.RemovePlayerFromGameParams{
+			GameID: gameId,
+			PlayerID: playerId,
+		})
+
+		if err != nil {
+			return GameManagerError{
+				Code: GMErrDbError,
+				Message: "can't remove player from game",
+				Cause: err,
+			}
+		}
+
+		return nil
+	})
+}
+
 func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
 	err := q.AcquireAdvisoryXactLock(ctx, db.AcquireAdvisoryXactLockParams{Column1: themeId})
 	if err != nil {

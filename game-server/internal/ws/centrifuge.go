@@ -1,25 +1,21 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/centrifugal/centrifuge"
 )
 
-func authMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		cred := &centrifuge.Credentials{
-			UserID: "",
-		}
-		newCtx := centrifuge.SetCredentials(ctx, cred)
-		r = r.WithContext(newCtx)
-		h.ServeHTTP(w, r)
-	})
+type JoinGameRequest struct {
+	UserID int `json:"user_id"`
+	GameID int `json:"game_id"`
 }
 
 type CentrifugeServer struct {
@@ -38,6 +34,7 @@ func NewCentrifugeServer(gm *services.GameManager) (*CentrifugeServer, error) {
 		gm:   gm,
 	}
 
+	node.OnConnecting(r.handleConnecting)
 	node.OnConnect(r.handleConnection)
 
 	return r, nil
@@ -46,11 +43,11 @@ func NewCentrifugeServer(gm *services.GameManager) (*CentrifugeServer, error) {
 func (r CentrifugeServer) Handler() http.Handler {
 	wsHandler := centrifuge.NewWebsocketHandler(r.Node, centrifuge.WebsocketConfig{
 		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins for simplicity, adjust as needed
+			return true
 		},
 	})
 
-	return authMiddleware(wsHandler)
+	return wsHandler
 }
 
 func (r *CentrifugeServer) Run() error {
@@ -71,18 +68,35 @@ func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpda
 	return err
 }
 
-func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
-	transportName := client.Transport().Name()
-	transportProto := client.Transport().Protocol()
-	log.Printf("client connected via %s (%s)", transportName, transportProto)
+func (r *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+	return centrifuge.ConnectReply{
+		ClientSideRefresh: true,
+		Credentials: &centrifuge.Credentials{
+			UserID: "test_1",
+		},
+	}, nil
+}
 
+func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-		log.Printf("client subscribes on channel %s", e.Channel)
+		var req JoinGameRequest
+		err := json.Unmarshal(e.Data, &req)
+		if err != nil {
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			return
+		}
+
 		cb(centrifuge.SubscribeReply{}, nil)
 	})
 
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
-		log.Printf("Client unsubscribed from channel %s", e.Channel)
+		idStr := strings.TrimPrefix(e.Channel, "game_")
+		gameId, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+
+		_ = r.gm.PlayerLeave(context.Background(), gameId, 1)
 	})
 
 	client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
@@ -91,6 +105,6 @@ func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	})
 
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
-		log.Printf("client disconnected")
+
 	})
 }

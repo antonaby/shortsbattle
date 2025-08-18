@@ -114,3 +114,17 @@ func (q *Queries) IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) 
 	err := row.Scan(&exists)
 	return exists, err
 }
+
+const removePlayerFromGame = `-- name: RemovePlayerFromGame :exec
+DELETE FROM game_players WHERE game_id = $1 AND player_id = $2
+`
+
+type RemovePlayerFromGameParams struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+}
+
+func (q *Queries) RemovePlayerFromGame(ctx context.Context, arg RemovePlayerFromGameParams) error {
+	_, err := q.db.Exec(ctx, removePlayerFromGame, arg.GameID, arg.PlayerID)
+	return err
+}

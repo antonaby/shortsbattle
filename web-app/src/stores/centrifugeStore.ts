@@ -6,6 +6,7 @@ interface CentrifugeStoreState {
   client: Centrifuge | null;
   sub: Subscription | null;
   connected: boolean;
+  subscribed: boolean;
 }
 
 export const useCentrifugeStore = defineStore("centrifuge", {
@@ -13,11 +14,15 @@ export const useCentrifugeStore = defineStore("centrifuge", {
     client: null,
     sub: null,
     connected: false,
+    subscribed: false,
   }),
   actions: {
     connect() {
       const cf = new Centrifuge(
-        `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`
+        `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`,
+        {
+          token: "test",
+        }
       );
 
       cf.on("connected", () => {
@@ -41,18 +46,35 @@ export const useCentrifugeStore = defineStore("centrifuge", {
         return;
       }
 
-      const channelName = `game_${gameInstanceId}`
-      let sub = this.client.getSubscription(channelName)
+      this.subscribed = false;
+
+      const channelName = `game_${gameInstanceId}`;
+      let sub = this.client.getSubscription(channelName);
       if (!sub) {
-        sub = this.client.newSubscription(channelName);
+        sub = this.client.newSubscription(channelName, {
+          data: {
+            user_id: 1,
+            game_id: gameInstanceId,
+          },
+        });
       }
 
-      sub.on("publication", (ctx) => {
-        const gameStore = useGameStore()
-        gameStore.updateGameStatus(ctx.data.status)
+      sub.on("subscribed", () => {
+        this.subscribed = true;
       });
-      sub.subscribe();
+      sub.on("unsubscribed", () => {
+        this.subscribed = false;
+      });
 
+      sub.on("publication", (ctx) => {
+        const gameStore = useGameStore();
+        gameStore.updateGameStatus(ctx.data.status);
+      });
+      sub.on("error", (ctx) => {
+        console.log(ctx);
+      });
+
+      sub.subscribe();
       this.sub = sub;
     },
     unsubsribe() {
@@ -62,6 +84,13 @@ export const useCentrifugeStore = defineStore("centrifuge", {
 
       this.sub.unsubscribe();
       this.sub = null;
+    },
+    async publish(data: any) {
+      if (this.sub == null) {
+        return;
+      }
+
+      await this.sub.publish(data);
     },
   },
 });
