@@ -11,12 +11,12 @@ const centrifugeStore = useCentrifugeStore()
 
 onMounted(() => {
   if (game && gameInstance) {
-    centrifugeStore.connect(gameInstance.id)
+    centrifugeStore.subscribe(gameInstance.id)
   }
 })
 
 onUnmounted(() => {
-  centrifugeStore.disconnect();
+  centrifugeStore.unsubsribe();
 })
 </script>
 
@@ -28,7 +28,7 @@ onUnmounted(() => {
       <div class="text-center">
         <h2 class="text-xl font-bold text-gray-900">{{ game.name }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ game.description }}</p>
-        <p class="text-sm text-gray-500 mt-1" v-if="centrifugeStore.lastGameUpdate">{{ centrifugeStore.lastGameUpdate.status }}</p>
+        <p class="text-lg text-gray-500 mt-1" v-if="gameInstance">{{ gameInstance.status }}</p>
       </div>
     </div>
 

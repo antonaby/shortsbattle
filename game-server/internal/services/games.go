@@ -48,6 +48,7 @@ func (e GameManagerError) Unwrap() error {
 
 type GameManager struct {
 	txm             db.TxManager
+	publisher       GameEventPublisher
 	mu              sync.RWMutex
 	games           map[int64]*GameInstance
 	maxJoinAttempts int
@@ -59,6 +60,10 @@ func NewGameManager(txm db.TxManager) *GameManager {
 		games:           make(map[int64]*GameInstance),
 		maxJoinAttempts: 20,
 	}
+}
+
+func (g *GameManager) SetEventPublisher(publisher GameEventPublisher) {
+	g.publisher = publisher
 }
 
 func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {
@@ -111,7 +116,7 @@ func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int6
 	}
 
 	return nil, GameManagerError{
-		Code: GMErrGameNotAvailable,
+		Code:    GMErrGameNotAvailable,
 		Message: "can't find a game after max attempts",
 	}
 }
@@ -181,7 +186,7 @@ func (g *GameManager) createGameInstanceIfNeeded(game db.Game) *GameInstance {
 		return gi
 	}
 
-	newGI := NewGameInstance(g.txm, game, g.defaultGameConfig())
+	newGI := NewGameInstance(g.txm, g.publisher, game, g.defaultGameConfig())
 	g.games[game.ID] = newGI
 	go g.runGame(newGI)
 

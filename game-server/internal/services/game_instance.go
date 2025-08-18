@@ -3,10 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
 	"github.com/jackc/pgx/v5"
 )
@@ -21,6 +21,7 @@ const (
 	GIErrConstraintViolation
 	GIErrTooManyPlayers
 	GIErrWrongGameState
+	GIErrPublicationFailed
 )
 
 type GameInstanceError struct {
@@ -38,6 +39,10 @@ func (e GameInstanceError) Error() string {
 
 func (e GameInstanceError) Unwrap() error {
 	return e.Cause
+}
+
+type GameEventPublisher interface {
+	PublishGameUpdate(channel string, upd models.GameUpdate) error
 }
 
 type Countdown struct {
@@ -85,12 +90,6 @@ func (c *Countdown) Stop() {
 	}
 }
 
-type GameStatusUpdate struct {
-	GameID int64
-	Status db.GameStatus
-	Error  error
-}
-
 type PlayerJoin struct {
 	Player   db.AddPlayerToGameParams
 	Ctx      context.Context
@@ -120,6 +119,7 @@ type GameInstanceConfig struct {
 
 type GameInstance struct {
 	txm             db.TxManager
+	publisher       GameEventPublisher
 	Game            db.Game
 	Config          GameInstanceConfig
 	StageCountdown  Countdown
@@ -129,16 +129,15 @@ type GameInstance struct {
 	PlayerJoin      chan PlayerJoin
 	VideoSubmission chan VideoSubmission
 	VoteSubmission  chan VoteSubmission
-	statusMU        sync.RWMutex
-	statusUpdateChs []chan GameStatusUpdate
 	Ctx             context.Context
 	Cancel          context.CancelFunc
 }
 
-func NewGameInstance(txm db.TxManager, game db.Game, config GameInstanceConfig) *GameInstance {
+func NewGameInstance(txm db.TxManager, publisher GameEventPublisher, game db.Game, config GameInstanceConfig) *GameInstance {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &GameInstance{
 		txm:             txm,
+		publisher:       publisher,
 		Game:            game,
 		Config:          config,
 		PlayerJoin:      make(chan PlayerJoin),
@@ -153,13 +152,6 @@ func (r *GameInstance) Run() error {
 	defer r.Cancel()
 	r.gameLoop()
 	return nil
-}
-
-func (r *GameInstance) AddStatusUpdateListener(h chan GameStatusUpdate) {
-	r.statusMU.Lock()
-	defer r.statusMU.Unlock()
-
-	r.statusUpdateChs = append(r.statusUpdateChs, h)
 }
 
 func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
@@ -178,14 +170,18 @@ func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
 
 	r.Game = game
 
-	statusUpdate := GameStatusUpdate{
-		GameID: game.ID,
+	statusUpdate := models.GameUpdate{
+		ID: game.ID,
 		Status: game.Status,
-		Error:  err,
 	}
 
-	for _, ch := range r.statusUpdateChs {
-		ch <- statusUpdate
+	err = r.publisher.PublishGameUpdate(fmt.Sprintf("game_%d", r.Game.ID), statusUpdate)
+	if err != nil {
+		return GameInstanceError{
+			Code:    GIErrPublicationFailed,
+			Message: "failed to publish game status",
+			Cause:   err,
+		}
 	}
 
 	return nil

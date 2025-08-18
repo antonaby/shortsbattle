@@ -1,16 +1,11 @@
 import { defineStore } from "pinia";
 import { Centrifuge, Subscription } from "centrifuge";
-
-interface GameUpdate {
-  id: number;
-  status: string;
-}
+import { useGameStore } from "./gameStore";
 
 interface CentrifugeStoreState {
   client: Centrifuge | null;
   sub: Subscription | null;
   connected: boolean;
-  lastGameUpdate: GameUpdate | null;
 }
 
 export const useCentrifugeStore = defineStore("centrifuge", {
@@ -18,18 +13,12 @@ export const useCentrifugeStore = defineStore("centrifuge", {
     client: null,
     sub: null,
     connected: false,
-    lastGameUpdate: null,
   }),
   actions: {
-    connect(gameInstanceId: number) {
-      const cf = new Centrifuge("ws://localhost:8080/api/v1/join");
-
-      const sub = cf.newSubscription(`game_${gameInstanceId}`);
-      sub.on("publication", (ctx) => {
-        this.lastGameUpdate = ctx.data;
-      });
-      sub.subscribe();
-      this.sub = sub;
+    connect() {
+      const cf = new Centrifuge(
+        `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`
+      );
 
       cf.on("connected", () => {
         this.connected = true;
@@ -46,6 +35,28 @@ export const useCentrifugeStore = defineStore("centrifuge", {
       this.sub = null;
       this.client?.disconnect();
       this.client = null;
+    },
+    subscribe(gameInstanceId: number) {
+      if (this.client == null) {
+        return;
+      }
+
+      const sub = this.client.newSubscription(`game_${gameInstanceId}`);
+      sub.on("publication", (ctx) => {
+        const gameStore = useGameStore()
+        gameStore.updateGameStatus(ctx.data.status)
+      });
+      sub.subscribe();
+
+      this.sub = sub;
+    },
+    unsubsribe() {
+      if (this.sub == null) {
+        return;
+      }
+
+      this.sub.unsubscribe();
+      this.sub = null;
     },
   },
 });

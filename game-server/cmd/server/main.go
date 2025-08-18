@@ -27,7 +27,7 @@ func main() {
 	gm := services.NewGameManager(dbManager)
 	ps := services.NewPlayersService(dbManager)
 
-	cf, err := ws.NewCentrifugeServer()
+	cf, err := ws.NewCentrifugeServer(gm)
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
 	}
@@ -35,6 +35,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Can't start Centriguge router")
 	}
+
+	gm.SetEventPublisher(cf)
 
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
@@ -47,7 +49,7 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
-	e.GET("/api/v1/join", echo.WrapHandler(cf.Handler()))
+	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
 
 	apiGroup := e.Group("/api")
 

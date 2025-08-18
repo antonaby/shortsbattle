@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/centrifugal/centrifuge"
 )
 
@@ -23,9 +24,10 @@ func authMiddleware(h http.Handler) http.Handler {
 
 type CentrifugeServer struct {
 	Node *centrifuge.Node
+	gm   *services.GameManager
 }
 
-func NewCentrifugeServer() (*CentrifugeServer, error) {
+func NewCentrifugeServer(gm *services.GameManager) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		return nil, err
@@ -33,6 +35,7 @@ func NewCentrifugeServer() (*CentrifugeServer, error) {
 
 	r := &CentrifugeServer{
 		Node: node,
+		gm:   gm,
 	}
 
 	node.OnConnect(r.handleConnection)
@@ -58,13 +61,14 @@ func (r *CentrifugeServer) Run() error {
 	return nil
 }
 
-func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) (centrifuge.PublishResult, error) {
+func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
 	jsonBytes, err := json.Marshal(upd)
 	if err != nil {
-		return centrifuge.PublishResult{}, err
+		return err
 	}
 
-	return r.Node.Publish(channel, jsonBytes)
+	_, err = r.Node.Publish(channel, jsonBytes)
+	return err
 }
 
 func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
@@ -75,6 +79,10 @@ func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
 		log.Printf("client subscribes on channel %s", e.Channel)
 		cb(centrifuge.SubscribeReply{}, nil)
+	})
+
+	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
+		log.Printf("Client unsubscribed from channel %s", e.Channel)
 	})
 
 	client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {

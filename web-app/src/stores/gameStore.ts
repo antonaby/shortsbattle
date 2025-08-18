@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import router from "../router";
-import { useCentrifugeStore } from "./centrifugeStore";
 
 interface Game {
   id: number;
@@ -59,10 +58,11 @@ export const useGameStore = defineStore("game", {
       this.gameId = id;
       this.loading = true;
       try {
-        const response = await axios.post(
-          `${import.meta.env.VITE_BASE_URL}/api/v1/games`,
+        const response = await axios.put(
+          `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
           {
             theme_id: id,
+            player_id: 1,
           }
         );
         this.gameInstance = response.data;
@@ -73,10 +73,12 @@ export const useGameStore = defineStore("game", {
       this.loading = false;
       router.push("/game");
     },
+    updateGameStatus(status: string) {
+      if (this.gameInstance) {
+        this.gameInstance.status = status;
+      }
+    },
     leaveGame() {
-      let cfStore = useCentrifugeStore();
-      cfStore.disconnect();
-
       this.gameId = null;
       this.gameInstance = null;
       router.push("/");
