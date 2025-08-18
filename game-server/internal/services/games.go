@@ -121,6 +121,7 @@ func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int6
 	}
 }
 
+// TODO: move to GameInstance
 func (g *GameManager) PlayerLeave(ctx context.Context, gameId int64, playerId int64) error {
 	return db.WithTx(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) error {
 		q := g.txm.Querier(tx)
