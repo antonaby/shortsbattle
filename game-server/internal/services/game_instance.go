@@ -93,6 +93,7 @@ type GameStatusUpdate struct {
 
 type PlayerJoin struct {
 	Player   db.AddPlayerToGameParams
+	Ctx      context.Context
 	Response chan error
 }
 
@@ -310,7 +311,7 @@ func (r *GameInstance) addPlayer(pj PlayerJoin) error {
 		return err
 	}
 
-	player, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
+	player, err := db.WithTxValue(pj.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
 		q := r.txm.Querier(tx)
 
 		err := q.AddPlayerToGame(ctx, pj.Player)

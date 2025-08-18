@@ -24,14 +24,14 @@ func NewGameApi(gm *services.GameManager) *GameApi {
 func (api *GameApi) Register(g *echo.Group) {
 	v1group := g.Group("/v1")
 
-	v1group.POST("/games", api.createGame)
+	v1group.PUT("/games/join", api.joinGame)
+	
 	v1group.GET("/games/:id", api.getGame)
-	v1group.PUT("/games/:gameId/players", api.addPlayerToGame)
 	v1group.PUT("/games/:gameId/videos", api.submitVideo)
 	v1group.PUT("/games/:gameId/votes", api.submitVote)
 }
 
-func (api *GameApi) createGame(c echo.Context) error {
+func (api *GameApi) joinGame(c echo.Context) error {
 	request := new(m.CreateGame)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -40,7 +40,7 @@ func (api *GameApi) createGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	game, err := api.gm.JoinGame(ctx, request.ThemeId)
+	game, err := api.gm.JoinGame(ctx, request.ThemeId, request.PlayerId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create game: %v", err)
 
@@ -89,60 +89,6 @@ func (api *GameApi) getGame(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, details)
-}
-
-func (api *GameApi) addPlayerToGame(c echo.Context) error {
-	gameId, err := parseInt64(c.Param("gameId"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
-		})
-	}
-
-	request := new(m.AddPlayerToGame)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
-		})
-	}
-
-	ctx := c.Request().Context()
-	err = api.gm.AddPlayer(ctx, db.AddPlayerToGameParams{GameID: gameId, PlayerID: request.PlayerId})
-	if err != nil {
-		c.Echo().Logger.Errorf("failed to add player to game: %v", err)
-
-		var gErr services.GameManagerError
-		if errors.As(err, &gErr) {
-			if gErr.Code == services.GMErrNotFound {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "Game not found",
-				})
-			}
-		}
-
-		var rErr services.GameInstanceError
-		if errors.As(err, &rErr) {
-			if rErr.Code == services.GIErrTooManyPlayers || rErr.Code == services.GIErrWrongGameState {
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-					Error: "Too many players or lobby closed",
-				})
-			}
-
-			if rErr.Code == services.GIErrConstraintViolation {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "Game or Player not found",
-				})
-			}
-		}
-
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
-	}
-
-	return c.JSON(http.StatusOK, m.OkResponse{
-		Msg: "Player has been added to the game",
-	})
 }
 
 func (api *GameApi) submitVideo(c echo.Context) error {

@@ -58,37 +58,77 @@ func NewGameManager(txm db.TxManager) *GameManager {
 	}
 }
 
-func (g *GameManager) JoinGame(ctx context.Context, themeId int64) (*db.Game, error) {
-	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
-		q := g.txm.Querier(tx)
+func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {
+	var game *db.Game
+	var err error
 
-		err := q.AcquireAdvisoryXactLock(ctx, db.AcquireAdvisoryXactLockParams{Column1: themeId})
-		if err != nil {
-			return nil, GameManagerError{
-				Code:    GMErrDbError,
-				Message: "can't acquire theme lock",
-				Cause:   err,
+	for {
+		game, err = db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+			q := g.txm.Querier(tx)
+
+			game, err := g.findGameToJoin(ctx, themeId, q)
+			if err != nil {
+				return nil, err
 			}
-		}
 
-		game, err := g.findGameToJoin(ctx, themeId, q)
+			return game, nil
+		})
+
 		if err != nil {
 			return nil, err
 		}
 
-		return game, nil
-	})
+		gi := g.createGameInstanceIfNeeded(*game)
 
-	if err != nil {
-		return nil, err
+		err = g.addPlayer(ctx, gi, db.AddPlayerToGameParams{
+			GameID:   game.ID,
+			PlayerID: playerId,
+		})
+
+		if err == nil {
+			break
+		}
+
+		var giErr GameInstanceError
+		if errors.As(err, &giErr) {
+			if giErr.Code == GIErrConstraintViolation {
+				return nil, GameManagerError{
+					Code: GMErrConstraintViolation,
+					Message: "can't add player",
+					Cause: giErr,
+				}
+			}
+			if giErr.Code == GIErrDbError {
+				return nil, GameManagerError{
+					Code: GMErrDbError,
+					Message: "can't add player",
+					Cause: giErr,
+				}
+			}
+		}
+
+		if err := ctx.Err(); err != nil {
+			return nil, GameManagerError{
+				Code:    GMErrCanceled,
+				Message: "context canceled",
+				Cause:   err,
+			}
+		}
 	}
-
-	_ = g.createGameInstanceIfNeeded(*game)
 
 	return game, nil
 }
 
 func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
+	err := q.AcquireAdvisoryXactLock(ctx, db.AcquireAdvisoryXactLockParams{Column1: themeId})
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't acquire theme lock",
+			Cause:   err,
+		}
+	}
+
 	game, err := q.FindLeastCrowdedGameByThemeAndStatuses(ctx, db.FindLeastCrowdedGameByThemeAndStatusesParams{
 		ThemeID: themeId,
 		Column2: []string{string(db.GameStatusCreated), string(db.GameStatusLobby)},
@@ -96,7 +136,7 @@ func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Qu
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return  g.createGame(ctx, themeId, q)
+			return g.createGame(ctx, themeId, q)
 		} else {
 			return nil, GameManagerError{
 				Code:    GMErrDbError,
@@ -107,9 +147,9 @@ func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Qu
 	}
 
 	return &db.Game{
-		ID: game.ID,
-		ThemeID: game.ThemeID,
-		Status: game.Status,
+		ID:        game.ID,
+		ThemeID:   game.ThemeID,
+		Status:    game.Status,
 		CreatedAt: game.CreatedAt,
 	}, nil
 }
@@ -274,28 +314,18 @@ func (g *GameManager) getGameInstance(gameId int64) (*GameInstance, error) {
 	return gi, nil
 }
 
-func (g *GameManager) AddPlayer(ctx context.Context, params db.AddPlayerToGameParams) error {
-	gi, err := g.getGameInstance(params.GameID)
-	if err != nil {
-		return err
-	}
-
+func (g *GameManager) addPlayer(ctx context.Context, gi *GameInstance, params db.AddPlayerToGameParams) error {
 	timer := time.NewTimer(gi.Config.AddPlayerTimeout)
 	defer timer.Stop()
 
 	response := make(chan error, 1)
 	gi.PlayerJoin <- PlayerJoin{
 		Player:   params,
+		Ctx:      ctx,
 		Response: response,
 	}
 
 	select {
-	case <-ctx.Done():
-		return GameManagerError{
-			Code:    GMErrCanceled,
-			Message: "context canceled",
-			Cause:   ctx.Err(),
-		}
 	case err := <-response:
 		return err
 	case <-timer.C:

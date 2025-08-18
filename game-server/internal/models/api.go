@@ -32,7 +32,8 @@ type SubmitVoteToGame struct {
 }
 
 type CreateGame struct {
-	ThemeId int64 `json:"theme_id" validate:"required"`
+	ThemeId  int64 `json:"theme_id" validate:"required"`
+	PlayerId int64 `json:"player_id" validate:"required"`
 }
 
 type CreateThemeParams struct {
@@ -52,6 +53,6 @@ type GameDetails struct {
 }
 
 type GameUpdate struct {
-	ID                 int64         `json:"id"`
-	Status             db.GameStatus `json:"status"`
+	ID     int64         `json:"id"`
+	Status db.GameStatus `json:"status"`
 }
