@@ -26,6 +26,7 @@ const (
 	GMErrDbError
 	GMErrTimeout
 	GMErrCanceled
+	GMErrGameNotAvailable
 )
 
 type GameManagerError struct {
@@ -46,32 +47,25 @@ func (e GameManagerError) Unwrap() error {
 }
 
 type GameManager struct {
-	txm   db.TxManager
-	mu    sync.RWMutex
-	games map[int64]*GameInstance
+	txm             db.TxManager
+	mu              sync.RWMutex
+	games           map[int64]*GameInstance
+	maxJoinAttempts int
 }
 
 func NewGameManager(txm db.TxManager) *GameManager {
 	return &GameManager{
-		txm:   txm,
-		games: make(map[int64]*GameInstance),
+		txm:             txm,
+		games:           make(map[int64]*GameInstance),
+		maxJoinAttempts: 20,
 	}
 }
 
 func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {
-	var game *db.Game
-	var err error
-
-	for {
-		game, err = db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
+	for attempt := 1; attempt <= g.maxJoinAttempts; attempt++ {
+		game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
 			q := g.txm.Querier(tx)
-
-			game, err := g.findGameToJoin(ctx, themeId, q)
-			if err != nil {
-				return nil, err
-			}
-
-			return game, nil
+			return g.findGameToJoin(ctx, themeId, q)
 		})
 
 		if err != nil {
@@ -86,23 +80,23 @@ func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int6
 		})
 
 		if err == nil {
-			break
+			return game, nil
 		}
 
 		var giErr GameInstanceError
 		if errors.As(err, &giErr) {
 			if giErr.Code == GIErrConstraintViolation {
 				return nil, GameManagerError{
-					Code: GMErrConstraintViolation,
+					Code:    GMErrConstraintViolation,
 					Message: "can't add player",
-					Cause: giErr,
+					Cause:   giErr,
 				}
 			}
 			if giErr.Code == GIErrDbError {
 				return nil, GameManagerError{
-					Code: GMErrDbError,
+					Code:    GMErrDbError,
 					Message: "can't add player",
-					Cause: giErr,
+					Cause:   giErr,
 				}
 			}
 		}
@@ -116,7 +110,10 @@ func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int6
 		}
 	}
 
-	return game, nil
+	return nil, GameManagerError{
+		Code: GMErrGameNotAvailable,
+		Message: "can't find a game after max attempts",
+	}
 }
 
 func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
