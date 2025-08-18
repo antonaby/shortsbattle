@@ -285,7 +285,7 @@ func (r *GameInstance) toCompleteStage() {
 }
 
 func (r *GameInstance) addPlayer(pj PlayerJoin) error {
-	if r.Game.Status != db.GameStatusLobby {
+	if r.Game.Status != db.GameStatusCreated && r.Game.Status != db.GameStatusLobby {
 		err := GameInstanceError{
 			Code: GIErrWrongGameState,
 		}

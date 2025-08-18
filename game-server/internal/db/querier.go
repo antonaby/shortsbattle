@@ -9,6 +9,8 @@ import (
 )
 
 type Querier interface {
+	// Blocks until acquired; auto-released when the current transaction ends.
+	AcquireAdvisoryXactLock(ctx context.Context, arg AcquireAdvisoryXactLockParams) error
 	AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
@@ -17,7 +19,7 @@ type Querier interface {
 	CreateVote(ctx context.Context, arg CreateVoteParams) (Vote, error)
 	DeleteGame(ctx context.Context, arg DeleteGameParams) error
 	DeleteTheme(ctx context.Context, arg DeleteThemeParams) error
-	FindGamesForTheme(ctx context.Context, arg FindGamesForThemeParams) ([]Game, error)
+	FindLeastCrowdedGameByThemeAndStatuses(ctx context.Context, arg FindLeastCrowdedGameByThemeAndStatusesParams) (FindLeastCrowdedGameByThemeAndStatusesRow, error)
 	GetAllGames(ctx context.Context) ([]Game, error)
 	GetAllPlayers(ctx context.Context) ([]Player, error)
 	GetGame(ctx context.Context, arg GetGameParams) (Game, error)
@@ -34,7 +36,6 @@ type Querier interface {
 	InvalidateOtherVotes(ctx context.Context, arg InvalidateOtherVotesParams) error
 	IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) (bool, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
-	ListGamesWithPlayerCounts(ctx context.Context, arg ListGamesWithPlayerCountsParams) ([]ListGamesWithPlayerCountsRow, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 	SearchThemesByName(ctx context.Context, arg SearchThemesByNameParams) ([]Theme, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error)

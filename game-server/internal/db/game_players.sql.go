@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addPlayerToGame = `-- name: AddPlayerToGame :exec
@@ -23,6 +25,44 @@ type AddPlayerToGameParams struct {
 func (q *Queries) AddPlayerToGame(ctx context.Context, arg AddPlayerToGameParams) error {
 	_, err := q.db.Exec(ctx, addPlayerToGame, arg.GameID, arg.PlayerID)
 	return err
+}
+
+const findLeastCrowdedGameByThemeAndStatuses = `-- name: FindLeastCrowdedGameByThemeAndStatuses :one
+SELECT g.id, g.theme_id, g.status, g.created_at, COUNT(gp.player_id) AS player_count
+FROM games AS g
+LEFT JOIN game_players AS gp
+  ON gp.game_id = g.id
+WHERE g.theme_id = $1
+  AND g.status = ANY(($2::text[])::game_status[])
+GROUP BY g.id
+ORDER BY player_count
+LIMIT 1
+`
+
+type FindLeastCrowdedGameByThemeAndStatusesParams struct {
+	ThemeID int64    `json:"theme_id"`
+	Column2 []string `json:"column_2"`
+}
+
+type FindLeastCrowdedGameByThemeAndStatusesRow struct {
+	ID          int64              `json:"id"`
+	ThemeID     int64              `json:"theme_id"`
+	Status      GameStatus         `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	PlayerCount int64              `json:"player_count"`
+}
+
+func (q *Queries) FindLeastCrowdedGameByThemeAndStatuses(ctx context.Context, arg FindLeastCrowdedGameByThemeAndStatusesParams) (FindLeastCrowdedGameByThemeAndStatusesRow, error) {
+	row := q.db.QueryRow(ctx, findLeastCrowdedGameByThemeAndStatuses, arg.ThemeID, arg.Column2)
+	var i FindLeastCrowdedGameByThemeAndStatusesRow
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.PlayerCount,
+	)
+	return i, err
 }
 
 const getPlayersInGame = `-- name: GetPlayersInGame :many
@@ -73,44 +113,4 @@ func (q *Queries) IsPlayerInGame(ctx context.Context, arg IsPlayerInGameParams) 
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
-}
-
-const listGamesWithPlayerCounts = `-- name: ListGamesWithPlayerCounts :many
-SELECT
-  g.id,
-  COUNT(gp.player_id) AS player_count
-FROM games AS g
-LEFT JOIN game_players AS gp
-  ON gp.game_id = g.id
-WHERE g.id = ANY($1::bigint[])
-GROUP BY g.id ORDER BY player_count LIMIT 1
-`
-
-type ListGamesWithPlayerCountsParams struct {
-	Ids []int64 `json:"ids"`
-}
-
-type ListGamesWithPlayerCountsRow struct {
-	ID          int64 `json:"id"`
-	PlayerCount int64 `json:"player_count"`
-}
-
-func (q *Queries) ListGamesWithPlayerCounts(ctx context.Context, arg ListGamesWithPlayerCountsParams) ([]ListGamesWithPlayerCountsRow, error) {
-	rows, err := q.db.Query(ctx, listGamesWithPlayerCounts, arg.Ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListGamesWithPlayerCountsRow
-	for rows.Next() {
-		var i ListGamesWithPlayerCountsRow
-		if err := rows.Scan(&i.ID, &i.PlayerCount); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }

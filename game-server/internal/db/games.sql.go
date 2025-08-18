@@ -45,40 +45,6 @@ func (q *Queries) DeleteGame(ctx context.Context, arg DeleteGameParams) error {
 	return err
 }
 
-const findGamesForTheme = `-- name: FindGamesForTheme :many
-SELECT id, theme_id, status, created_at FROM games WHERE theme_id = $1 AND status = $2
-`
-
-type FindGamesForThemeParams struct {
-	ThemeID int64      `json:"theme_id"`
-	Status  GameStatus `json:"status"`
-}
-
-func (q *Queries) FindGamesForTheme(ctx context.Context, arg FindGamesForThemeParams) ([]Game, error) {
-	rows, err := q.db.Query(ctx, findGamesForTheme, arg.ThemeID, arg.Status)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Game
-	for rows.Next() {
-		var i Game
-		if err := rows.Scan(
-			&i.ID,
-			&i.ThemeID,
-			&i.Status,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getAllGames = `-- name: GetAllGames :many
 SELECT id, theme_id, status, created_at FROM games ORDER BY created_at DESC
 `

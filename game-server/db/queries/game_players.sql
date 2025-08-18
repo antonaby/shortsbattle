@@ -15,12 +15,13 @@ SELECT EXISTS (
     WHERE game_id = $1 AND player_id = $2
 ) AS exists;
 
--- name: ListGamesWithPlayerCounts :many
-SELECT
-  g.id,
-  COUNT(gp.player_id) AS player_count
+-- name: FindLeastCrowdedGameByThemeAndStatuses :one
+SELECT g.*, COUNT(gp.player_id) AS player_count
 FROM games AS g
 LEFT JOIN game_players AS gp
   ON gp.game_id = g.id
-WHERE g.id = ANY(@ids::bigint[])
-GROUP BY g.id ORDER BY player_count LIMIT 1;
+WHERE g.theme_id = $1
+  AND g.status = ANY(($2::text[])::game_status[])
+GROUP BY g.id
+ORDER BY player_count
+LIMIT 1;

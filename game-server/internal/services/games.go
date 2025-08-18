@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"log"
 
 	"fmt"
 
@@ -59,36 +61,57 @@ func NewGameManager(txm db.TxManager) *GameManager {
 func (g *GameManager) JoinGame(ctx context.Context, themeId int64) (*db.Game, error) {
 	game, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Game, error) {
 		q := g.txm.Querier(tx)
-		games, err := q.FindGamesForTheme(ctx, db.FindGamesForThemeParams{
-			ThemeID: themeId,
-			Status:  db.GameStatusLobby,
-		})
 
+		err := q.AcquireAdvisoryXactLock(ctx, db.AcquireAdvisoryXactLockParams{Column1: themeId})
 		if err != nil {
 			return nil, GameManagerError{
 				Code:    GMErrDbError,
-				Message: "can't fetch games",
+				Message: "can't acquire theme lock",
 				Cause:   err,
 			}
 		}
 
-		if len(games) != 0 {
-			return g.getGameWithLessPlayers(ctx, games, q)
+		game, err := g.findGameToJoin(ctx, themeId, q)
+		if err != nil {
+			return nil, err
 		}
 
-		return g.createGame(ctx, themeId, q)
+		return game, nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	_, ok := g.games[game.ID]
-	if !ok {
-		g.createGameInstance(*game)
-	}
+	_ = g.createGameInstanceIfNeeded(*game)
 
 	return game, nil
+}
+
+func (g *GameManager) findGameToJoin(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
+	game, err := q.FindLeastCrowdedGameByThemeAndStatuses(ctx, db.FindLeastCrowdedGameByThemeAndStatusesParams{
+		ThemeID: themeId,
+		Column2: []string{string(db.GameStatusCreated), string(db.GameStatusLobby)},
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return  g.createGame(ctx, themeId, q)
+		} else {
+			return nil, GameManagerError{
+				Code:    GMErrDbError,
+				Message: "can't fetch games",
+				Cause:   err,
+			}
+		}
+	}
+
+	return &db.Game{
+		ID: game.ID,
+		ThemeID: game.ThemeID,
+		Status: game.Status,
+		CreatedAt: game.CreatedAt,
+	}, nil
 }
 
 func (g *GameManager) createGame(ctx context.Context, themeId int64, q db.Querier) (*db.Game, error) {
@@ -112,44 +135,20 @@ func (g *GameManager) createGame(ctx context.Context, themeId int64, q db.Querie
 	return &game, nil
 }
 
-func (g *GameManager) getGameWithLessPlayers(ctx context.Context, games []db.Game, q db.Querier) (*db.Game, error) {
-	var ids []int64
-	for _, g := range games {
-		ids = append(ids, g.ID)
-	}
-
-	playersInGames, err := q.ListGamesWithPlayerCounts(ctx, db.ListGamesWithPlayerCountsParams{
-		Ids: ids,
-	})
-
-	if err != nil {
-		return nil, GameManagerError{
-			Code:    GMErrDbError,
-			Message: "can't fetch players",
-			Cause:   err,
-		}
-	}
-
-	if len(playersInGames) > 0 {
-		players := playersInGames[0]
-		for _, g := range games {
-			if g.ID == players.ID {
-				return &g, nil
-			}
-		}
-	}
-
-	return &games[0], nil
-}
-
-func (g *GameManager) createGameInstance(game db.Game) {
+func (g *GameManager) createGameInstanceIfNeeded(game db.Game) *GameInstance {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	gi := NewGameInstance(g.txm, game, g.defaultGameConfig())
-	g.games[game.ID] = gi
+	gi, ok := g.games[game.ID]
+	if ok {
+		return gi
+	}
 
-	go g.runGame(gi)
+	newGI := NewGameInstance(g.txm, game, g.defaultGameConfig())
+	g.games[game.ID] = newGI
+	go g.runGame(newGI)
+
+	return newGI
 }
 
 func (g *GameManager) defaultGameConfig() GameInstanceConfig {
@@ -168,7 +167,7 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 func (g *GameManager) runGame(gi *GameInstance) {
 	err := gi.Run()
 	if err != nil {
-		// Handle error
+		log.Println(err.Error())
 	}
 
 	g.mu.Lock()
@@ -178,78 +177,78 @@ func (g *GameManager) runGame(gi *GameInstance) {
 }
 
 func (g *GameManager) GetGame(ctx context.Context, gameId int64) (*models.GameDetails, error) {
-	details, err := db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
+	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
 		q := g.txm.Querier(tx)
-		game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
-
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, GameManagerError{
-					Code:    GMErrNotFound,
-					Message: "game not found",
-				}
-			}
-
-			return nil, GameManagerError{
-				Code:    GMErrDbError,
-				Message: "can't get game",
-				Cause:   err,
-			}
-		}
-
-		players, err := q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: game.ID})
-		if err != nil {
-			return nil, GameManagerError{
-				Code:    GMErrDbError,
-				Message: "can't get players",
-				Cause:   err,
-			}
-		}
-
-		if len(players) == 0 {
-			players = []db.Player{}
-		}
-
-		videos, err := q.GetVideosByGame(ctx, db.GetVideosByGameParams{GameID: game.ID})
-		if err != nil {
-			return nil, GameManagerError{
-				Code:    GMErrDbError,
-				Message: "can't get videos",
-				Cause:   err,
-			}
-		}
-
-		if len(videos) == 0 {
-			videos = []db.Video{}
-		}
-
-		votes, err := q.GetVotesByGame(ctx, db.GetVotesByGameParams{GameID: game.ID})
-		if err != nil {
-			return nil, GameManagerError{
-				Code:    GMErrDbError,
-				Message: "can't get votes",
-				Cause:   err,
-			}
-		}
-
-		if len(votes) == 0 {
-			votes = []db.Vote{}
-		}
-
-		return &models.GameDetails{
-			ID:                 game.ID,
-			ThemeID:            game.ThemeID,
-			Status:             game.Status,
-			CreatedAt:          game.CreatedAt,
-			StageTimeRemaining: 0,
-			Players:            players,
-			Videos:             videos,
-			Votes:              votes,
-		}, nil
+		return g.getGame(ctx, gameId, q)
 	})
+}
+
+func (g *GameManager) getGame(ctx context.Context, gameId int64, q db.Querier) (*models.GameDetails, error) {
+	game, err := q.GetGame(ctx, db.GetGameParams{ID: gameId})
 
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, GameManagerError{
+				Code:    GMErrNotFound,
+				Message: "game not found",
+			}
+		}
+
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't get game",
+			Cause:   err,
+		}
+	}
+
+	players, err := q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: game.ID})
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't get players",
+			Cause:   err,
+		}
+	}
+
+	if len(players) == 0 {
+		players = []db.Player{}
+	}
+
+	videos, err := q.GetVideosByGame(ctx, db.GetVideosByGameParams{GameID: game.ID})
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't get videos",
+			Cause:   err,
+		}
+	}
+
+	if len(videos) == 0 {
+		videos = []db.Video{}
+	}
+
+	votes, err := q.GetVotesByGame(ctx, db.GetVotesByGameParams{GameID: game.ID})
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't get votes",
+			Cause:   err,
+		}
+	}
+
+	if len(votes) == 0 {
+		votes = []db.Vote{}
+	}
+
+	details := &models.GameDetails{
+		ID:                 game.ID,
+		ThemeID:            game.ThemeID,
+		Status:             game.Status,
+		CreatedAt:          game.CreatedAt,
+		StageTimeRemaining: 0,
+		Players:            players,
+		Videos:             videos,
+		Votes:              votes,
 	}
 
 	g.mu.Lock()
