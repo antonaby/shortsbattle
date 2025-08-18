@@ -41,7 +41,12 @@ export const useCentrifugeStore = defineStore("centrifuge", {
         return;
       }
 
-      const sub = this.client.newSubscription(`game_${gameInstanceId}`);
+      const channelName = `game_${gameInstanceId}`
+      let sub = this.client.getSubscription(channelName)
+      if (!sub) {
+        sub = this.client.newSubscription(channelName);
+      }
+
       sub.on("publication", (ctx) => {
         const gameStore = useGameStore()
         gameStore.updateGameStatus(ctx.data.status)
