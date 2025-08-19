@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { Centrifuge, Subscription } from "centrifuge";
 import { useGameStore } from "./gameStore";
-import type { GameUpdate } from "../models/common";
+import type { GameInstance, GameUpdate } from "../models/common";
 
 interface CentrifugeStoreState {
   client: Centrifuge | null;
@@ -10,7 +10,7 @@ interface CentrifugeStoreState {
   subscribed: boolean;
 }
 
-export const useCentrifugeStore = defineStore("centrifuge", {
+export const useWSStore = defineStore("centrifuge", {
   state: (): CentrifugeStoreState => ({
     client: null,
     sub: null,
@@ -60,8 +60,11 @@ export const useCentrifugeStore = defineStore("centrifuge", {
         });
       }
 
-      sub.on("subscribed", () => {
+      sub.on("subscribed", (ctx) => {
         this.subscribed = true;
+        let data = ctx.data as GameInstance;
+        const gameStore = useGameStore();
+        gameStore.setGameInstance(data);
       });
       sub.on("unsubscribed", () => {
         this.subscribed = false;

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useGameStore } from "../stores/gameStore";
+import { useGameListStore } from '../stores/gameListStore';
+import { useGameStore } from '../stores/gameStore';
 
-const gameStore = useGameStore();
+const gameListStore = useGameListStore();
+const gameStore = useGameStore()
 
-onMounted(async () => {
-  await gameStore.fetchGames();
+onMounted(() => {
+  gameListStore.fetchGames();
 })
-
 </script>
 
 <template>
@@ -15,7 +16,7 @@ onMounted(async () => {
     <h1 class="text-2xl font-bold text-center mb-6">🎮 Choose a Game</h1>
     <ul class="divide-y divide-gray-100">
       <li
-        v-for="(game, index) in gameStore.games"
+        v-for="(game, index) in gameListStore.games"
         :key="index"
       >
         <button

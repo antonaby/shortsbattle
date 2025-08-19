@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
-import { useCentrifugeStore } from './stores/centrifugeStore';
+import { useWSStore } from './stores/wsStore';
 
-const centrifugeStore = useCentrifugeStore();
+const centrifugeStore = useWSStore();
 
 onMounted(() => {
   centrifugeStore.connect()

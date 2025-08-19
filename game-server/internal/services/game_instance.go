@@ -309,6 +309,7 @@ func (r *GameInstance) toCompleteStage() {
 	_ = r.updateGameStatus(db.GameStatusComplete)
 }
 
+// TODO: fix multiple joining players
 func (r *GameInstance) addPlayer(pj PlayerJoin) error {
 	if r.Game.Status != db.GameStatusCreated && r.Game.Status != db.GameStatusLobby {
 		err := GameInstanceError{

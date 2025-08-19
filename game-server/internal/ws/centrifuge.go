@@ -81,11 +81,27 @@ func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		var req JoinGameRequest
 		err := json.Unmarshal(e.Data, &req)
 		if err != nil {
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
 
-		cb(centrifuge.SubscribeReply{}, nil)
+		game, err := r.gm.GetGame(client.Context(), int64(req.GameID))
+		if err != nil {
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+			return
+		}
+
+		response, err := json.Marshal(game)
+		if err != nil {
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+			return
+		}
+
+		cb(centrifuge.SubscribeReply{
+			Options: centrifuge.SubscribeOptions{
+				Data: response,
+			},
+		}, nil)
 	})
 
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {

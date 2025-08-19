@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -43,10 +41,10 @@ type CreateThemeParams struct {
 
 type GameDetails struct {
 	ID                 int64              `json:"id"`
-	ThemeID            int64              `json:"theme_id"`
+	Theme              db.Theme           `json:"theme"`
 	Status             db.GameStatus      `json:"status"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
-	StageTimeRemaining time.Duration      `json:"stage_time_remaining"`
+	StageTimeRemaining int64              `json:"stage_time_remaining"`
 	Players            []db.Player        `json:"players"`
 	Videos             []db.Video         `json:"videos"`
 	Votes              []db.Vote          `json:"votes"`

@@ -266,6 +266,15 @@ func (g *GameManager) getGame(ctx context.Context, gameId int64, q db.Querier) (
 		}
 	}
 
+	theme, err := q.GetThemeByID(ctx, db.GetThemeByIDParams{ID: game.ThemeID})
+	if err != nil {
+		return nil, GameManagerError{
+			Code:    GMErrDbError,
+			Message: "can't get theme",
+			Cause:   err,
+		}
+	}
+
 	players, err := q.GetPlayersInGame(ctx, db.GetPlayersInGameParams{GameID: game.ID})
 	if err != nil {
 		return nil, GameManagerError{
@@ -307,7 +316,7 @@ func (g *GameManager) getGame(ctx context.Context, gameId int64, q db.Querier) (
 
 	details := &models.GameDetails{
 		ID:                 game.ID,
-		ThemeID:            game.ThemeID,
+		Theme:              theme,
 		Status:             game.Status,
 		CreatedAt:          game.CreatedAt,
 		StageTimeRemaining: 0,
@@ -321,7 +330,7 @@ func (g *GameManager) getGame(ctx context.Context, gameId int64, q db.Querier) (
 
 	gi, err := g.getGameInstance(details.ID)
 	if err == nil {
-		details.StageTimeRemaining = gi.StageCountdown.Remaining()
+		details.StageTimeRemaining = gi.StageCountdown.Remaining().Milliseconds()
 	}
 
 	return details, nil
