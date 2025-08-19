@@ -2,20 +2,26 @@
 import { onMounted, onUnmounted } from "vue";
 import { useGameStore } from "../stores/gameStore";
 import { useCentrifugeStore } from "../stores/centrifugeStore";
+import { useRoute } from "vue-router";
+
+const route = useRoute()
 
 const gameStore = useGameStore();
 const game = gameStore.currentGame;
 const gameInstance = gameStore.currentGameInstance;
 
-const centrifugeStore = useCentrifugeStore()
+const centrifugeStore = useCentrifugeStore();
 
 onMounted(() => {
   if (game && gameInstance) {
-    centrifugeStore.subscribe(gameInstance.id)
+    let id = Number(route.params.id);
+    centrifugeStore.subscribe(id);
+    gameStore.startTimer();
   }
 })
 
 onUnmounted(() => {
+  gameStore.stopTimer();
   centrifugeStore.unsubsribe();
 })
 </script>
@@ -41,6 +47,7 @@ onUnmounted(() => {
           <h2 class="text-xl font-bold text-gray-900">{{ game.name }}</h2>
           <p class="text-sm text-gray-500 mt-1">{{ game.description }}</p>
           <p class="text-lg text-gray-500 mt-1" v-if="gameInstance">{{ gameInstance.status }}</p>
+          <p class="text-lg text-gray-500 mt-1">{{ gameStore.formattedTime }}</p>
         </div>
       </div>
 

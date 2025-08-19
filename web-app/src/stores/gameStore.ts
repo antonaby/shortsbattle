@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
 import router from "../router";
+import type { GameUpdate } from "../models/common";
 
 interface Game {
   id: number;
@@ -17,17 +18,19 @@ interface GameInstance {
 }
 
 interface GameStoreState {
-  loading: boolean;
   gameId: number | null;
   gameInstance: GameInstance | null;
+  remainingTimeMs: number;
+  intervalId: number | null;
   games: Game[];
 }
 
 export const useGameStore = defineStore("game", {
   state: (): GameStoreState => ({
-    loading: false,
     gameId: null,
     gameInstance: null,
+    remainingTimeMs: 0,
+    intervalId: null,
     games: [],
   }),
   getters: {
@@ -39,26 +42,29 @@ export const useGameStore = defineStore("game", {
     currentGameInstance: (state) => {
       return state.gameInstance;
     },
+    formattedTime: (state) => {
+      const totalSeconds = Math.max(0, Math.floor(state.remainingTimeMs / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    },
   },
   actions: {
     async fetchGames() {
-      this.loading = true;
       try {
-        const response = await axios.get(
+        const response = await axios.get<Game[]>(
           `${import.meta.env.VITE_BASE_URL}/api/v1/themes`
         );
         this.games = response.data;
       } catch (error) {
         console.error("Failed to fetch games:", error);
       } finally {
-        this.loading = false;
       }
     },
     async joinGame(id: number) {
       this.gameId = id;
-      this.loading = true;
       try {
-        const response = await axios.put(
+        const response = await axios.put<GameInstance>(
           `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
           {
             theme_id: id,
@@ -70,18 +76,35 @@ export const useGameStore = defineStore("game", {
         console.error("Failed to fetch the game:", error);
       }
 
-      this.loading = false;
-      router.push("/game");
+      router.push({ name: "game", params: { id: this.gameInstance?.id } });
     },
-    updateGameStatus(status: string) {
+    startTimer() {
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+      }
+
+      this.intervalId = setInterval(() => {
+        this.remainingTimeMs -= 1000;
+      }, 1000);
+    },
+    stopTimer() {
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+    },
+    updateGameStatus(data: GameUpdate) {
       if (this.gameInstance) {
-        this.gameInstance.status = status;
+        if (this.gameInstance.status !== data.status) {
+          this.remainingTimeMs = data.stage_time_remaining;
+        }
+        this.gameInstance.status = data.status;
       }
     },
     leaveGame() {
       this.gameId = null;
       this.gameInstance = null;
-      router.push("/");
+      router.replace({ name: "home" });
     },
   },
 });

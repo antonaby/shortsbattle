@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { Centrifuge, Subscription } from "centrifuge";
 import { useGameStore } from "./gameStore";
+import type { GameUpdate } from "../models/common";
 
 interface CentrifugeStoreState {
   client: Centrifuge | null;
@@ -68,7 +69,8 @@ export const useCentrifugeStore = defineStore("centrifuge", {
 
       sub.on("publication", (ctx) => {
         const gameStore = useGameStore();
-        gameStore.updateGameStatus(ctx.data.status);
+        let data = ctx.data as GameUpdate;
+        gameStore.updateGameStatus(data);
       });
       sub.on("error", (ctx) => {
         console.log(ctx);
@@ -90,7 +92,11 @@ export const useCentrifugeStore = defineStore("centrifuge", {
         return;
       }
 
-      await this.sub.publish(data);
+      try {
+        await this.sub.publish(data);
+      } catch (error) {
+        console.log(error);
+      }
     },
   },
 });

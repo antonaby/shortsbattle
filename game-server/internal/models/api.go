@@ -53,6 +53,7 @@ type GameDetails struct {
 }
 
 type GameUpdate struct {
-	ID     int64         `json:"id"`
-	Status db.GameStatus `json:"status"`
+	ID                 int64         `json:"id"`
+	Status             db.GameStatus `json:"status"`
+	StageTimeRemaining int64         `json:"stage_time_remaining"`
 }

@@ -126,15 +126,15 @@ func (g *GameManager) PlayerLeave(ctx context.Context, gameId int64, playerId in
 	return db.WithTx(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) error {
 		q := g.txm.Querier(tx)
 		err := q.RemovePlayerFromGame(ctx, db.RemovePlayerFromGameParams{
-			GameID: gameId,
+			GameID:   gameId,
 			PlayerID: playerId,
 		})
 
 		if err != nil {
 			return GameManagerError{
-				Code: GMErrDbError,
+				Code:    GMErrDbError,
 				Message: "can't remove player from game",
-				Cause: err,
+				Cause:   err,
 			}
 		}
 
@@ -218,6 +218,8 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 	return GameInstanceConfig{
 		MinPlayers:        1,
 		MaxPlayers:        3,
+		TickerDuration:    2 * time.Second,
+		CreatedTimeout:    3 * time.Second,
 		LobbyTimeout:      30 * time.Second,
 		SubmittingTimeout: 30 * time.Second,
 		VotingTimeout:     30 * time.Second,

@@ -88,6 +88,7 @@ func (c *Countdown) Stop() {
 	if c.timer != nil {
 		c.timer.Stop()
 	}
+	c.timer = nil
 }
 
 type PlayerJoin struct {
@@ -109,6 +110,8 @@ type VoteSubmission struct {
 type GameInstanceConfig struct {
 	MinPlayers        int
 	MaxPlayers        int
+	TickerDuration    time.Duration
+	CreatedTimeout    time.Duration
 	LobbyTimeout      time.Duration
 	SubmittingTimeout time.Duration
 	VotingTimeout     time.Duration
@@ -170,12 +173,17 @@ func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
 
 	r.Game = game
 
+	return r.publishGameStatus()
+}
+
+func (r *GameInstance) publishGameStatus() error {
 	statusUpdate := models.GameUpdate{
-		ID: game.ID,
-		Status: game.Status,
+		ID:                 r.Game.ID,
+		Status:             r.Game.Status,
+		StageTimeRemaining: r.StageCountdown.Remaining().Milliseconds(),
 	}
 
-	err = r.publisher.PublishGameUpdate(fmt.Sprintf("game_%d", r.Game.ID), statusUpdate)
+	err := r.publisher.PublishGameUpdate(fmt.Sprintf("game_%d", r.Game.ID), statusUpdate)
 	if err != nil {
 		return GameInstanceError{
 			Code:    GIErrPublicationFailed,
@@ -188,9 +196,12 @@ func (r *GameInstance) updateGameStatus(status db.GameStatus) error {
 }
 
 func (r *GameInstance) gameLoop() {
+	ticker := time.NewTicker(r.Config.TickerDuration)
+	defer ticker.Stop()
+
 	defer r.StageCountdown.Stop()
 
-	err := r.toLobbyStage()
+	err := r.setCreatedTimer()
 	if err != nil {
 		return
 	}
@@ -200,6 +211,8 @@ Loop:
 		select {
 		case <-r.Ctx.Done():
 			break Loop
+		case <-ticker.C:
+			_ = r.publishGameStatus()
 		case p := <-r.PlayerJoin:
 			_ = r.addPlayer(p)
 			if r.checkEnoughtPlayers() {
@@ -226,6 +239,8 @@ Loop:
 
 func (r *GameInstance) nextStage() error {
 	switch r.Game.Status {
+	case db.GameStatusCreated:
+		return r.toLobbyStage()
 	case db.GameStatusLobby:
 		return r.toSubmittingStage()
 	case db.GameStatusSubmitting:
@@ -239,45 +254,58 @@ func (r *GameInstance) nextStage() error {
 	return err
 }
 
+func (r *GameInstance) setCreatedTimer() error {
+	r.StageCountdown = NewCountdown(r.Config.CreatedTimeout)
+
+	err := r.updateGameStatus(db.GameStatusCreated)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *GameInstance) toLobbyStage() error {
+	r.StageCountdown.Reset(r.Config.LobbyTimeout)
+
 	err := r.updateGameStatus(db.GameStatusLobby)
 	if err != nil {
 		return err
 	}
-	r.StageCountdown.Stop()
-	r.StageCountdown = NewCountdown(r.Config.LobbyTimeout)
 
 	return nil
 }
 
 func (r *GameInstance) toSubmittingStage() error {
+	r.StageCountdown.Reset(r.Config.SubmittingTimeout)
+
 	err := r.updateGameStatus(db.GameStatusSubmitting)
 	if err != nil {
 		return err
 	}
-	r.StageCountdown.Stop()
-	r.StageCountdown = NewCountdown(r.Config.SubmittingTimeout)
 
 	return nil
 }
 
 func (r *GameInstance) toVotingStage() error {
+	r.StageCountdown.Reset(r.Config.VotingTimeout)
+
 	err := r.updateGameStatus(db.GameStatusVoting)
 	if err != nil {
 		return err
 	}
-	r.StageCountdown.Stop()
-	r.StageCountdown = NewCountdown(r.Config.VotingTimeout)
 
 	return nil
 }
 
 func (r *GameInstance) toWinnerStage() error {
+	r.StageCountdown.Stop()
 	err := r.updateGameStatus(db.GameStatusWinner)
 	return err
 }
 
 func (r *GameInstance) toCompleteStage() {
+	r.StageCountdown.Stop()
 	_ = r.updateGameStatus(db.GameStatusComplete)
 }
 

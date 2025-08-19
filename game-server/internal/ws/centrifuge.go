@@ -3,7 +3,6 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -99,10 +98,10 @@ func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		_ = r.gm.PlayerLeave(context.Background(), gameId, 1)
 	})
 
-	client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
-		log.Printf("client publishes into channel %s: %s", e.Channel, string(e.Data))
-		cb(centrifuge.PublishReply{}, nil)
-	})
+	// client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
+	// 	log.Printf("client publishes into channel %s: %s", e.Channel, string(e.Data))
+	// 	cb(centrifuge.PublishReply{}, nil)
+	// })
 
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
 
