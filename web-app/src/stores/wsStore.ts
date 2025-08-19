@@ -89,17 +89,6 @@ export const useWSStore = defineStore("centrifuge", {
 
       this.sub.unsubscribe();
       this.sub = null;
-    },
-    async publish(data: any) {
-      if (this.sub == null) {
-        return;
-      }
-
-      try {
-        await this.sub.publish(data);
-      } catch (error) {
-        console.log(error);
-      }
-    },
+    }
   },
 });

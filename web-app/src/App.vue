@@ -3,10 +3,7 @@ import { onMounted, onUnmounted } from 'vue';
 import { useWSStore } from './stores/wsStore';
 
 const centrifugeStore = useWSStore();
-
-onMounted(() => {
-  centrifugeStore.connect()
-})
+centrifugeStore.connect();
 
 onUnmounted(() => {
   centrifugeStore.disconnect()

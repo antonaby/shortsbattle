@@ -2,9 +2,18 @@
 import { onMounted } from 'vue'
 import { useGameListStore } from '../stores/gameListStore';
 import { useGameStore } from '../stores/gameStore';
+import { useRouter } from 'vue-router';
 
+const router = useRouter()
 const gameListStore = useGameListStore();
 const gameStore = useGameStore()
+
+async function joinAndOpenGame(id: number) {
+  let game = await gameStore.joinGame(id)
+  if (game) {
+    router.push({ name: "game", params: { id: game?.id } });
+  }
+}
 
 onMounted(() => {
   gameListStore.fetchGames();
@@ -15,14 +24,9 @@ onMounted(() => {
   <div class="min-h-screen bg-white mx-auto">
     <h1 class="text-2xl font-bold text-center mb-6">🎮 Choose a Game</h1>
     <ul class="divide-y divide-gray-100">
-      <li
-        v-for="(game, index) in gameListStore.games"
-        :key="index"
-      >
-        <button
-          @click="gameStore.joinGame(game.id)"
-          class="w-full text-left py-4 px-2 hover:bg-gray-50 active:bg-gray-100 rounded-lg transition"
-        >
+      <li v-for="(game, index) in gameListStore.games" :key="index">
+        <button @click="joinAndOpenGame(game.id)"
+          class="w-full text-left py-4 px-2 hover:bg-gray-50 active:bg-gray-100 rounded-lg transition">
           <div class="text-base font-medium text-gray-900">
             {{ game.name }}
           </div>

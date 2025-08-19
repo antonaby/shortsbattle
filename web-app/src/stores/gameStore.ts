@@ -1,10 +1,8 @@
 import { defineStore } from "pinia";
 import axios from "axios";
-import router from "../router";
 import type { Game, GameInstance, GameUpdate } from "../models/common";
 
 interface GameStoreState {
-  game: Game | null;
   gameInstance: GameInstance | null;
   remainingTimeMs: number;
   intervalId: number | null;
@@ -12,7 +10,6 @@ interface GameStoreState {
 
 export const useGameStore = defineStore("game", {
   state: (): GameStoreState => ({
-    game: null,
     gameInstance: null,
     remainingTimeMs: 0,
     intervalId: null,
@@ -37,7 +34,7 @@ export const useGameStore = defineStore("game", {
     },
   },
   actions: {
-    async joinGame(id: number) {
+    async joinGame(id: number): Promise<Game | null> {
       try {
         const response = await axios.put<Game>(
           `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
@@ -46,20 +43,21 @@ export const useGameStore = defineStore("game", {
             player_id: 1,
           }
         );
-        this.game = response.data;
+        return response.data;
       } catch (error) {
+        // TODO: show error and get back
         console.error("Failed to fetch the game:", error);
-        return; // TODO: show error and get back
+        return null; 
       }
-
-      router.push({ name: "game", params: { id: this.game.id } });
     },
     setGameInstance(gi: GameInstance) {
       this.gameInstance = gi;
       this.remainingTimeMs = gi.stage_time_remaining;
+      
       if (this.intervalId) {
         clearInterval(this.intervalId);
       }
+
       this.intervalId = setInterval(() => {
         this.remainingTimeMs -= 1000;
       }, 1000);
@@ -77,11 +75,7 @@ export const useGameStore = defineStore("game", {
         clearInterval(this.intervalId);
         this.intervalId = null;
       }
-      this.game = null;
       this.gameInstance = null;
-    },
-    returnHome() {
-      router.replace({ name: "home" });
-    },
-  },
+    }
+  }
 });

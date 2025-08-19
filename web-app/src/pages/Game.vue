@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
 import { useWSStore } from "../stores/wsStore";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
 
-const route = useRoute()
+const route = useRoute();
+const router = useRouter();
 const wsStore = useWSStore();
 const gameStore = useGameStore();
+
+function returnHome() {
+  router.replace({ name: "home" });
+}
 
 onMounted(() => {
   let id = Number(route.params.id);
@@ -43,7 +48,7 @@ onUnmounted(() => {
       </div>
 
       <div class="pt-4 flex justify-center gap-3">
-        <button @click="gameStore.returnHome()"
+        <button @click="returnHome()"
           class="w-35 py-3 text-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 active:bg-gray-300 transition">
           🔙 Back
         </button>
