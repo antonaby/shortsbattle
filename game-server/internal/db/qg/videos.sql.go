@@ -7,31 +7,55 @@ package qg
 
 import (
 	"context"
+	"encoding/json"
 )
 
 const createVideo = `-- name: CreateVideo :one
-INSERT INTO videos (player_id, video_url) VALUES ($1, $2) RETURNING id, player_id, video_url, added_at
+INSERT INTO videos (player_id, video_url, oembed) VALUES ($1, $2, $3) RETURNING id, player_id, video_url, oembed, added_at
 `
 
 type CreateVideoParams struct {
-	PlayerID int64  `json:"player_id"`
-	VideoUrl string `json:"video_url"`
+	PlayerID int64           `json:"player_id"`
+	VideoUrl string          `json:"video_url"`
+	Oembed   json.RawMessage `json:"oembed"`
 }
 
 func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo, arg.PlayerID, arg.VideoUrl)
+	row := q.db.QueryRow(ctx, createVideo, arg.PlayerID, arg.VideoUrl, arg.Oembed)
 	var i Video
 	err := row.Scan(
 		&i.ID,
 		&i.PlayerID,
 		&i.VideoUrl,
+		&i.Oembed,
+		&i.AddedAt,
+	)
+	return i, err
+}
+
+const getVideo = `-- name: GetVideo :one
+SELECT id, player_id, video_url, oembed, added_at FROM videos WHERE id = $1
+`
+
+type GetVideoParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetVideo(ctx context.Context, arg GetVideoParams) (Video, error) {
+	row := q.db.QueryRow(ctx, getVideo, arg.ID)
+	var i Video
+	err := row.Scan(
+		&i.ID,
+		&i.PlayerID,
+		&i.VideoUrl,
+		&i.Oembed,
 		&i.AddedAt,
 	)
 	return i, err
 }
 
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
-SELECT id, player_id, video_url, added_at FROM videos WHERE player_id = $1
+SELECT id, player_id, video_url, oembed, added_at FROM videos WHERE player_id = $1
 `
 
 type GetVideosByPlayerParams struct {
@@ -51,6 +75,7 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 			&i.ID,
 			&i.PlayerID,
 			&i.VideoUrl,
+			&i.Oembed,
 			&i.AddedAt,
 		); err != nil {
 			return nil, err

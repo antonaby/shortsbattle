@@ -6,9 +6,7 @@ CREATE TABLE
         id BIGSERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-        created_at TIMESTAMP
-        WITH
-            TIME ZONE NOT NULL DEFAULT now ()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
 CREATE TABLE
@@ -16,9 +14,7 @@ CREATE TABLE
         id BIGSERIAL PRIMARY KEY,
         request TEXT NOT NULL,
         theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
-        created_at TIMESTAMP
-        WITH
-            TIME ZONE NOT NULL DEFAULT now ()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
 -- players table
@@ -26,9 +22,7 @@ CREATE TABLE
     players (
         id BIGSERIAL PRIMARY KEY,
         username TEXT NOT NULL,
-        created_at TIMESTAMP
-        WITH
-            TIME ZONE NOT NULL DEFAULT now ()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
 -- videos table
@@ -37,9 +31,9 @@ CREATE TABLE
         id BIGSERIAL PRIMARY KEY,
         player_id BIGINT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
         video_url TEXT NOT NULL,
-        added_at TIMESTAMP
-        WITH
-            TIME ZONE NOT NULL DEFAULT now ()
+        oembed jsonb NOT NULL DEFAULT '{}'::jsonb,
+        added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CONSTRAINT videos_oembed_is_object CHECK (jsonb_typeof(oembed) = 'object')
     );
 -- +goose StatementEnd
 

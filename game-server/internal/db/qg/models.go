@@ -5,6 +5,8 @@
 package qg
 
 import (
+	"encoding/json"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -25,6 +27,7 @@ type Video struct {
 	ID       int64              `json:"id"`
 	PlayerID int64              `json:"player_id"`
 	VideoUrl string             `json:"video_url"`
+	Oembed   json.RawMessage    `json:"oembed"`
 	AddedAt  pgtype.Timestamptz `json:"added_at"`
 }
 

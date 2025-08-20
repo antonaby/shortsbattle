@@ -12,6 +12,7 @@ const (
 	ErrorDb = iota
 	ErrorNotFound
 	ErrorConstraintViolation
+	ErrorOEmbed
 )
 
 type ServiceError struct {
@@ -34,6 +35,9 @@ func (e ServiceError) Unwrap() error {
 func GetDbErrorCode(err error) ErrorCode {
 	if db.IsClass23(err) {
 		return ErrorConstraintViolation
+	}
+	if db.IsNoRows(err) {
+		return ErrorNotFound
 	}
 
 	return ErrorDb

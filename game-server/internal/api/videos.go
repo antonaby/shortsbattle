@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/labstack/echo/v4"
@@ -29,6 +28,7 @@ func (api *VideosApi) register(g *echo.Group) {
 	v1group := g.Group("/v1")
 
 	v1group.POST("/videos", api.submitVideo)
+	v1group.GET("/videos/:id", api.getVideo)
 }
 
 func (api *VideosApi) submitVideo(c echo.Context) error {
@@ -46,10 +46,7 @@ func (api *VideosApi) submitVideo(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	video, err := api.vs.CreateVideo(ctx, qg.CreateVideoParams{
-		PlayerID: request.PlayerID,
-		VideoUrl: request.VideoUrl,
-	})
+	video, err := api.vs.CreateVideo(ctx, *request)
 
 	if err != nil {
 		var sErr common.ServiceError
@@ -62,6 +59,35 @@ func (api *VideosApi) submitVideo(c echo.Context) error {
 		}
 
 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, video)
+}
+
+func (api *VideosApi) getVideo(c echo.Context) error {
+	videoId, err := parseInt64(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	ctx := c.Request().Context()
+	video, err := api.vs.GetVideo(ctx, videoId)
+	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorNotFound {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "video not found",
+				})
+			}
+		}
+
+		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: "Something went wrong",
 		})
