@@ -15,7 +15,6 @@ dist-ssr
 __debug*
 
 # Editor directories and files
-.vscode/launch.json
 !.vscode/extensions.json
 .idea
 .DS_Store
