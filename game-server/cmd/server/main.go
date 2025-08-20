@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"time"
+	l "log"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/api"
 	"github.com/antonaby/shortsbattle/game-server/internal/bot"
@@ -22,7 +23,7 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		l.Println("No .env file found")
 	}
 
 	dbManager, err := db.NewDbManager(context.Background())
