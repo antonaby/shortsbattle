@@ -3,7 +3,7 @@
 //   sqlc v1.29.0
 // source: themes.sql
 
-package q
+package qg
 
 import (
 	"context"

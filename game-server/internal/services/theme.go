@@ -1,84 +1,134 @@
 package services
 
-// import (
-// 	"context"
-// 	"errors"
-// 	"fmt"
+import (
+	"context"
 
-// 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-// 	"github.com/jackc/pgx/v5"
-// )
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/jackc/pgx/v5"
+)
 
-// type ThemeServiceErrorCode int
+type ThemeService struct {
+	txm db.TxManager
+}
 
-// const (
-// 	TSErrDbError = iota
-// 	TSErrNotFound
-// )
+func NewThemeService(txm db.TxManager) *ThemeService {
+	return &ThemeService{
+		txm: txm,
+	}
+}
 
-// type ThemeServiceError struct {
-// 	Code    ThemeServiceErrorCode
-// 	Message string
-// 	Cause   error
-// }
+func (ts *ThemeService) CreateTheme(ctx context.Context, params qg.CreateThemeParams) (*qg.Theme, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Theme, error) {
+		q := ts.txm.Querier(tx)
+		theme, err := q.CreateTheme(ctx, params)
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.ErrorDb,
+				Message: "failed to create a theme",
+				Cause:   err,
+			}
+		}
 
-// func (e ThemeServiceError) Error() string {
-// 	if e.Cause != nil {
-// 		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
-// 	}
-// 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
-// }
+		return &theme, nil
+	})
+}
 
-// func (e ThemeServiceError) Unwrap() error {
-// 	return e.Cause
-// }
+func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Theme, error) {
+		q := ts.txm.Querier(tx)
+		themes, err := q.ListAllThemes(ctx)
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.ErrorDb,
+				Message: "failed to list all themes",
+				Cause:   err,
+			}
+		}
 
-// type ThemeService struct {
-// 	txm db.TxManager
-// }
+		if len(themes) == 0 {
+			themes = []qg.Theme{}
+		}
 
-// func NewThemeService(txm db.TxManager) *ThemeService {
-// 	return &ThemeService{
-// 		txm: txm,
-// 	}
-// }
+		return themes, nil
+	})
+}
 
-// func (ts *ThemeService) CreateTheme(ctx context.Context, params db.CreateThemeParams) (*db.Theme, error) {
-// 	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*db.Theme, error) {
-// 		q := ts.txm.Querier(tx)
-// 		theme, err := q.CreateTheme(ctx, params)
-// 		if err != nil {
-// 			return nil, ThemeServiceError{
-// 				Code:    TSErrDbError,
-// 				Message: "can't create theme",
-// 				Cause:   err,
-// 			}
-// 		}
+func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*models.ThemeExt, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*models.ThemeExt, error) {
+		q := ts.txm.Querier(tx)
+		theme, err := ts.getTheme(ctx, q, qg.GetThemeParams{ID: themeId})
+		if err != nil {
+			return nil, err
+		}
 
-// 		return &theme, nil
-// 	})
-// }
+		requests, err := ts.getVideoRequests(ctx, q, qg.GetVideoRequestsParams{ThemeID: themeId})
+		if err != nil {
+			return nil, err
+		}
 
-// func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]db.Theme, error) {
-// 	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Theme, error) {
-// 		q := ts.txm.Querier(tx)
-// 		themes, err := q.ListAllThemes(ctx)
-// 		if err != nil {
-// 			if errors.Is(err, pgx.ErrNoRows) {
-// 				return nil, ThemeServiceError{
-// 					Code:    TSErrNotFound,
-// 					Message: "no themes found",
-// 					Cause:   err,
-// 				}
-// 			}
+		return &models.ThemeExt{
+			ID:          theme.ID,
+			Name:        theme.Name,
+			Description: theme.Description,
+			CreatedAt:   theme.CreatedAt,
+			Requests:    requests,
+		}, nil
+	})
+}
 
-// 			return nil, ThemeServiceError{
-// 				Code:    TSErrDbError,
-// 				Message: "can't list all themes",
-// 				Cause:   err,
-// 			}
-// 		}
+func (ts *ThemeService) CreateVideoRequest(ctx context.Context, params qg.CreateVideoRequestParams) (*qg.VideoRequest, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.VideoRequest, error) {
+		q := ts.txm.Querier(tx)
+		request, err := q.CreateVideoRequest(ctx, params)
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to create a video request",
+				Cause:   err,
+			}
+		}
 
-// 		return themes, nil
-// 	})
-// }
+		return &request, nil
+	})
+}
+
+func (ts *ThemeService) getTheme(ctx context.Context, q qg.Querier, params qg.GetThemeParams) (*qg.Theme, error) {
+	theme, err := q.GetTheme(ctx, params)
+	if err != nil {
+		if db.IsNoRows(err) {
+			return nil, common.ServiceError{
+				Code:    common.ErrorNotFound,
+				Message: "failed to get theme",
+				Cause:   err,
+			}
+		}
+
+		return nil, common.ServiceError{
+			Code:    common.ErrorDb,
+			Message: "failed to get theme",
+			Cause:   err,
+		}
+	}
+
+	return &theme, nil
+}
+
+func (ts *ThemeService) getVideoRequests(ctx context.Context, q qg.Querier, params qg.GetVideoRequestsParams) ([]qg.VideoRequest, error) {
+	requests, err := q.GetVideoRequests(ctx, params)
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.ErrorDb,
+			Message: "failed to list video requests",
+			Cause:   err,
+		}
+	}
+
+	if len(requests) == 0 {
+		requests = []qg.VideoRequest{}
+	}
+
+	return requests, nil
+}

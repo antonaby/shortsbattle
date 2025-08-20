@@ -7,7 +7,9 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/api"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/labstack/echo/v4"
@@ -22,7 +24,7 @@ func main() {
 	}
 	defer dbManager.Close()
 
-	// ts := services.NewThemeService(dbManager)
+	ts := services.NewThemeService(dbManager)
 	// gm := services.NewGameManager(dbManager)
 	// ps := services.NewPlayersService(dbManager)
 
@@ -50,10 +52,9 @@ func main() {
 
 	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
 
-	//apiGroup := e.Group("/api")
-
-	// themesApi := api.NewThemesApi(ts)
-	// themesApi.Register(apiGroup)
+	apiGroup := e.Group("/api")
+	_ = api.NewThemesApi(ts, apiGroup)
+	
 	// gameApi := api.NewGameApi(gm)
 	// gameApi.Register(apiGroup)
 	// playerApi := api.NewPlayerApi(ps)
