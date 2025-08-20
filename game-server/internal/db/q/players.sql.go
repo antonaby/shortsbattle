@@ -3,16 +3,14 @@
 //   sqlc v1.29.0
 // source: players.sql
 
-package db
+package q
 
 import (
 	"context"
 )
 
 const createPlayer = `-- name: CreatePlayer :one
-INSERT INTO players (username)
-VALUES ($1)
-RETURNING id, username, created_at
+INSERT INTO players (username) VALUES ($1) RETURNING id, username, created_at
 `
 
 type CreatePlayerParams struct {
@@ -24,30 +22,6 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 	var i Player
 	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
 	return i, err
-}
-
-const getAllPlayers = `-- name: GetAllPlayers :many
-SELECT id, username, created_at FROM players ORDER BY username
-`
-
-func (q *Queries) GetAllPlayers(ctx context.Context) ([]Player, error) {
-	rows, err := q.db.Query(ctx, getAllPlayers)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Player
-	for rows.Next() {
-		var i Player
-		if err := rows.Scan(&i.ID, &i.Username, &i.CreatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getPlayer = `-- name: GetPlayer :one

@@ -6,6 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/antonaby/shortsbattle/game-server/internal/db/q"
 )
 
 type TxFunc func(context.Context, pgx.Tx) error
@@ -13,7 +15,7 @@ type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
 
 type TxManager interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
-	Querier(pgx.Tx) Querier
+	Querier(pgx.Tx) q.Querier
 }
 
 type DbManager struct {
@@ -38,8 +40,8 @@ func (m *DbManager) Close() {
 	m.Pool.Close()
 }
 
-func (m *DbManager) Querier(tx pgx.Tx) Querier {
-	queries := New(tx)
+func (m *DbManager) Querier(tx pgx.Tx) q.Querier {
+	queries := q.New(tx)
 	return queries
 }
 

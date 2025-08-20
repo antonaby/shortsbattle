@@ -3,7 +3,7 @@
 //   sqlc v1.29.0
 // source: utils.sql
 
-package db
+package q
 
 import (
 	"context"

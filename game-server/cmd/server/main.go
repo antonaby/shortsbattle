@@ -7,9 +7,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/antonaby/shortsbattle/game-server/internal/api"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
+
 	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -23,11 +22,11 @@ func main() {
 	}
 	defer dbManager.Close()
 
-	ts := services.NewThemeService(dbManager)
-	gm := services.NewGameManager(dbManager)
-	ps := services.NewPlayersService(dbManager)
+	// ts := services.NewThemeService(dbManager)
+	// gm := services.NewGameManager(dbManager)
+	// ps := services.NewPlayersService(dbManager)
 
-	cf, err := ws.NewCentrifugeServer(gm)
+	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
 		log.Fatal("Can't create Centriguge router")
 	}
@@ -36,7 +35,7 @@ func main() {
 		log.Fatal("Can't start Centriguge router")
 	}
 
-	gm.SetEventPublisher(cf)
+	//gm.SetEventPublisher(cf)
 
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
@@ -51,14 +50,14 @@ func main() {
 
 	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
 
-	apiGroup := e.Group("/api")
+	//apiGroup := e.Group("/api")
 
-	themesApi := api.NewThemesApi(ts)
-	themesApi.Register(apiGroup)
-	gameApi := api.NewGameApi(gm)
-	gameApi.Register(apiGroup)
-	playerApi := api.NewPlayerApi(ps)
-	playerApi.Register(apiGroup)
+	// themesApi := api.NewThemesApi(ts)
+	// themesApi.Register(apiGroup)
+	// gameApi := api.NewGameApi(gm)
+	// gameApi.Register(apiGroup)
+	// playerApi := api.NewPlayerApi(ps)
+	// playerApi.Register(apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

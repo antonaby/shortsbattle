@@ -2,13 +2,9 @@ package ws
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"strconv"
-	"strings"
 
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"net/http"
+
 	"github.com/centrifugal/centrifuge"
 )
 
@@ -19,10 +15,9 @@ type JoinGameRequest struct {
 
 type CentrifugeServer struct {
 	Node *centrifuge.Node
-	gm   *services.GameManager
 }
 
-func NewCentrifugeServer(gm *services.GameManager) (*CentrifugeServer, error) {
+func NewCentrifugeServer() (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		return nil, err
@@ -30,7 +25,6 @@ func NewCentrifugeServer(gm *services.GameManager) (*CentrifugeServer, error) {
 
 	r := &CentrifugeServer{
 		Node: node,
-		gm:   gm,
 	}
 
 	node.OnConnecting(r.handleConnecting)
@@ -57,15 +51,15 @@ func (r *CentrifugeServer) Run() error {
 	return nil
 }
 
-func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
-	jsonBytes, err := json.Marshal(upd)
-	if err != nil {
-		return err
-	}
+// func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
+// 	jsonBytes, err := json.Marshal(upd)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	_, err = r.Node.Publish(channel, jsonBytes)
-	return err
-}
+// 	_, err = r.Node.Publish(channel, jsonBytes)
+// 	return err
+// }
 
 func (r *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
 	return centrifuge.ConnectReply{
@@ -78,40 +72,40 @@ func (r *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.Co
 
 func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-		var req JoinGameRequest
-		err := json.Unmarshal(e.Data, &req)
-		if err != nil {
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
-			return
-		}
+		// var req JoinGameRequest
+		// err := json.Unmarshal(e.Data, &req)
+		// if err != nil {
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+		// 	return
+		// }
 
-		game, err := r.gm.GetGame(client.Context(), int64(req.GameID))
-		if err != nil {
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
-			return
-		}
+		// game, err := r.gm.GetGame(client.Context(), int64(req.GameID))
+		// if err != nil {
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+		// 	return
+		// }
 
-		response, err := json.Marshal(game)
-		if err != nil {
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
-			return
-		}
+		// response, err := json.Marshal(game)
+		// if err != nil {
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+		// 	return
+		// }
 
-		cb(centrifuge.SubscribeReply{
-			Options: centrifuge.SubscribeOptions{
-				Data: response,
-			},
-		}, nil)
+		// cb(centrifuge.SubscribeReply{
+		// 	Options: centrifuge.SubscribeOptions{
+		// 		Data: response,
+		// 	},
+		// }, nil)
 	})
 
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
-		idStr := strings.TrimPrefix(e.Channel, "game_")
-		gameId, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			panic(err)
-		}
+		// idStr := strings.TrimPrefix(e.Channel, "game_")
+		// gameId, err := strconv.ParseInt(idStr, 10, 64)
+		// if err != nil {
+		// 	panic(err)
+		// }
 
-		_ = r.gm.PlayerLeave(context.Background(), gameId, 1)
+		// _ = r.gm.PlayerLeave(context.Background(), gameId, 1)
 	})
 
 	// client.OnPublish(func(e centrifuge.PublishEvent, cb centrifuge.PublishCallback) {
