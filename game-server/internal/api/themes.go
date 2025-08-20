@@ -44,6 +44,12 @@ func (api *ThemesApi) createTheme(c echo.Context) error {
 		})
 	}
 
+	if err := c.Validate(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
 	var description pgtype.Text
 	if request.Description != nil {
 		description.String = *request.Description
@@ -111,8 +117,14 @@ func (api *ThemesApi) createVideoRequest(c echo.Context) error {
 		})
 	}
 
-	requestBody := new(m.CreateVideoRequest)
-	if err := c.Bind(requestBody); err != nil {
+	request := new(m.CreateVideoRequest)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: err.Error(),
+		})
+	}
+
+	if err := c.Validate(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -120,7 +132,7 @@ func (api *ThemesApi) createVideoRequest(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	vr, err := api.ts.CreateVideoRequest(ctx, qg.CreateVideoRequestParams{
-		Request: requestBody.Request,
+		Request: request.Request,
 		ThemeID: themeId,
 	})
 

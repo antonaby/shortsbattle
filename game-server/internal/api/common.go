@@ -1,6 +1,24 @@
 package api
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/go-playground/validator/v10"
+)
+
+type CustomValidator struct {
+    validator *validator.Validate
+}
+
+func NewCustomValidator() *CustomValidator {
+	return &CustomValidator{
+		validator: validator.New(),
+	}
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+    return cv.validator.Struct(i)
+}
 
 func parseInt64(str string) (int64, error) {
 	value, err := strconv.ParseInt(str, 10, 64)

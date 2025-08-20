@@ -9,10 +9,10 @@ type ErrorResponse struct {
 }
 
 type CreateThemeRequest struct {
-	Name        string  `json:"name"`
+	Name        string  `json:"name" validate:"required,min=3"`
 	Description *string `json:"description"`
 }
 
 type CreateVideoRequest struct {
-	Request string `json:"request"`
+	Request string `json:"request" validate:"required,min=3"`
 }

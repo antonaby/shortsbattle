@@ -41,6 +41,7 @@ func main() {
 
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
+	e.Validator = api.NewCustomValidator()
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
