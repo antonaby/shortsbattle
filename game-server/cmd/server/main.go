@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/api"
+	"github.com/antonaby/shortsbattle/game-server/internal/bot"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/joho/godotenv"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/labstack/echo/v4"
@@ -18,6 +20,11 @@ import (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
 	dbManager, err := db.NewDbManager(context.Background())
 	if err != nil {
 		log.Fatal("Can't connect to DB")
@@ -36,6 +43,11 @@ func main() {
 	err = cf.Run()
 	if err != nil {
 		log.Fatal("Can't start Centriguge router")
+	}
+
+	botManager, err := bot.NewTgBotManager()
+	if err != nil {
+		log.Fatal("Can't start Tg Bot")
 	}
 
 	//gm.SetEventPublisher(cf)
@@ -65,6 +77,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	go func() {
+		botManager.Start(ctx)
+	}()
 
 	go func() {
 		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {

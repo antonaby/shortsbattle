@@ -5,7 +5,9 @@ go 1.24.5
 require (
 	github.com/centrifugal/centrifuge v0.37.0
 	github.com/go-playground/validator/v10 v10.27.0
+	github.com/go-telegram/bot v1.17.0
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/labstack/gommon v0.4.2
 )
