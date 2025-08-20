@@ -6,6 +6,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const (
+	InvalidIdFormatMsg        = "invalid id format"
+	InvalidRequestFormatMsg   = "invalid request format"
+	RequestValidationErrorMsg = "request validation error"
+)
+
 type CustomValidator struct {
 	validator *validator.Validate
 }
@@ -28,9 +34,3 @@ func parseInt64(str string) (int64, error) {
 
 	return value, nil
 }
-
-const (
-	InvalidIdFormatMsg        = "invalid id format"
-	InvalidRequestFormatMsg   = "invalid request format"
-	RequestValidationErrorMsg = "request validation error"
-)

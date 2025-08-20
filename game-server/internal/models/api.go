@@ -16,3 +16,8 @@ type CreateThemeRequest struct {
 type CreateVideoRequest struct {
 	Request string `json:"request" validate:"required,min=3"`
 }
+
+type SubmitVideoRequest struct {
+	PlayerID int64  `json:"player_id" validate:"required"`
+	VideoUrl string `json:"video_url" validate:"required,url"`
+}

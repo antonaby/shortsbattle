@@ -25,6 +25,7 @@ func main() {
 	defer dbManager.Close()
 
 	ts := services.NewThemeService(dbManager)
+	vs := services.NewVideosService(dbManager)
 	// gm := services.NewGameManager(dbManager)
 	// ps := services.NewPlayersService(dbManager)
 
@@ -55,6 +56,7 @@ func main() {
 
 	apiGroup := e.Group("/api")
 	_ = api.NewThemesApi(ts, apiGroup)
+	_ = api.NewVideosApi(vs, apiGroup)
 	
 	// gameApi := api.NewGameApi(gm)
 	// gameApi.Register(apiGroup)
