@@ -40,13 +40,13 @@ func (api *ThemesApi) createTheme(c echo.Context) error {
 	request := new(m.CreateThemeRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: InvalidRequestFormatMsg,
 		})
 	}
 
 	if err := c.Validate(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: RequestValidationErrorMsg,
 		})
 	}
 
@@ -72,7 +72,7 @@ func (api *ThemesApi) getTheme(c echo.Context) error {
 	themeId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: InvalidIdFormatMsg,
 		})
 	}
 
@@ -88,7 +88,7 @@ func (api *ThemesApi) getTheme(c echo.Context) error {
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to create theme: %v", err)
+		c.Echo().Logger.Errorf("failed to get theme: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: "Something went wrong",
 		})
@@ -113,20 +113,20 @@ func (api *ThemesApi) createVideoRequest(c echo.Context) error {
 	themeId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: InvalidIdFormatMsg,
 		})
 	}
 
 	request := new(m.CreateVideoRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: InvalidRequestFormatMsg,
 		})
 	}
 
 	if err := c.Validate(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: err.Error(),
+			Error: RequestValidationErrorMsg,
 		})
 	}
 

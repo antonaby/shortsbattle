@@ -7,7 +7,7 @@ import (
 )
 
 type CustomValidator struct {
-    validator *validator.Validate
+	validator *validator.Validate
 }
 
 func NewCustomValidator() *CustomValidator {
@@ -17,7 +17,7 @@ func NewCustomValidator() *CustomValidator {
 }
 
 func (cv *CustomValidator) Validate(i interface{}) error {
-    return cv.validator.Struct(i)
+	return cv.validator.Struct(i)
 }
 
 func parseInt64(str string) (int64, error) {
@@ -28,3 +28,9 @@ func parseInt64(str string) (int64, error) {
 
 	return value, nil
 }
+
+const (
+	InvalidIdFormatMsg        = "invalid id format"
+	InvalidRequestFormatMsg   = "invalid request format"
+	RequestValidationErrorMsg = "request validation error"
+)
