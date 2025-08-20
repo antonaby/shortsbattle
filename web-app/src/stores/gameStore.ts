@@ -70,6 +70,9 @@ export const useGameStore = defineStore("game", {
         this.gameInstance.status = data.status;
       }
     },
+    submitVideo(url: string) {
+      console.log(url);
+    },
     leaveGame() {
       if (this.intervalId) {
         clearInterval(this.intervalId);

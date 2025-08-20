@@ -219,10 +219,10 @@ func (g *GameManager) defaultGameConfig() GameInstanceConfig {
 		MinPlayers:        1,
 		MaxPlayers:        3,
 		TickerDuration:    2 * time.Second,
-		CreatedTimeout:    3 * time.Second,
-		LobbyTimeout:      30 * time.Second,
-		SubmittingTimeout: 30 * time.Second,
-		VotingTimeout:     30 * time.Second,
+		CreatedTimeout:    1 * time.Second,
+		LobbyTimeout:      1 * time.Second,
+		SubmittingTimeout: 120 * time.Second,
+		VotingTimeout:     120 * time.Second,
 		AddPlayerTimeout:  3 * time.Second,
 		AddVideoTimeout:   3 * time.Second,
 		AddVoteTimeout:    3 * time.Second,
@@ -382,16 +382,11 @@ func (g *GameManager) SubmitVideo(ctx context.Context, params db.CreateVideoPara
 	response := make(chan error, 1)
 	gi.VideoSubmission <- VideoSubmission{
 		Video:    params,
+		Ctx:      ctx,
 		Response: response,
 	}
 
 	select {
-	case <-ctx.Done():
-		return GameManagerError{
-			Code:    GMErrCanceled,
-			Message: "context canceled",
-			Cause:   ctx.Err(),
-		}
 	case err := <-response:
 		return err
 	case <-timer.C:

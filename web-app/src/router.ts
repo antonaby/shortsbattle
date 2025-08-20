@@ -11,7 +11,8 @@ const routes: RouteRecordRaw[] = [
   },{
     path: '/game/:id',
     name: 'game',
-    component: Game
+    component: Game,
+    props: { useView: true, viewName: 'submitting' }
   }
 ]
 

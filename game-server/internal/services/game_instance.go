@@ -99,6 +99,7 @@ type PlayerJoin struct {
 
 type VideoSubmission struct {
 	Video    db.CreateVideoParams
+	Ctx      context.Context
 	Response chan error
 }
 
@@ -391,7 +392,7 @@ func (r *GameInstance) addVideo(vs VideoSubmission) error {
 		return err
 	}
 
-	videos, err := db.WithTxValue(context.Background(), r.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Video, error) {
+	videos, err := db.WithTxValue(vs.Ctx, r.txm, func(ctx context.Context, tx pgx.Tx) ([]db.Video, error) {
 		q := r.txm.Querier(tx)
 
 		vs.Video.IsActual = true
