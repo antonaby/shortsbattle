@@ -10,6 +10,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	tg "github.com/go-telegram/bot"
 	tgm "github.com/go-telegram/bot/models"
+	"github.com/rs/zerolog/log"
 )
 
 type CtxKey string
@@ -33,6 +34,9 @@ func NewTgBotManager(ps *services.PlayersService, vs *services.VideosService) (*
 		tg.WithCallbackQueryDataHandler("game_", tg.MatchTypePrefix, m.callbackHandler),
 		tg.WithMiddlewares(m.userDetailsMiddleware),
 		tg.WithDebug(),
+		tg.WithDebugHandler(func(format string, args ...any) {
+			log.Debug().Msgf(format, args...)
+		}),
 		tg.WithWorkers(4),
 	}
 

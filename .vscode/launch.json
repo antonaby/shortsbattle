@@ -21,7 +21,9 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/server",
       "envFile": "${workspaceFolder}/.env",
-      "args": []
+      "args": [
+        "-debug"
+      ]
     }
   ]
 }

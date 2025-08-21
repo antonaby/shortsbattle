@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	l "log"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,28 +13,46 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/ws"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
 )
 
 func main() {
+	debug := flag.Bool("debug", false, "sets log level to debug")
+	flag.Parse()
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if *debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.
+		New(os.Stdout).
+		With().
+		Timestamp().
+		Str("service", "shortsbattle").
+		Str("env", os.Getenv("ENV")).
+		Logger()
+
 	err := godotenv.Load()
 	if err != nil {
-		l.Println("No .env file found:", err)
+		log.Error().Err(err).Msg(".env file not loaded")
 	}
 
 	dbManager, err := db.NewDbManager(context.Background())
 	if err != nil {
-		log.Fatalf("Can't connect to Postgres: %v", err)
+		log.Fatal().Err(err).Msg("Can't connect to Postgres")
 	}
 	defer dbManager.Close()
 
 	redisClient, err := db.NewRedisClient()
 	if err != nil {
-		log.Fatalf("Can't connect to Redis: %v", err)
+		log.Fatal().Err(err).Msg("Can't connect to Redis")
 	}
 	defer redisClient.Close()
 
@@ -46,26 +64,46 @@ func main() {
 
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
-		log.Fatalf("Can't create Centriguge server: %v", err)
+		log.Fatal().Err(err).Msg("Can't create Centriguge server")
 	}
 
 	err = cf.Run()
 	if err != nil {
-		log.Fatalf("Can't run Centriguge server: %v", err)
+		log.Fatal().Err(err).Msg("Can't run Centriguge server")
 	}
 
 	botManager, err := bot.NewTgBotManager(ps, vs)
 	if err != nil {
-		log.Fatalf("Can't start TG Bot: %v", err)
+		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
 	//gm.SetEventPublisher(cf)
 
 	e := echo.New()
-	e.Logger.SetLevel(log.INFO)
 	e.Validator = api.NewCustomValidator()
+	e.HideBanner = true
+	e.HidePort = true
 
-	e.Use(middleware.Logger())
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			if v.Error != nil {
+				log.Error().Err(v.Error).
+					Str("URI", v.URI).
+					Int("status", v.Status).
+					Msg("request")
+			} else {
+				log.Debug().
+					Str("URI", v.URI).
+					Int("status", v.Status).
+					Msg("request")
+			}
+
+			return nil
+		},
+	}))
+
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
