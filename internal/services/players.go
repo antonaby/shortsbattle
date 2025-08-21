@@ -7,15 +7,18 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type PlayersService struct {
 	txm db.TxManager
+	rc *redis.Client
 }
 
-func NewPlayersService(txm db.TxManager) *PlayersService {
+func NewPlayersService(txm db.TxManager, rc *redis.Client) *PlayersService {
 	return &PlayersService{
 		txm: txm,
+		rc: rc,
 	}
 }
 

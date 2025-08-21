@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/jackc/pgx/v5"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 )
+
+var ErrorDbUrlNotDefined = errors.New("DATABASE_URL not defined")
 
 type TxFunc func(context.Context, pgx.Tx) error
 type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
@@ -23,8 +26,12 @@ type DbManager struct {
 }
 
 func NewDbManager(ctx context.Context) (*DbManager, error) {
-	dsn := os.Getenv("DATABASE_URL")
-	pool, err := pgxpool.New(ctx, dsn)
+	dbUrl := os.Getenv("DATABASE_URL")
+	if len(dbUrl) == 0 {
+		return nil, ErrorDbUrlNotDefined
+	}
+
+	pool, err := pgxpool.New(ctx, dbUrl)
 	if err != nil {
 		return nil, err
 	}

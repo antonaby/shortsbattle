@@ -127,6 +127,7 @@ func (m *TgBotManager) defaultHandler(ctx context.Context, b *tg.Bot, update *tg
 	})
 }
 
+// TODO: handle errors
 func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, update *tgm.Update) {
 	msg, err := b.SendMessage(ctx, &tg.SendMessageParams{
 		ChatID: update.Message.Chat.ID,

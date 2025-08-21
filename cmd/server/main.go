@@ -32,9 +32,15 @@ func main() {
 	}
 	defer dbManager.Close()
 
+	redisClient, err := db.NewRedisClient()
+	if err != nil{
+		log.Fatal("Can't connect to Redis")
+	}
+	defer redisClient.Close()
+
 	ts := services.NewThemeService(dbManager)
 	vs := services.NewVideosService(dbManager)
-	ps := services.NewPlayersService(dbManager)
+	ps := services.NewPlayersService(dbManager, redisClient)
 
 	// gm := services.NewGameManager(dbManager)
 
