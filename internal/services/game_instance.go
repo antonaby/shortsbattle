@@ -1,141 +1,17 @@
 package services
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"time"
+import (
+	"context"
+)
 
-// 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-// 	"github.com/antonaby/shortsbattle/game-server/internal/models"
-// 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
-// 	"github.com/jackc/pgx/v5"
-// )
+type GameConfig struct {
+}
 
-// type GameInstanceErrorCode int
-
-// const (
-// 	GIErrUnknown = iota
-// 	GIErrCanceled
-// 	GIErrDbError
-// 	GIErrNotFound
-// 	GIErrConstraintViolation
-// 	GIErrTooManyPlayers
-// 	GIErrWrongGameState
-// 	GIErrPublicationFailed
-// )
-
-// type GameInstanceError struct {
-// 	Code    GameInstanceErrorCode
-// 	Message string
-// 	Cause   error
-// }
-
-// func (e GameInstanceError) Error() string {
-// 	if e.Cause != nil {
-// 		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
-// 	}
-// 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
-// }
-
-// func (e GameInstanceError) Unwrap() error {
-// 	return e.Cause
-// }
-
-// type GameEventPublisher interface {
-// 	PublishGameUpdate(channel string, upd models.GameUpdate) error
-// }
-
-// type Countdown struct {
-// 	timer    *time.Timer
-// 	started  time.Time
-// 	duration time.Duration
-// }
-
-// func NewCountdown(d time.Duration) Countdown {
-// 	return Countdown{
-// 		timer:    time.NewTimer(d),
-// 		started:  time.Now(),
-// 		duration: d,
-// 	}
-// }
-
-// func (c *Countdown) Remaining() time.Duration {
-// 	if c.timer == nil {
-// 		return 0
-// 	}
-
-// 	r := c.duration - time.Since(c.started)
-// 	if r < 0 {
-// 		return 0
-// 	}
-
-// 	return r
-// }
-
-// func (c *Countdown) Reset(d time.Duration) {
-// 	if !c.timer.Stop() {
-// 		select {
-// 		case <-c.timer.C:
-// 		default:
-// 		}
-// 	}
-// 	c.timer.Reset(d)
-// 	c.started = time.Now()
-// 	c.duration = d
-// }
-
-// func (c *Countdown) Stop() {
-// 	if c.timer != nil {
-// 		c.timer.Stop()
-// 	}
-// 	c.timer = nil
-// }
-
-// type PlayerJoin struct {
-// 	Player   db.AddPlayerToGameParams
-// 	Ctx      context.Context
-// 	Response chan error
-// }
-
-// type VideoSubmission struct {
-// 	Video    db.CreateVideoParams
-// 	Ctx      context.Context
-// 	Response chan error
-// }
-
-// type VoteSubmission struct {
-// 	Vote     db.CreateVoteParams
-// 	Response chan error
-// }
-
-// type GameInstanceConfig struct {
-// 	MinPlayers        int
-// 	MaxPlayers        int
-// 	TickerDuration    time.Duration
-// 	CreatedTimeout    time.Duration
-// 	LobbyTimeout      time.Duration
-// 	SubmittingTimeout time.Duration
-// 	VotingTimeout     time.Duration
-// 	AddPlayerTimeout  time.Duration
-// 	AddVideoTimeout   time.Duration
-// 	AddVoteTimeout    time.Duration
-// }
-
-// type GameInstance struct {
-// 	txm             db.TxManager
-// 	publisher       GameEventPublisher
-// 	Game            db.Game
-// 	Config          GameInstanceConfig
-// 	StageCountdown  Countdown
-// 	Players         []db.Player
-// 	Videos          []db.Video
-// 	Votes           []db.Vote
-// 	PlayerJoin      chan PlayerJoin
-// 	VideoSubmission chan VideoSubmission
-// 	VoteSubmission  chan VoteSubmission
-// 	Ctx             context.Context
-// 	Cancel          context.CancelFunc
-// }
+type Game struct {
+	Config GameConfig
+	Ctx    context.Context
+	Cancel context.CancelFunc
+}
 
 // func NewGameInstance(txm db.TxManager, publisher GameEventPublisher, game db.Game, config GameInstanceConfig) *GameInstance {
 // 	ctx, cancel := context.WithCancel(context.Background())

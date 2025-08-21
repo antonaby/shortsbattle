@@ -1,70 +1,53 @@
 package services
 
-// import (
-// 	"context"
-// 	"database/sql"
-// 	"errors"
-// 	"log"
+import (
+	"context"
+	"fmt"
 
-// 	"fmt"
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/redis/go-redis/v9"
+)
 
-// 	"sync"
-// 	"time"
+var SeqGameId = "seq:game_id"
 
-// 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-// 	"github.com/antonaby/shortsbattle/game-server/internal/models"
-// 	"github.com/antonaby/shortsbattle/game-server/internal/utils"
-// 	"github.com/jackc/pgx/v5"
-// )
+type GameManager struct {
+	rc *redis.Client
+}
 
-// type GMErrorCode int
+func NewGameManager(rc *redis.Client) *GameManager {
+	return &GameManager{
+		rc: rc,
+	}
+}
 
-// const (
-// 	GMErrUnknown GMErrorCode = iota
-// 	GMErrNotFound
-// 	GMErrConstraintViolation
-// 	GMErrDbError
-// 	GMErrTimeout
-// 	GMErrCanceled
-// 	GMErrGameNotAvailable
-// )
+func kGame(id int64) string {
+	return fmt.Sprintf("game:{%d}", id)
+}
 
-// type GameManagerError struct {
-// 	Code    GMErrorCode
-// 	Message string
-// 	Cause   error
-// }
+func (gm *GameManager) CreateGame(ctx context.Context, game models.GemeDetails) error {
+	id, err := gm.rc.Incr(ctx, SeqGameId).Result()
+	if err != nil {
+		return common.ServiceError{
+			Code:    common.ErrorRedis,
+			Message: "can't get next game seq value",
+			Cause:   err,
+		}
+	}
 
-// func (e GameManagerError) Error() string {
-// 	if e.Cause != nil {
-// 		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
-// 	}
-// 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
-// }
+	_, err = gm.rc.HSet(ctx, kGame(id), "theme_id", game.ThemeID, "status", game.Status).Result()
+	if err != nil {
+		return common.ServiceError{
+			Code:    common.ErrorRedis,
+			Message: "can't save game",
+			Cause:   err,
+		}
+	}
 
-// func (e GameManagerError) Unwrap() error {
-// 	return e.Cause
-// }
+	return nil
+}
 
-// type GameManager struct {
-// 	txm             db.TxManager
-// 	publisher       GameEventPublisher
-// 	mu              sync.RWMutex
-// 	games           map[int64]*GameInstance
-// 	maxJoinAttempts int
-// }
 
-// func NewGameManager(txm db.TxManager) *GameManager {
-// 	return &GameManager{
-// 		txm:             txm,
-// 		games:           make(map[int64]*GameInstance),
-// 		maxJoinAttempts: 20,
-// 	}
-// }
-
-// func (g *GameManager) SetEventPublisher(publisher GameEventPublisher) {
-// 	g.publisher = publisher
-// }
 
 // func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {
 // 	for attempt := 1; attempt <= g.maxJoinAttempts; attempt++ {

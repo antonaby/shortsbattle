@@ -12,3 +12,8 @@ type ThemeExt struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	Requests    []qg.VideoRequest  `json:"requests"`
 }
+
+type GemeDetails struct {
+	ThemeID int64
+	Status  string
+}

@@ -21,7 +21,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func main() {
+func configureLogger() {
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	flag.Parse()
 
@@ -38,47 +38,9 @@ func main() {
 		Str("service", "shortsbattle").
 		Str("env", os.Getenv("ENV")).
 		Logger()
+}
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Error().Err(err).Msg(".env file not loaded")
-	}
-
-	dbManager, err := db.NewDbManager(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't connect to Postgres")
-	}
-	defer dbManager.Close()
-
-	redisClient, err := db.NewRedisClient()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't connect to Redis")
-	}
-	defer redisClient.Close()
-
-	ts := services.NewThemeService(dbManager)
-	vs := services.NewVideosService(dbManager)
-	ps := services.NewPlayersService(dbManager, redisClient)
-
-	// gm := services.NewGameManager(dbManager)
-
-	cf, err := ws.NewCentrifugeServer()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't create Centriguge server")
-	}
-
-	err = cf.Run()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't run Centriguge server")
-	}
-
-	botManager, err := bot.NewTgBotManager(ps, vs)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't start TG Bot")
-	}
-
-	//gm.SetEventPublisher(cf)
-
+func configureEcho() *echo.Echo {
 	e := echo.New()
 	e.Validator = api.NewCustomValidator()
 
@@ -109,16 +71,56 @@ func main() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
-	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
+	return e
+}
 
+func main() {
+	configureLogger()
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Error().Err(err).Msg(".env file not loaded")
+	}
+
+	dbManager, err := db.NewDbManager(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't connect to Postgres")
+	}
+	defer dbManager.Close()
+
+	redisClient, err := db.NewRedisClient()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't connect to Redis")
+	}
+	defer redisClient.Close()
+
+	ts := services.NewThemeService(dbManager)
+	vs := services.NewVideosService(dbManager)
+	ps := services.NewPlayersService(dbManager, redisClient)
+	gm := services.NewGameManager(redisClient)
+
+	cf, err := ws.NewCentrifugeServer()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't create Centriguge server")
+	}
+
+	err = cf.Run()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't run Centriguge server")
+	}
+
+	botManager, err := bot.NewTgBotManager(ps, vs)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't start TG Bot")
+	}
+
+	e := configureEcho()
+
+	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
 	apiGroup := e.Group("/api")
 	_ = api.NewThemesApi(ts, apiGroup)
 	_ = api.NewVideosApi(vs, apiGroup)
-
-	// gameApi := api.NewGameApi(gm)
-	// gameApi.Register(apiGroup)
-	// playerApi := api.NewPlayerApi(ps)
-	// playerApi.Register(apiGroup)
+	_ = api.NewGamesApi(gm, apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

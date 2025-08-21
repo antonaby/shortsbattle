@@ -13,6 +13,7 @@ const (
 	ErrorNotFound
 	ErrorConstraintViolation
 	ErrorOEmbed
+	ErrorRedis
 )
 
 type ServiceError struct {

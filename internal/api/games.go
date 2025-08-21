@@ -1,35 +1,53 @@
 package api
 
-// import (
-// 	"errors"
-// 	"net/http"
+import (
+	"net/http"
 
-// 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-// 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
-// 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	m "github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
-// 	"github.com/labstack/echo/v4"
-// )
+	"github.com/labstack/echo/v4"
+)
 
-// type GameApi struct {
-// 	gm *services.GameManager
-// }
+type GamesApi struct {
+	gm *services.GameManager
+}
 
-// func NewGameApi(gm *services.GameManager) *GameApi {
-// 	return &GameApi{
-// 		gm: gm,
-// 	}
-// }
+func NewGamesApi(gm *services.GameManager, g *echo.Group) *GamesApi {
+	api := &GamesApi{
+		gm: gm,
+	}
 
-// func (api *GameApi) Register(g *echo.Group) {
-// 	v1group := g.Group("/v1")
+	api.register(g)
 
-// 	v1group.PUT("/games/join", api.joinGame)
-	
-// 	v1group.GET("/games/:id", api.getGame)
-// 	v1group.PUT("/games/:gameId/videos", api.submitVideo)
-// 	v1group.PUT("/games/:gameId/votes", api.submitVote)
-// }
+	return api
+}
+
+func (api *GamesApi) register(g *echo.Group) {
+	v1group := g.Group("/v1")
+
+	v1group.PUT("/games/join", api.joinGame)
+}
+
+func (api *GamesApi) joinGame(c echo.Context) error {
+	ctx := c.Request().Context()
+	err := api.gm.CreateGame(ctx, m.GemeDetails{
+		ThemeID: 1,
+		Status:  "created",
+	})
+
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to create game: %v", err)
+
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, m.OkResponse{
+		Msg: "game created",
+	})
+}
 
 // func (api *GameApi) joinGame(c echo.Context) error {
 // 	request := new(m.CreateGame)
