@@ -23,18 +23,18 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		l.Println("No .env file found")
+		l.Println("No .env file found:", err)
 	}
 
 	dbManager, err := db.NewDbManager(context.Background())
 	if err != nil {
-		log.Fatal("Can't connect to DB")
+		log.Fatalf("Can't connect to Postgres: %v", err)
 	}
 	defer dbManager.Close()
 
 	redisClient, err := db.NewRedisClient()
-	if err != nil{
-		log.Fatal("Can't connect to Redis")
+	if err != nil {
+		log.Fatalf("Can't connect to Redis: %v", err)
 	}
 	defer redisClient.Close()
 
@@ -46,16 +46,17 @@ func main() {
 
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
-		log.Fatal("Can't create Centriguge router")
+		log.Fatalf("Can't create Centriguge server: %v", err)
 	}
+
 	err = cf.Run()
 	if err != nil {
-		log.Fatal("Can't start Centriguge router")
+		log.Fatalf("Can't run Centriguge server: %v", err)
 	}
 
 	botManager, err := bot.NewTgBotManager(ps, vs)
 	if err != nil {
-		log.Fatal("Can't start Tg Bot")
+		log.Fatalf("Can't start TG Bot: %v", err)
 	}
 
 	//gm.SetEventPublisher(cf)

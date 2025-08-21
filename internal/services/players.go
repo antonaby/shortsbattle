@@ -2,55 +2,135 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 )
 
 type PlayersService struct {
 	txm db.TxManager
-	rc *redis.Client
+	rc  *redis.Client
 }
 
 func NewPlayersService(txm db.TxManager, rc *redis.Client) *PlayersService {
 	return &PlayersService{
 		txm: txm,
-		rc: rc,
+		rc:  rc,
 	}
 }
 
 func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {
-	return db.WithTxValue(ctx, ps.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Player, error) {
-		q := ps.txm.Querier(tx)
-		player, err := q.GetPlayerByTgId(ctx, qg.GetPlayerByTgIdParams{TgID: params.TgID})
-		if err != nil {
-			if db.IsNoRows(err) {
-				return ps.createPlayer(ctx, q, params)
-			}
+	redisKey := fmt.Sprintf("player:%d", params.TgID)
 
-			return nil, common.ServiceError{
-				Code:    common.ErrorDb,
-				Message: "failed to get player",
-				Cause:   err,
-			}
+	playerFromRedis, err := ps.rc.HGetAll(ctx, redisKey).Result()
+	if err == nil && len(playerFromRedis) > 0 {
+		player, err := mapToPlayer(playerFromRedis)
+		if err == nil {
+			return player, nil
+		}
+	}
+
+	player, err := db.WithTxValue(ctx, ps.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Player, error) {
+		q := ps.txm.Querier(tx)
+		return ps.getPlayerFromDb(ctx, q, params)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	_, _ = ps.rc.HSet(ctx, redisKey, playerToMap(player)).Result()
+
+	return player, nil
+}
+
+func (ps *PlayersService) getPlayerFromDb(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
+	player, err := q.GetPlayerByTgId(ctx, qg.GetPlayerByTgIdParams{TgID: params.TgID})
+	if err != nil {
+		if db.IsNoRows(err) {
+			return ps.createPlayer(ctx, q, params)
 		}
 
-		return &player, nil
-	})
+		return nil, common.ServiceError{
+			Code:    common.ErrorDb,
+			Message: "failed to get player",
+			Cause:   err,
+		}
+	}
+
+	return &player, nil
 }
 
 func (ps *PlayersService) createPlayer(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
 	player, err := q.CreatePlayer(ctx, params)
 	if err != nil {
 		return nil, common.ServiceError{
-				Code:    common.ErrorDb,
-				Message: "failed to create player",
-				Cause:   err,
-			} 
+			Code:    common.ErrorDb,
+			Message: "failed to create player",
+			Cause:   err,
+		}
 	}
 
 	return &player, nil
+}
+
+func mapToPlayer(m map[string]string) (*qg.Player, error) {
+	var p qg.Player
+	var err error
+
+	if v, ok := m["id"]; ok {
+		p.ID, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if v, ok := m["tg_id"]; ok {
+		p.TgID, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if v, ok := m["tg_username"]; ok {
+		p.TgUsername = v
+	}
+
+	if v, ok := m["tg_language_code"]; ok {
+		p.TgLanguageCode = v
+	}
+
+	if v, ok := m["created_at"]; ok {
+		t, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			return nil, err
+		}
+		p.CreatedAt = pgtype.Timestamptz{Time: t, Valid: true}
+	}
+
+	return &p, nil
+}
+
+func playerToMap(p *qg.Player) map[string]string {
+	m := make(map[string]string)
+
+	m["id"] = strconv.FormatInt(p.ID, 10)
+	m["tg_id"] = strconv.FormatInt(p.TgID, 10)
+	m["tg_username"] = p.TgUsername
+	m["tg_language_code"] = p.TgLanguageCode
+
+	if p.CreatedAt.Valid {
+		m["created_at"] = p.CreatedAt.Time.UTC().Format(time.RFC3339)
+	} else {
+		m["created_at"] = ""
+	}
+
+	return m
 }
