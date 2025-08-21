@@ -11,7 +11,6 @@ import (
 )
 
 type Player struct {
-	ID             int64              `json:"id"`
 	TgID           int64              `json:"tg_id"`
 	TgUsername     string             `json:"tg_username"`
 	TgLanguageCode string             `json:"tg_language_code"`

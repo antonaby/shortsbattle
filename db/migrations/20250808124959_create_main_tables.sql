@@ -20,8 +20,7 @@ CREATE TABLE
 -- players table
 CREATE TABLE
     players (
-        id BIGSERIAL PRIMARY KEY,
-        tg_id BIGINT NOT NULL,
+        tg_id BIGINT PRIMARY KEY,
         tg_username TEXT NOT NULL,
         tg_language_code TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -31,7 +30,7 @@ CREATE TABLE
 CREATE TABLE
     videos (
         id BIGSERIAL PRIMARY KEY,
-        player_id BIGINT NOT NULL REFERENCES players (id) ON DELETE CASCADE,
+        player_id BIGINT NOT NULL REFERENCES players (tg_id) ON DELETE CASCADE,
         video_url TEXT NOT NULL,
         oembed jsonb NOT NULL DEFAULT '{}'::jsonb,
         added_at TIMESTAMPTZ NOT NULL DEFAULT now(),

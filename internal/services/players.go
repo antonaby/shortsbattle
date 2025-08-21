@@ -27,9 +27,9 @@ func NewPlayersService(txm db.TxManager, rc *redis.Client) *PlayersService {
 }
 
 func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {
-	redisKey := fmt.Sprintf("player:%d", params.TgID)
+	playerKey := fmt.Sprintf("player:%d", params.TgID)
 
-	playerFromRedis, err := ps.rc.HGetAll(ctx, redisKey).Result()
+	playerFromRedis, err := ps.rc.HGetAll(ctx, playerKey).Result()
 	if err == nil && len(playerFromRedis) > 0 {
 		player, err := mapToPlayer(playerFromRedis)
 		if err == nil {
@@ -46,7 +46,10 @@ func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params 
 		return nil, err
 	}
 
-	_, _ = ps.rc.HSet(ctx, redisKey, playerToMap(player)).Result()
+	pipe := ps.rc.TxPipeline()
+	pipe.HSet(ctx, playerKey, playerToMap(player))
+	pipe.Expire(ctx, playerKey, 24*time.Hour)
+	_, _ = pipe.Exec(ctx)
 
 	return player, nil
 }
@@ -85,13 +88,6 @@ func mapToPlayer(m map[string]string) (*qg.Player, error) {
 	var p qg.Player
 	var err error
 
-	if v, ok := m["id"]; ok {
-		p.ID, err = strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if v, ok := m["tg_id"]; ok {
 		p.TgID, err = strconv.ParseInt(v, 10, 64)
 		if err != nil {
@@ -121,7 +117,6 @@ func mapToPlayer(m map[string]string) (*qg.Player, error) {
 func playerToMap(p *qg.Player) map[string]string {
 	m := make(map[string]string)
 
-	m["id"] = strconv.FormatInt(p.ID, 10)
 	m["tg_id"] = strconv.FormatInt(p.TgID, 10)
 	m["tg_username"] = p.TgUsername
 	m["tg_language_code"] = p.TgLanguageCode

@@ -141,7 +141,7 @@ func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, upd
 	player, ok := ctx.Value(PlayerDataKey).(*qg.Player)
 	if ok {
 		video, err := m.vs.CreateVideo(ctx, models.SubmitVideoRequest{
-			PlayerID: player.ID,
+			PlayerID: player.TgID,
 			VideoUrl: url,
 		})
 

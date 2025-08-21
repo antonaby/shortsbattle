@@ -10,7 +10,7 @@ import (
 )
 
 const createPlayer = `-- name: CreatePlayer :one
-INSERT INTO players (tg_id, tg_username, tg_language_code) VALUES ($1, $2, $3) RETURNING id, tg_id, tg_username, tg_language_code, created_at
+INSERT INTO players (tg_id, tg_username, tg_language_code) VALUES ($1, $2, $3) RETURNING tg_id, tg_username, tg_language_code, created_at
 `
 
 type CreatePlayerParams struct {
@@ -23,28 +23,6 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 	row := q.db.QueryRow(ctx, createPlayer, arg.TgID, arg.TgUsername, arg.TgLanguageCode)
 	var i Player
 	err := row.Scan(
-		&i.ID,
-		&i.TgID,
-		&i.TgUsername,
-		&i.TgLanguageCode,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getPlayer = `-- name: GetPlayer :one
-SELECT id, tg_id, tg_username, tg_language_code, created_at FROM players WHERE id = $1
-`
-
-type GetPlayerParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error) {
-	row := q.db.QueryRow(ctx, getPlayer, arg.ID)
-	var i Player
-	err := row.Scan(
-		&i.ID,
 		&i.TgID,
 		&i.TgUsername,
 		&i.TgLanguageCode,
@@ -54,7 +32,7 @@ func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, e
 }
 
 const getPlayerByTgId = `-- name: GetPlayerByTgId :one
-SELECT id, tg_id, tg_username, tg_language_code, created_at FROM players WHERE tg_id = $1
+SELECT tg_id, tg_username, tg_language_code, created_at FROM players WHERE tg_id = $1
 `
 
 type GetPlayerByTgIdParams struct {
@@ -65,7 +43,6 @@ func (q *Queries) GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams
 	row := q.db.QueryRow(ctx, getPlayerByTgId, arg.TgID)
 	var i Player
 	err := row.Scan(
-		&i.ID,
 		&i.TgID,
 		&i.TgUsername,
 		&i.TgLanguageCode,
