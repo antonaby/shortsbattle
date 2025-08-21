@@ -72,6 +72,8 @@ func (m *TgBotManager) userDetailsMiddleware(next tg.HandlerFunc) tg.HandlerFunc
 		if from := senderFrom(update); from != nil {
 			if player, err := m.getUser(ctx, from); err == nil {
 				ctx = context.WithValue(ctx, PlayerDataKey, player)
+			} else {
+				log.Error().Err(err).Msg("can't get user info")
 			}
 		}
 		next(ctx, b, update)

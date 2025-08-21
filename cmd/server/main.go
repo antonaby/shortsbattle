@@ -81,8 +81,6 @@ func main() {
 
 	e := echo.New()
 	e.Validator = api.NewCustomValidator()
-	e.HideBanner = true
-	e.HidePort = true
 
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogURI:    true,

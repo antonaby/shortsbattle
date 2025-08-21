@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type PlayersService struct {
@@ -30,7 +31,9 @@ func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params 
 	playerKey := fmt.Sprintf("player:%d", params.TgID)
 
 	playerFromRedis, err := ps.rc.HGetAll(ctx, playerKey).Result()
-	if err == nil && len(playerFromRedis) > 0 {
+	if err != nil {
+		log.Error().Err(err).Msg("can't get player details from Redis")
+	} else if len(playerFromRedis) > 0 {
 		player, err := mapToPlayer(playerFromRedis)
 		if err == nil {
 			return player, nil
@@ -49,7 +52,10 @@ func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params 
 	pipe := ps.rc.TxPipeline()
 	pipe.HSet(ctx, playerKey, playerToMap(player))
 	pipe.Expire(ctx, playerKey, 24*time.Hour)
-	_, _ = pipe.Exec(ctx)
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("can't save player details to Redis")
+	}
 
 	return player, nil
 }
