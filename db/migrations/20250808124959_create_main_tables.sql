@@ -21,7 +21,9 @@ CREATE TABLE
 CREATE TABLE
     players (
         id BIGSERIAL PRIMARY KEY,
-        username TEXT NOT NULL,
+        tg_id BIGINT NOT NULL,
+        tg_username TEXT NOT NULL,
+        tg_language_code TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 

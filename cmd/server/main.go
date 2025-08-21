@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	l "log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
-	l "log"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/api"
 	"github.com/antonaby/shortsbattle/game-server/internal/bot"
@@ -34,8 +34,9 @@ func main() {
 
 	ts := services.NewThemeService(dbManager)
 	vs := services.NewVideosService(dbManager)
+	ps := services.NewPlayersService(dbManager)
+
 	// gm := services.NewGameManager(dbManager)
-	// ps := services.NewPlayersService(dbManager)
 
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
@@ -46,7 +47,7 @@ func main() {
 		log.Fatal("Can't start Centriguge router")
 	}
 
-	botManager, err := bot.NewTgBotManager()
+	botManager, err := bot.NewTgBotManager(ps)
 	if err != nil {
 		log.Fatal("Can't start Tg Bot")
 	}
@@ -70,7 +71,7 @@ func main() {
 	apiGroup := e.Group("/api")
 	_ = api.NewThemesApi(ts, apiGroup)
 	_ = api.NewVideosApi(vs, apiGroup)
-	
+
 	// gameApi := api.NewGameApi(gm)
 	// gameApi.Register(apiGroup)
 	// playerApi := api.NewPlayerApi(ps)

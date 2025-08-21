@@ -3,24 +3,32 @@ package bot
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	tg "github.com/go-telegram/bot"
 	tgm "github.com/go-telegram/bot/models"
 )
 
+type CtxKey string
+
+const PlayerDataKey CtxKey = "PlayerDataKey"
+
 type TgBotManager struct {
 	bot *tg.Bot
+	ps  *services.PlayersService
 }
 
-func NewTgBotManager() (*TgBotManager, error) {
-	m := &TgBotManager{}
+func NewTgBotManager(ps *services.PlayersService) (*TgBotManager, error) {
+	m := &TgBotManager{
+		ps: ps,
+	}
 
 	opts := []tg.Option{
 		tg.WithDefaultHandler(m.defaultHandler),
 		tg.WithCallbackQueryDataHandler("game_", tg.MatchTypePrefix, m.callbackHandler),
-		tg.WithMiddlewares(m.checkUserExists),
+		tg.WithMiddlewares(m.userDetailsMiddleware),
 		tg.WithDebug(),
 		tg.WithWorkers(4),
 	}
@@ -41,16 +49,34 @@ func (m *TgBotManager) Start(ctx context.Context) {
 	m.bot.Start(ctx)
 }
 
-func (m *TgBotManager) checkUserExists(next tg.HandlerFunc) tg.HandlerFunc {
-	return func(ctx context.Context, b *tg.Bot, update *tgm.Update) {
-		if update.Message != nil {
-			log.Printf("%d say: %s", update.Message.From.ID, update.Message.Text)
+func (m *TgBotManager) userDetailsMiddleware(next tg.HandlerFunc) tg.HandlerFunc {
+	senderFrom := func(upd *tgm.Update) *tgm.User {
+		switch {
+		case upd.Message != nil && upd.Message.From != nil:
+			return upd.Message.From
+		case upd.CallbackQuery != nil:
+			return &upd.CallbackQuery.From
+		default:
+			return nil
 		}
-		if update.CallbackQuery != nil {
-			log.Printf("%d say: %s", update.CallbackQuery.From.ID, update.CallbackQuery.Data)
+	}
+
+	return func(ctx context.Context, b *tg.Bot, update *tgm.Update) {
+		if from := senderFrom(update); from != nil {
+			if player, err := m.getUser(ctx, from); err == nil {
+				ctx = context.WithValue(ctx, PlayerDataKey, player)
+			}
 		}
 		next(ctx, b, update)
 	}
+}
+
+func (m *TgBotManager) getUser(ctx context.Context, from *tgm.User) (*qg.Player, error) {
+	return m.ps.CheckPlayerExistsOrCreate(ctx, qg.CreatePlayerParams{
+		TgID:           from.ID,
+		TgUsername:     from.Username,
+		TgLanguageCode: from.LanguageCode,
+	})
 }
 
 func (m *TgBotManager) callbackHandler(ctx context.Context, b *tg.Bot, update *tgm.Update) {

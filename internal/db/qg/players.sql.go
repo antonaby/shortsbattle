@@ -10,22 +10,30 @@ import (
 )
 
 const createPlayer = `-- name: CreatePlayer :one
-INSERT INTO players (username) VALUES ($1) RETURNING id, username, created_at
+INSERT INTO players (tg_id, tg_username, tg_language_code) VALUES ($1, $2, $3) RETURNING id, tg_id, tg_username, tg_language_code, created_at
 `
 
 type CreatePlayerParams struct {
-	Username string `json:"username"`
+	TgID           int64  `json:"tg_id"`
+	TgUsername     string `json:"tg_username"`
+	TgLanguageCode string `json:"tg_language_code"`
 }
 
 func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error) {
-	row := q.db.QueryRow(ctx, createPlayer, arg.Username)
+	row := q.db.QueryRow(ctx, createPlayer, arg.TgID, arg.TgUsername, arg.TgLanguageCode)
 	var i Player
-	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.TgID,
+		&i.TgUsername,
+		&i.TgLanguageCode,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
 const getPlayer = `-- name: GetPlayer :one
-SELECT id, username, created_at FROM players WHERE id = $1
+SELECT id, tg_id, tg_username, tg_language_code, created_at FROM players WHERE id = $1
 `
 
 type GetPlayerParams struct {
@@ -35,6 +43,33 @@ type GetPlayerParams struct {
 func (q *Queries) GetPlayer(ctx context.Context, arg GetPlayerParams) (Player, error) {
 	row := q.db.QueryRow(ctx, getPlayer, arg.ID)
 	var i Player
-	err := row.Scan(&i.ID, &i.Username, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.TgID,
+		&i.TgUsername,
+		&i.TgLanguageCode,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPlayerByTgId = `-- name: GetPlayerByTgId :one
+SELECT id, tg_id, tg_username, tg_language_code, created_at FROM players WHERE tg_id = $1
+`
+
+type GetPlayerByTgIdParams struct {
+	TgID int64 `json:"tg_id"`
+}
+
+func (q *Queries) GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams) (Player, error) {
+	row := q.db.QueryRow(ctx, getPlayerByTgId, arg.TgID)
+	var i Player
+	err := row.Scan(
+		&i.ID,
+		&i.TgID,
+		&i.TgUsername,
+		&i.TgLanguageCode,
+		&i.CreatedAt,
+	)
 	return i, err
 }

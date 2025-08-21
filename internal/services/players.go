@@ -1,83 +1,53 @@
 package services
 
-// import (
-// 	"context"
-// 	"errors"
-// 	"fmt"
+import (
+	"context"
 
-// 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-// 	"github.com/jackc/pgx/v5"
-// )
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/jackc/pgx/v5"
+)
 
-// type PlayersServiceErrorCode int
+type PlayersService struct {
+	txm db.TxManager
+}
 
-// const (
-// 	PSErrDbError = iota
-// 	PSErrNotFound
-// )
+func NewPlayersService(txm db.TxManager) *PlayersService {
+	return &PlayersService{
+		txm: txm,
+	}
+}
 
-// type PlayersServiceError struct {
-// 	Code    PlayersServiceErrorCode
-// 	Message string
-// 	Cause   error
-// }
+func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {
+	return db.WithTxValue(ctx, ps.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Player, error) {
+		q := ps.txm.Querier(tx)
+		player, err := q.GetPlayerByTgId(ctx, qg.GetPlayerByTgIdParams{TgID: params.TgID})
+		if err != nil {
+			if db.IsNoRows(err) {
+				return ps.createPlayer(ctx, q, params)
+			}
 
-// func (e PlayersServiceError) Error() string {
-// 	if e.Cause != nil {
-// 		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
-// 	}
-// 	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
-// }
+			return nil, common.ServiceError{
+				Code:    common.ErrorDb,
+				Message: "failed to get player",
+				Cause:   err,
+			}
+		}
 
-// func (e PlayersServiceError) Unwrap() error {
-// 	return e.Cause
-// }
+		return &player, nil
+	})
+}
 
-// type PlayersService struct {
-// 	txm db.TxManager
-// }
+func (ps *PlayersService) createPlayer(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
+	player, err := q.CreatePlayer(ctx, params)
+	if err != nil {
+		return nil, common.ServiceError{
+				Code:    common.ErrorDb,
+				Message: "failed to create player",
+				Cause:   err,
+			} 
+	}
 
-// func NewPlayersService(txm db.TxManager) *PlayersService {
-// 	return &PlayersService{
-// 		txm: txm,
-// 	}
-// }
-
-// func (g *PlayersService) CreatePlayer(ctx context.Context, params db.CreatePlayerParams) (*db.Player, error) {
-// 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
-// 		q := g.txm.Querier(tx)
-// 		player, err := q.CreatePlayer(ctx, params)
-// 		if err != nil {
-// 			return nil, PlayersServiceError{
-// 				Code:    PSErrDbError,
-// 				Message: "can't create player",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		return &player, nil
-// 	})
-// }
-
-// func (g *PlayersService) GetPlayer(ctx context.Context, id int64) (*db.Player, error) {
-// 	return db.WithTxValue(ctx, g.txm, func(ctx context.Context, tx pgx.Tx) (*db.Player, error) {
-// 		q := g.txm.Querier(tx)
-// 		player, err := q.GetPlayer(ctx, db.GetPlayerParams{ID: id})
-// 		if err != nil {
-// 			if errors.Is(err, pgx.ErrNoRows) {
-// 				return nil, PlayersServiceError{
-// 					Code:    PSErrNotFound,
-// 					Message: "player not found",
-// 				}
-// 			}
-
-// 			return nil, PlayersServiceError{
-// 				Code:    PSErrDbError,
-// 				Message: "can't get player",
-// 				Cause:   err,
-// 			}
-// 		}
-
-// 		return &player, nil
-// 	})
-// }
+	return &player, nil
+}
