@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	tg "github.com/go-telegram/bot"
 	tgm "github.com/go-telegram/bot/models"
@@ -18,11 +19,13 @@ const PlayerDataKey CtxKey = "PlayerDataKey"
 type TgBotManager struct {
 	bot *tg.Bot
 	ps  *services.PlayersService
+	vs  *services.VideosService
 }
 
-func NewTgBotManager(ps *services.PlayersService) (*TgBotManager, error) {
+func NewTgBotManager(ps *services.PlayersService, vs *services.VideosService) (*TgBotManager, error) {
 	m := &TgBotManager{
 		ps: ps,
+		vs: vs,
 	}
 
 	opts := []tg.Option{
@@ -125,8 +128,35 @@ func (m *TgBotManager) defaultHandler(ctx context.Context, b *tg.Bot, update *tg
 }
 
 func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, update *tgm.Update) {
-	b.SendMessage(ctx, &tg.SendMessageParams{
+	msg, err := b.SendMessage(ctx, &tg.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text:   fmt.Sprintf("Found url: %s", url),
+		Text:   fmt.Sprintf("Processing: %s", url),
 	})
+
+	if err != nil {
+		return
+	}
+
+	player, ok := ctx.Value(PlayerDataKey).(*qg.Player)
+	if ok {
+		video, err := m.vs.CreateVideo(ctx, models.SubmitVideoRequest{
+			PlayerID: player.ID,
+			VideoUrl: url,
+		})
+
+		if err != nil {
+			b.EditMessageText(ctx, &tg.EditMessageTextParams{
+				ChatID:    msg.Chat.ID,
+				MessageID: msg.ID,
+				Text:      fmt.Sprintf("Video can't be processed: %s", url),
+			})
+			return
+		}
+
+		b.EditMessageText(ctx, &tg.EditMessageTextParams{
+			ChatID:    msg.Chat.ID,
+			MessageID: msg.ID,
+			Text:      fmt.Sprintf("Video has been added to your library: %s", video.VideoUrl),
+		})
+	}
 }

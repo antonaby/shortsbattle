@@ -47,7 +47,7 @@ func main() {
 		log.Fatal("Can't start Centriguge router")
 	}
 
-	botManager, err := bot.NewTgBotManager(ps)
+	botManager, err := bot.NewTgBotManager(ps, vs)
 	if err != nil {
 		log.Fatal("Can't start Tg Bot")
 	}
