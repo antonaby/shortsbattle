@@ -97,7 +97,7 @@ func main() {
 	ts := services.NewThemeService(dbManager)
 	vs := services.NewVideosService(dbManager)
 	ps := services.NewPlayersService(dbManager, redisClient)
-	gm := services.NewGameManager(redisClient)
+	gm := services.NewGameManager(dbManager)
 
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {

@@ -9,11 +9,10 @@ import (
 type ErrorCode int
 
 const (
-	ErrorDb = iota
-	ErrorNotFound
-	ErrorConstraintViolation
-	ErrorOEmbed
-	ErrorRedis
+	ErrorDbUnknown = iota
+	ErrorDbNotFound
+	ErrorDbConstraintViolation
+	ErrorOEmbedFailed
 )
 
 type ServiceError struct {
@@ -35,11 +34,11 @@ func (e ServiceError) Unwrap() error {
 
 func GetDbErrorCode(err error) ErrorCode {
 	if db.IsClass23(err) {
-		return ErrorConstraintViolation
+		return ErrorDbConstraintViolation
 	}
 	if db.IsNoRows(err) {
-		return ErrorNotFound
+		return ErrorDbNotFound
 	}
 
-	return ErrorDb
+	return ErrorDbUnknown
 }

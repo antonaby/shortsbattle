@@ -26,7 +26,7 @@ func (ts *ThemeService) CreateTheme(ctx context.Context, params qg.CreateThemePa
 		theme, err := q.CreateTheme(ctx, params)
 		if err != nil {
 			return nil, common.ServiceError{
-				Code:    common.ErrorDb,
+				Code:    common.ErrorDbUnknown,
 				Message: "failed to create a theme",
 				Cause:   err,
 			}
@@ -42,7 +42,7 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
 		themes, err := q.ListAllThemes(ctx)
 		if err != nil {
 			return nil, common.ServiceError{
-				Code:    common.ErrorDb,
+				Code:    common.ErrorDbUnknown,
 				Message: "failed to list all themes",
 				Cause:   err,
 			}
@@ -100,14 +100,14 @@ func (ts *ThemeService) getTheme(ctx context.Context, q qg.Querier, params qg.Ge
 	if err != nil {
 		if db.IsNoRows(err) {
 			return nil, common.ServiceError{
-				Code:    common.ErrorNotFound,
+				Code:    common.ErrorDbNotFound,
 				Message: "failed to get theme",
 				Cause:   err,
 			}
 		}
 
 		return nil, common.ServiceError{
-			Code:    common.ErrorDb,
+			Code:    common.ErrorDbUnknown,
 			Message: "failed to get theme",
 			Cause:   err,
 		}
@@ -120,7 +120,7 @@ func (ts *ThemeService) getVideoRequests(ctx context.Context, q qg.Querier, para
 	requests, err := q.GetVideoRequests(ctx, params)
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorDb,
+			Code:    common.ErrorDbUnknown,
 			Message: "failed to list video requests",
 			Cause:   err,
 		}

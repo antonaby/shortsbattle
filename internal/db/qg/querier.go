@@ -9,8 +9,6 @@ import (
 )
 
 type Querier interface {
-	// Blocks until acquired; auto-released when the current transaction ends.
-	AcquireAdvisoryXactLock(ctx context.Context, arg AcquireAdvisoryXactLockParams) error
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
@@ -20,6 +18,7 @@ type Querier interface {
 	GetVideo(ctx context.Context, arg GetVideoParams) (Video, error)
 	GetVideoRequests(ctx context.Context, arg GetVideoRequestsParams) ([]VideoRequest, error)
 	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) ([]Video, error)
+	JoinGameForTheme(ctx context.Context, arg JoinGameForThemeParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 }

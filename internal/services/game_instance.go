@@ -1,14 +1,11 @@
 package services
 
-import (
-	"context"
-)
 
-type Game struct {
-	Config GameConfig
-	Ctx    context.Context
-	Cancel context.CancelFunc
-}
+// type Game struct {
+// 	Config GameConfig
+// 	Ctx    context.Context
+// 	Cancel context.CancelFunc
+// }
 
 // func NewGameInstance(txm db.TxManager, publisher GameEventPublisher, game db.Game, config GameInstanceConfig) *GameInstance {
 // 	ctx, cancel := context.WithCancel(context.Background())

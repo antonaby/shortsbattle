@@ -5,10 +5,72 @@
 package qg
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type GameState string
+
+const (
+	GameStateLobby      GameState = "lobby"
+	GameStateSubmitting GameState = "submitting"
+	GameStateWathching  GameState = "wathching"
+	GameStateCompleted  GameState = "completed"
+)
+
+func (e *GameState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = GameState(s)
+	case string:
+		*e = GameState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for GameState: %T", src)
+	}
+	return nil
+}
+
+type NullGameState struct {
+	GameState GameState `json:"game_state"`
+	Valid     bool      `json:"valid"` // Valid is true if GameState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullGameState) Scan(value interface{}) error {
+	if value == nil {
+		ns.GameState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.GameState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullGameState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.GameState), nil
+}
+
+type Game struct {
+	ID                   int64              `json:"id"`
+	ThemeID              int64              `json:"theme_id"`
+	State                GameState          `json:"state"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	StateChangedAt       pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt    pgtype.Timestamptz `json:"next_state_change_at"`
+	StateChangePublished pgtype.Bool        `json:"state_change_published"`
+}
+
+type GamePlayer struct {
+	GameID   int64              `json:"game_id"`
+	PlayerID int64              `json:"player_id"`
+	JoinedAt pgtype.Timestamptz `json:"joined_at"`
+}
 
 type Player struct {
 	TgID           int64              `json:"tg_id"`

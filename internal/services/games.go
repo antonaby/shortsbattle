@@ -2,105 +2,69 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/oklog/ulid/v2"
-	"github.com/redis/go-redis/v9"
+	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func kThemeLock(themeId int64) string {
-	return fmt.Sprintf("theme:{%d}:lock", themeId)
-}
-
-func kThemeLobby(themeId int64) string {
-	return fmt.Sprintf("theme:{%d}:lobby", themeId)
-}
-
-func kGame(gameId string) string {
-	return fmt.Sprintf("game:{%s}", gameId)
-}
-
-func kGamePlayers(gameId string) string {
-	return fmt.Sprintf("game:{%s}:players", gameId)
-}
-
 type GameConfig struct {
-	MaxPlayers int
+	MaxPlayers int32
+	LobbyState time.Duration
 }
 
 type GameManager struct {
-	rc     *redis.Client
 	config GameConfig
+	txm    db.TxManager
 }
 
-func NewGameManager(rc *redis.Client) *GameManager {
+func NewGameManager(txm db.TxManager) *GameManager {
 	return &GameManager{
-		rc: rc,
+		txm: txm,
 		config: GameConfig{
 			MaxPlayers: 5,
+			LobbyState: 30 * time.Second,
 		},
 	}
 }
 
-func (gm *GameManager) CreateGame(ctx context.Context, themeId int64, playerId int64) error {
-	_, _, err := gm.createNewGame(ctx, themeId, playerId)
-	return err
-}
-
-func (gm *GameManager) createNewGame(ctx context.Context, themeId int64, playerId int64) (bool, string, error) {
-	themeLockKey := kThemeLock(themeId)
-
-	ok, err := gm.rc.SetNX(ctx, themeLockKey, 1, 2*time.Second).Result()
-	if err != nil {
-		return false, "", common.ServiceError{
-			Code:    common.ErrorRedis,
-			Message: "failed to acquire theme lock",
-			Cause:   err,
-		}
-	}
-
-	if !ok {
-		return false, "", nil
-	}
-
-	gameId := ulid.Make().String()
-	_, err = gm.rc.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-		gameKey := kGame(gameId)
-		pipe.HSet(
-			ctx, gameKey,
-			"theme_id", themeId,
-			"state", string(models.StateLobby),
-			"payers_count", 1,
-			"max_players", gm.config.MaxPlayers,
-			"creaetd_at", time.Now().UTC().Format(time.RFC3339),
-		)
-		pipe.Expire(ctx, gameKey, 24*time.Hour)
-
-		gamePlayersKey := kGamePlayers(gameId)
-		pipe.SAdd(ctx, gamePlayersKey, playerId)
-		pipe.Expire(ctx, gamePlayersKey, 24*time.Hour)
-
-		pipe.ZAdd(ctx, kThemeLobby(themeId), redis.Z{
-			Score:  1,
-			Member: gameId,
+func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (int64, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
+		q := gm.txm.Querier(tx)
+		gameId, err := q.JoinGameForTheme(ctx, qg.JoinGameForThemeParams{
+			PThemeID:    themeId,
+			PPlayerID:   playerId,
+			PState:      qg.GameStateLobby,
+			PMaxPlayers: gm.config.MaxPlayers,
+			PNextStateChangeIn: pgtype.Interval{
+				Microseconds: int64(gm.config.LobbyState.Microseconds()),
+				Days:         0,
+				Months:       0,
+				Valid:        true,
+			},
 		})
 
-		pipe.Del(ctx, themeLockKey)
-		return nil
-	})
+		if err != nil {
+			if db.IsClass23(err) {
+				return 0, common.ServiceError{
+					Code:    common.ErrorDbNotFound,
+					Message: "theme or player not found",
+					Cause:   err,
+				}
+			}
 
-	if err != nil {
-		return false, "", common.ServiceError{
-			Code:    common.ErrorRedis,
-			Message: "failed to create new game",
-			Cause:   err,
+			return 0, common.ServiceError{
+				Code:    common.ErrorDbUnknown,
+				Message: "filed to join game",
+				Cause:   err,
+			}
 		}
-	}
 
-	return true, gameId, nil
+		return gameId, nil
+	})
 }
 
 // func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {

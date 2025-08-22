@@ -30,7 +30,7 @@ func (vs *VideosService) CreateVideo(ctx context.Context, params models.SubmitVi
 		oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
 		if err != nil {
 			return nil, common.ServiceError{
-				Code:    common.ErrorOEmbed,
+				Code:    common.ErrorOEmbedFailed,
 				Message: "failed to submit video",
 				Cause:   err,
 			}
@@ -74,7 +74,7 @@ func oembedEndpoint(videoURL, igToken string) (string, error) {
 	u, err := url.Parse(videoURL)
 	if err != nil {
 		return "", common.ServiceError{
-			Code:    common.ErrorOEmbed,
+			Code:    common.ErrorOEmbedFailed,
 			Message: "failed to fetch oembed data",
 			Cause:   err,
 		}
@@ -91,7 +91,7 @@ func oembedEndpoint(videoURL, igToken string) (string, error) {
 	case strings.Contains(host, "instagram.com"):
 		if igToken == "" {
 			return "", common.ServiceError{
-				Code:    common.ErrorOEmbed,
+				Code:    common.ErrorOEmbedFailed,
 				Message: "instagram access token not provided",
 				Cause:   err,
 			}
@@ -100,7 +100,7 @@ func oembedEndpoint(videoURL, igToken string) (string, error) {
 	}
 
 	return "", common.ServiceError{
-		Code:    common.ErrorOEmbed,
+		Code:    common.ErrorOEmbedFailed,
 		Message: fmt.Sprintf("unsupported host %s", host),
 		Cause:   err,
 	}
@@ -116,7 +116,7 @@ func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbed,
+			Code:    common.ErrorOEmbedFailed,
 			Message: "failed to fetch oembed data",
 			Cause:   err,
 		}
@@ -126,7 +126,7 @@ func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) 
 	if resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbed,
+			Code:    common.ErrorOEmbedFailed,
 			Message: fmt.Sprintf("oembed status %d: %s", resp.StatusCode, string(b)),
 			Cause:   err,
 		}
@@ -135,7 +135,7 @@ func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbed,
+			Code:    common.ErrorOEmbedFailed,
 			Message: "failed to fetch oembed data",
 			Cause:   err,
 		}

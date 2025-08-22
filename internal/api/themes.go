@@ -81,7 +81,7 @@ func (api *ThemesApi) getTheme(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorNotFound {
+			if sErr.Code == common.ErrorDbNotFound {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "theme not found",
 				})
@@ -139,7 +139,7 @@ func (api *ThemesApi) createVideoRequest(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorConstraintViolation {
+			if sErr.Code == common.ErrorDbConstraintViolation {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "theme not found",
 				})

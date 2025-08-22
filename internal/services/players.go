@@ -68,7 +68,7 @@ func (ps *PlayersService) getPlayerFromDb(ctx context.Context, q qg.Querier, par
 		}
 
 		return nil, common.ServiceError{
-			Code:    common.ErrorDb,
+			Code:    common.ErrorDbUnknown,
 			Message: "failed to get player",
 			Cause:   err,
 		}
@@ -81,7 +81,7 @@ func (ps *PlayersService) createPlayer(ctx context.Context, q qg.Querier, params
 	player, err := q.CreatePlayer(ctx, params)
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorDb,
+			Code:    common.ErrorDbUnknown,
 			Message: "failed to create player",
 			Cause:   err,
 		}

@@ -4,6 +4,11 @@ type OkResponse struct {
 	Msg string `json:"message"`
 }
 
+type OkGameIdReposne struct {
+	Msg    string `json:"message"`
+	GameId int64  `json:"game_id"`
+}
+
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -20,4 +25,9 @@ type CreateVideoRequest struct {
 type SubmitVideoRequest struct {
 	PlayerID int64  `json:"player_id" validate:"required"`
 	VideoUrl string `json:"video_url" validate:"required,url"`
+}
+
+type JoinGameRequest struct {
+	ThemeID  int64 `json:"theme_id" validate:"required"`
+	PlayerID int64 `json:"player_id" validate:"required"`
 }

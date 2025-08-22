@@ -1,8 +1,10 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
@@ -30,19 +32,41 @@ func (api *GamesApi) register(g *echo.Group) {
 }
 
 func (api *GamesApi) joinGame(c echo.Context) error {
+	request := new(m.JoinGameRequest)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidRequestFormatMsg,
+		})
+	}
+
+	if err := c.Validate(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: RequestValidationErrorMsg,
+		})
+	}
+
 	ctx := c.Request().Context()
-	err := api.gm.CreateGame(ctx, 1, 485661019) //TODO: Get Theme from request
+	gameId, err := api.gm.JoinGame(ctx, request.ThemeID, request.PlayerID)
 
 	if err != nil {
-		c.Echo().Logger.Errorf("failed to create game: %v", err)
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorDbNotFound {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "theme or player not found",
+				})
+			}
+		}
 
+		c.Echo().Logger.Errorf("failed to create game: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: "something went wrong",
 		})
 	}
 
-	return c.JSON(http.StatusOK, m.OkResponse{
-		Msg: "game created",
+	return c.JSON(http.StatusOK, m.OkGameIdReposne{
+		Msg:    "game created",
+		GameId: gameId,
 	})
 }
 
