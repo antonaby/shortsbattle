@@ -51,13 +51,13 @@ func (wd *GamesWatchdog) checkPendingGames() {
 				Valid:        true,
 			},
 			PSubmittingToWathching: pgtype.Interval{
-				Microseconds: int64(wd.config.LobbyState.Microseconds()),
+				Microseconds: int64(wd.config.SubmittingState.Microseconds()),
 				Days:         0,
 				Months:       0,
 				Valid:        true,
 			},
 			PWathchingToCompleted: pgtype.Interval{
-				Microseconds: int64(wd.config.LobbyState.Microseconds()),
+				Microseconds: int64(wd.config.WatchingState.Microseconds()),
 				Days:         0,
 				Months:       0,
 				Valid:        true,

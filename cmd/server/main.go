@@ -95,8 +95,10 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers: 5,
-		LobbyState: 30 * time.Second,
+		MaxPlayers:      5,
+		LobbyState:      30 * time.Second,
+		SubmittingState: 30 * time.Second,
+		WatchingState:   30 * time.Second,
 	}
 
 	ts := services.NewThemeService(dbManager)
