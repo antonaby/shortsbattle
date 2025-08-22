@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceGames = `-- name: AdvanceGames :many
+SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, state_change_published FROM advance_games_batch($1, $2, $3, $4)
+`
+
+type AdvanceGamesParams struct {
+	PLobbyToSubmitting     pgtype.Interval `json:"p_lobby_to_submitting"`
+	PSubmittingToWathching pgtype.Interval `json:"p_submitting_to_wathching"`
+	PWathchingToCompleted  pgtype.Interval `json:"p_wathching_to_completed"`
+	PBatchLimit            int32           `json:"p_batch_limit"`
+}
+
+func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]Game, error) {
+	rows, err := q.db.Query(ctx, advanceGames,
+		arg.PLobbyToSubmitting,
+		arg.PSubmittingToWathching,
+		arg.PWathchingToCompleted,
+		arg.PBatchLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Game
+	for rows.Next() {
+		var i Game
+		if err := rows.Scan(
+			&i.ID,
+			&i.ThemeID,
+			&i.State,
+			&i.CreatedAt,
+			&i.StateChangedAt,
+			&i.NextStateChangeAt,
+			&i.StateChangePublished,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const joinGameForTheme = `-- name: JoinGameForTheme :one
 SELECT join_game_for_theme($1, $2, $3, $4, $5) AS game_id
 `

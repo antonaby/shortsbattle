@@ -94,10 +94,15 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	gameConfig := services.GameConfig{
+		MaxPlayers: 5,
+		LobbyState: 30 * time.Second,
+	}
+
 	ts := services.NewThemeService(dbManager)
 	vs := services.NewVideosService(dbManager)
 	ps := services.NewPlayersService(dbManager, redisClient)
-	gm := services.NewGameManager(dbManager)
+	gm := services.NewGameManager(dbManager, gameConfig)
 
 	cf, err := ws.NewCentrifugeServer()
 	if err != nil {
@@ -114,6 +119,8 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
+	gamesWatchdog := services.NewGamesWatchdog(dbManager, 1*time.Second, gameConfig)
+
 	e := configureEcho()
 
 	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
@@ -125,9 +132,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	go func() {
-		botManager.Start(ctx)
-	}()
+	go gamesWatchdog.Run(ctx)
+	go botManager.Start(ctx)
 
 	go func() {
 		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {

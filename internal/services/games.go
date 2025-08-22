@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
@@ -11,23 +10,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type GameConfig struct {
-	MaxPlayers int32
-	LobbyState time.Duration
-}
-
 type GameManager struct {
 	config GameConfig
 	txm    db.TxManager
 }
 
-func NewGameManager(txm db.TxManager) *GameManager {
+func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	return &GameManager{
 		txm: txm,
-		config: GameConfig{
-			MaxPlayers: 5,
-			LobbyState: 30 * time.Second,
-		},
+		config: config,
 	}
 }
 
