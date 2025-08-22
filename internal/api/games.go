@@ -31,10 +31,7 @@ func (api *GamesApi) register(g *echo.Group) {
 
 func (api *GamesApi) joinGame(c echo.Context) error {
 	ctx := c.Request().Context()
-	err := api.gm.CreateGame(ctx, m.GemeDetails{
-		ThemeID: 1,
-		Status:  "created",
-	})
+	err := api.gm.CreateGame(ctx, 1, 485661019) //TODO: Get Theme from request
 
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create game: %v", err)

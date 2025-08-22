@@ -5,6 +5,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type GameState string
+
+const (
+	StateLobby GameState = "lobby"
+)
+
 type ThemeExt struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`

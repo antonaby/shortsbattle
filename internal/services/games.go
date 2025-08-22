@@ -3,51 +3,105 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/oklog/ulid/v2"
 	"github.com/redis/go-redis/v9"
 )
 
-var SeqGameId = "seq:game_id"
+func kThemeLock(themeId int64) string {
+	return fmt.Sprintf("theme:{%d}:lock", themeId)
+}
+
+func kThemeLobby(themeId int64) string {
+	return fmt.Sprintf("theme:{%d}:lobby", themeId)
+}
+
+func kGame(gameId string) string {
+	return fmt.Sprintf("game:{%s}", gameId)
+}
+
+func kGamePlayers(gameId string) string {
+	return fmt.Sprintf("game:{%s}:players", gameId)
+}
+
+type GameConfig struct {
+	MaxPlayers int
+}
 
 type GameManager struct {
-	rc *redis.Client
+	rc     *redis.Client
+	config GameConfig
 }
 
 func NewGameManager(rc *redis.Client) *GameManager {
 	return &GameManager{
 		rc: rc,
+		config: GameConfig{
+			MaxPlayers: 5,
+		},
 	}
 }
 
-func kGame(id int64) string {
-	return fmt.Sprintf("game:{%d}", id)
+func (gm *GameManager) CreateGame(ctx context.Context, themeId int64, playerId int64) error {
+	_, _, err := gm.createNewGame(ctx, themeId, playerId)
+	return err
 }
 
-func (gm *GameManager) CreateGame(ctx context.Context, game models.GemeDetails) error {
-	id, err := gm.rc.Incr(ctx, SeqGameId).Result()
+func (gm *GameManager) createNewGame(ctx context.Context, themeId int64, playerId int64) (bool, string, error) {
+	themeLockKey := kThemeLock(themeId)
+
+	ok, err := gm.rc.SetNX(ctx, themeLockKey, 1, 2*time.Second).Result()
 	if err != nil {
-		return common.ServiceError{
+		return false, "", common.ServiceError{
 			Code:    common.ErrorRedis,
-			Message: "can't get next game seq value",
+			Message: "failed to acquire theme lock",
 			Cause:   err,
 		}
 	}
 
-	_, err = gm.rc.HSet(ctx, kGame(id), "theme_id", game.ThemeID, "status", game.Status).Result()
+	if !ok {
+		return false, "", nil
+	}
+
+	gameId := ulid.Make().String()
+	_, err = gm.rc.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		gameKey := kGame(gameId)
+		pipe.HSet(
+			ctx, gameKey,
+			"theme_id", themeId,
+			"state", string(models.StateLobby),
+			"payers_count", 1,
+			"max_players", gm.config.MaxPlayers,
+			"creaetd_at", time.Now().UTC().Format(time.RFC3339),
+		)
+		pipe.Expire(ctx, gameKey, 24*time.Hour)
+
+		gamePlayersKey := kGamePlayers(gameId)
+		pipe.SAdd(ctx, gamePlayersKey, playerId)
+		pipe.Expire(ctx, gamePlayersKey, 24*time.Hour)
+
+		pipe.ZAdd(ctx, kThemeLobby(themeId), redis.Z{
+			Score:  1,
+			Member: gameId,
+		})
+
+		pipe.Del(ctx, themeLockKey)
+		return nil
+	})
+
 	if err != nil {
-		return common.ServiceError{
+		return false, "", common.ServiceError{
 			Code:    common.ErrorRedis,
-			Message: "can't save game",
+			Message: "failed to create new game",
 			Cause:   err,
 		}
 	}
 
-	return nil
+	return true, gameId, nil
 }
-
-
 
 // func (g *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (*db.Game, error) {
 // 	for attempt := 1; attempt <= g.maxJoinAttempts; attempt++ {

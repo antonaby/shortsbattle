@@ -4,9 +4,6 @@ import (
 	"context"
 )
 
-type GameConfig struct {
-}
-
 type Game struct {
 	Config GameConfig
 	Ctx    context.Context
