@@ -10,10 +10,7 @@ CREATE TABLE
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     state_changed_at TIMESTAMPTZ,
     next_state_change_at TIMESTAMPTZ,
-    enqueued BOOLEAN DEFAULT false,
-    enqueued_at TIMESTAMPTZ,
-    processed BOOLEAN DEFAULT false,
-    processed_at TIMESTAMPTZ
+    enqueued_at TIMESTAMPTZ
   );
 
 CREATE TABLE
@@ -40,6 +37,7 @@ BEGIN
     -- Only update when status actually changes
     IF NEW.state IS DISTINCT FROM OLD.state THEN
       NEW.state_changed_at := now();
+      NEW.enqueued_at = NULL;
     END IF;
     RETURN NEW;
   END IF;

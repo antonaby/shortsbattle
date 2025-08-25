@@ -16,7 +16,7 @@ WITH candidates AS (
     SELECT id, state
     FROM games
     WHERE next_state_change_at <= now()
-      AND enqueued = false
+      AND enqueued_at IS NULL
       AND state <> 'completed'::game_state     
     ORDER BY next_state_change_at ASC, id
     FOR UPDATE SKIP LOCKED
@@ -25,13 +25,12 @@ WITH candidates AS (
   upd AS (
     UPDATE games g
     SET
-      enqueued = true,
       enqueued_at = now()
     FROM candidates c
     WHERE g.id = c.id
-    RETURNING g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued, g.enqueued_at, g.processed, g.processed_at
+    RETURNING g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
   )
-  SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued, enqueued_at, processed, processed_at FROM upd
+  SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at FROM upd
 `
 
 type AdvanceGamesParams struct {
@@ -45,10 +44,7 @@ type AdvanceGamesRow struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	Enqueued          pgtype.Bool        `json:"enqueued"`
 	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
-	Processed         pgtype.Bool        `json:"processed"`
-	ProcessedAt       pgtype.Timestamptz `json:"processed_at"`
 }
 
 func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]AdvanceGamesRow, error) {
@@ -67,10 +63,7 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 			&i.CreatedAt,
 			&i.StateChangedAt,
 			&i.NextStateChangeAt,
-			&i.Enqueued,
 			&i.EnqueuedAt,
-			&i.Processed,
-			&i.ProcessedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -110,21 +103,15 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 }
 
 const updateGameStatus = `-- name: UpdateGameStatus :exec
-UPDATE games
-SET 
-    state = $1,        
-    processed = $2,     
-    processed_at = NOW()
-WHERE id = $3
+UPDATE games SET state = $1 WHERE id = $2
 `
 
 type UpdateGameStatusParams struct {
-	State     GameState   `json:"state"`
-	Processed pgtype.Bool `json:"processed"`
-	ID        int64       `json:"id"`
+	State GameState `json:"state"`
+	ID    int64     `json:"id"`
 }
 
 func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error {
-	_, err := q.db.Exec(ctx, updateGameStatus, arg.State, arg.Processed, arg.ID)
+	_, err := q.db.Exec(ctx, updateGameStatus, arg.State, arg.ID)
 	return err
 }

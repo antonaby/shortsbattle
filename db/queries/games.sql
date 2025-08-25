@@ -6,7 +6,7 @@ WITH candidates AS (
     SELECT id, state
     FROM games
     WHERE next_state_change_at <= now()
-      AND enqueued = false
+      AND enqueued_at IS NULL
       AND state <> 'completed'::game_state     
     ORDER BY next_state_change_at ASC, id
     FOR UPDATE SKIP LOCKED
@@ -15,7 +15,6 @@ WITH candidates AS (
   upd AS (
     UPDATE games g
     SET
-      enqueued = true,
       enqueued_at = now()
     FROM candidates c
     WHERE g.id = c.id
@@ -24,9 +23,4 @@ WITH candidates AS (
   SELECT * FROM upd;
 
 -- name: UpdateGameStatus :exec
-UPDATE games
-SET 
-    state = $1,        
-    processed = $2,     
-    processed_at = NOW()
-WHERE id = $3;
+UPDATE games SET state = $1 WHERE id = $2;

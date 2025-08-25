@@ -54,12 +54,12 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 }
 
 // TODO: handle game state
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) error {
-	return db.WithTx(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) error {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, error) {
 		// TODO:
 		// 1) Get Game by Id with lock
 		// 2) Update Game state
 
-		return nil
+		return nil, nil
 	})
 }

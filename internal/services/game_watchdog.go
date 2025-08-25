@@ -91,8 +91,6 @@ func (wd *GameWatchdog) checkPendingGames() {
 	}
 }
 
-// TODO: add better error handler
-// TODO: test that consumer gets deleted
 type GameStateListener struct {
 	rc                *redis.Client
 	gm                *GameManager
@@ -100,13 +98,16 @@ type GameStateListener struct {
 	consumerGroupName string
 	count             int64
 	block             time.Duration
+	idleDLQ           time.Duration
 	consumerName      string
+	streamMaxLean     int64
 }
 
 func NewGameStateListener(
 	rc *redis.Client, gm *GameManager,
 	streamName, consumerGroupName, consumerId string,
-	count int64, block time.Duration) *GameStateListener {
+	count int64, block time.Duration, idleDLQ time.Duration,
+	streamMaxLean int64) *GameStateListener {
 	return &GameStateListener{
 		rc:                rc,
 		gm:                gm,
@@ -114,15 +115,18 @@ func NewGameStateListener(
 		consumerGroupName: consumerGroupName,
 		count:             count,
 		block:             block,
+		idleDLQ:           idleDLQ,
+		streamMaxLean:     streamMaxLean,
 		consumerName:      newConsumerName("worker", consumerId),
 	}
 }
 
 func (gsl *GameStateListener) Listen(ctx context.Context) {
+LOOP:
 	for {
 		select {
 		case <-ctx.Done():
-			goto CLEANUP
+			break LOOP
 		default:
 			res, err := gsl.rc.XReadGroup(ctx, &redis.XReadGroupArgs{
 				Group:    gsl.consumerGroupName,
@@ -144,9 +148,17 @@ func (gsl *GameStateListener) Listen(ctx context.Context) {
 
 			for _, str := range res {
 				for _, msg := range str.Messages {
-					if err := gsl.handleMessage(ctx, msg); err != nil {
-						log.Error().Err(err).Msgf("handler failed for %s:%s", gsl.streamName, msg.ID)
+					gameId, err := parseGameId(msg)
+					if err != nil {
+						log.Error().Err(err).Msgf("failed to parse game id %s:%s", gsl.streamName, msg.ID)
+						continue
 					}
+
+					if err := gsl.handleMessage(ctx, gameId); err != nil {
+						log.Error().Err(err).Msgf("handler failed for %s:%s", gsl.streamName, msg.ID)
+						continue
+					}
+
 					if err := gsl.rc.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err(); err != nil {
 						log.Error().Err(err).Msgf("ack failed %s:%s", gsl.streamName, msg.ID)
 					}
@@ -155,7 +167,6 @@ func (gsl *GameStateListener) Listen(ctx context.Context) {
 		}
 	}
 
-CLEANUP:
 	delCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 	err := gsl.rc.XGroupDelConsumer(delCtx, gsl.streamName, gsl.consumerGroupName, gsl.consumerName).Err()
@@ -170,7 +181,7 @@ func (gsl *GameStateListener) ReclaimPending(ctx context.Context) error {
 			Stream:   gsl.streamName,
 			Group:    gsl.consumerGroupName,
 			Consumer: gsl.consumerName,
-			MinIdle:  10 * time.Second,
+			MinIdle:  gsl.idleDLQ,
 			Start:    "0-0",
 			Count:    50,
 		}).Result()
@@ -183,18 +194,26 @@ func (gsl *GameStateListener) ReclaimPending(ctx context.Context) error {
 			return nil
 		}
 
-		// TODO: check errors
 		for _, msg := range msgs {
-			_ = gsl.handleMessage(ctx, msg) 
+			gameId, err := parseGameId(msg)
+			if err != nil {
+				continue
+			}
+			_ = gsl.handleMessage(ctx, gameId)
 			_ = gsl.rc.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err()
 		}
 	}
 }
 
-func (gsl *GameStateListener) handleMessage(ctx context.Context, msg redis.XMessage) error {
+func (gsl *GameStateListener) handleMessage(ctx context.Context, gameId int64) error {
+	_, err := gsl.gm.AdvanceGame(ctx, gameId)
+	return err
+}
+
+func parseGameId(msg redis.XMessage) (int64, error) {
 	rawID, ok := msg.Values["game_id"]
 	if !ok {
-		return common.ServiceError{
+		return 0, common.ServiceError{
 			Code:    common.ErrorRedisStream,
 			Message: fmt.Sprintf("message %s has no game_id", msg.ID),
 		}
@@ -205,7 +224,7 @@ func (gsl *GameStateListener) handleMessage(ctx context.Context, msg redis.XMess
 	case string:
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return common.ServiceError{
+			return 0, common.ServiceError{
 				Code:    common.ErrorRedisStream,
 				Message: fmt.Sprintf("invalid game_id in message %s", msg.ID),
 			}
@@ -216,13 +235,13 @@ func (gsl *GameStateListener) handleMessage(ctx context.Context, msg redis.XMess
 	case int:
 		gameId = int64(v)
 	default:
-		return common.ServiceError{
+		return 0, common.ServiceError{
 			Code:    common.ErrorRedisStream,
 			Message: fmt.Sprintf("unexpected type for game_id: %T", v),
 		}
 	}
 
-	return gsl.gm.AdvanceGame(ctx, gameId)
+	return gameId, nil
 }
 
 func newConsumerName(prefix, suffix string) string {
