@@ -8,21 +8,25 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
 type GamesWatchdog struct {
 	txm      db.TxManager
+	rc       *redis.Client
 	interval time.Duration
-	config   GameConfig
+	limit    int32
 }
 
-func NewGamesWatchdog(txm db.TxManager, interval time.Duration, config GameConfig) *GamesWatchdog {
+// TODO: close lobby 10 seconds before the actual change
+// TODO: send everything to Redis Streams instead of changeing in the stored fucntion (add enqueued and processed columns)
+func NewGamesWatchdog(txm db.TxManager, rc *redis.Client, interval time.Duration, limit int32) *GamesWatchdog {
 	return &GamesWatchdog{
 		txm:      txm,
+		rc:       rc,
 		interval: interval,
-		config:   config,
+		limit:    limit,
 	}
 }
 
@@ -43,27 +47,7 @@ func (wd *GamesWatchdog) Run(ctx context.Context) error {
 func (wd *GamesWatchdog) checkPendingGames() {
 	err := db.WithTx(context.Background(), wd.txm, func(ctx context.Context, tx pgx.Tx) error {
 		q := wd.txm.Querier(tx)
-		games, err := q.AdvanceGames(ctx, qg.AdvanceGamesParams{
-			PLobbyToSubmitting: pgtype.Interval{
-				Microseconds: int64(wd.config.LobbyState.Microseconds()),
-				Days:         0,
-				Months:       0,
-				Valid:        true,
-			},
-			PSubmittingToWathching: pgtype.Interval{
-				Microseconds: int64(wd.config.SubmittingState.Microseconds()),
-				Days:         0,
-				Months:       0,
-				Valid:        true,
-			},
-			PWathchingToCompleted: pgtype.Interval{
-				Microseconds: int64(wd.config.WatchingState.Microseconds()),
-				Days:         0,
-				Months:       0,
-				Valid:        true,
-			},
-			PBatchLimit: 20,
-		})
+		games, err := q.AdvanceGames(ctx, qg.AdvanceGamesParams{Limit: wd.limit})
 
 		if len(games) > 0 {
 			log.Info().Msgf("Updated games: %d", len(games))

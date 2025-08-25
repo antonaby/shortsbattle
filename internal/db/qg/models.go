@@ -57,13 +57,16 @@ func (ns NullGameState) Value() (driver.Value, error) {
 }
 
 type Game struct {
-	ID                   int64              `json:"id"`
-	ThemeID              int64              `json:"theme_id"`
-	State                GameState          `json:"state"`
-	CreatedAt            pgtype.Timestamptz `json:"created_at"`
-	StateChangedAt       pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt    pgtype.Timestamptz `json:"next_state_change_at"`
-	StateChangePublished pgtype.Bool        `json:"state_change_published"`
+	ID                int64              `json:"id"`
+	ThemeID           int64              `json:"theme_id"`
+	State             GameState          `json:"state"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	Enqueued          pgtype.Bool        `json:"enqueued"`
+	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
+	Processed         pgtype.Bool        `json:"processed"`
+	ProcessedAt       pgtype.Timestamptz `json:"processed_at"`
 }
 
 type GamePlayer struct {

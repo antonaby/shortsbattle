@@ -12,30 +12,54 @@ import (
 )
 
 const advanceGames = `-- name: AdvanceGames :many
-SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, state_change_published FROM advance_games_batch($1, $2, $3, $4)
+WITH candidates AS (
+    SELECT id, state
+    FROM games
+    WHERE next_state_change_at <= now()
+      AND enqueued = false
+      AND state <> 'completed'::game_state     
+    ORDER BY next_state_change_at ASC, id
+    FOR UPDATE SKIP LOCKED
+    LIMIT $1
+  ),
+  upd AS (
+    UPDATE games g
+    SET
+      enqueued = true,
+      enqueued_at = now()
+    FROM candidates c
+    WHERE g.id = c.id
+    RETURNING g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued, g.enqueued_at, g.processed, g.processed_at
+  )
+  SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued, enqueued_at, processed, processed_at FROM upd
 `
 
 type AdvanceGamesParams struct {
-	PLobbyToSubmitting     pgtype.Interval `json:"p_lobby_to_submitting"`
-	PSubmittingToWathching pgtype.Interval `json:"p_submitting_to_wathching"`
-	PWathchingToCompleted  pgtype.Interval `json:"p_wathching_to_completed"`
-	PBatchLimit            int32           `json:"p_batch_limit"`
+	Limit int32 `json:"limit"`
 }
 
-func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]Game, error) {
-	rows, err := q.db.Query(ctx, advanceGames,
-		arg.PLobbyToSubmitting,
-		arg.PSubmittingToWathching,
-		arg.PWathchingToCompleted,
-		arg.PBatchLimit,
-	)
+type AdvanceGamesRow struct {
+	ID                int64              `json:"id"`
+	ThemeID           int64              `json:"theme_id"`
+	State             GameState          `json:"state"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	Enqueued          pgtype.Bool        `json:"enqueued"`
+	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
+	Processed         pgtype.Bool        `json:"processed"`
+	ProcessedAt       pgtype.Timestamptz `json:"processed_at"`
+}
+
+func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]AdvanceGamesRow, error) {
+	rows, err := q.db.Query(ctx, advanceGames, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Game
+	var items []AdvanceGamesRow
 	for rows.Next() {
-		var i Game
+		var i AdvanceGamesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ThemeID,
@@ -43,7 +67,10 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]G
 			&i.CreatedAt,
 			&i.StateChangedAt,
 			&i.NextStateChangeAt,
-			&i.StateChangePublished,
+			&i.Enqueued,
+			&i.EnqueuedAt,
+			&i.Processed,
+			&i.ProcessedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -56,13 +83,14 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]G
 }
 
 const joinGameForTheme = `-- name: JoinGameForTheme :one
-SELECT join_game_for_theme($1, $2, $3, $4, $5) AS game_id
+SELECT join_game_for_theme($1, $2, $3, $4, $5, $6) AS game_id
 `
 
 type JoinGameForThemeParams struct {
 	PThemeID           int64           `json:"p_theme_id"`
 	PPlayerID          int64           `json:"p_player_id"`
-	PState             GameState       `json:"p_state"`
+	PLobbyState        GameState       `json:"p_lobby_state"`
+	PLobbyStateClosed  pgtype.Interval `json:"p_lobby_state_closed"`
 	PMaxPlayers        int32           `json:"p_max_players"`
 	PNextStateChangeIn pgtype.Interval `json:"p_next_state_change_in"`
 }
@@ -71,7 +99,8 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 	row := q.db.QueryRow(ctx, joinGameForTheme,
 		arg.PThemeID,
 		arg.PPlayerID,
-		arg.PState,
+		arg.PLobbyState,
+		arg.PLobbyStateClosed,
 		arg.PMaxPlayers,
 		arg.PNextStateChangeIn,
 	)

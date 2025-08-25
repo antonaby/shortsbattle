@@ -7,7 +7,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type GameManager struct {
@@ -17,7 +16,7 @@ type GameManager struct {
 
 func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	return &GameManager{
-		txm: txm,
+		txm:    txm,
 		config: config,
 	}
 }
@@ -26,16 +25,12 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
 		q := gm.txm.Querier(tx)
 		gameId, err := q.JoinGameForTheme(ctx, qg.JoinGameForThemeParams{
-			PThemeID:    themeId,
-			PPlayerID:   playerId,
-			PState:      qg.GameStateLobby,
-			PMaxPlayers: gm.config.MaxPlayers,
-			PNextStateChangeIn: pgtype.Interval{
-				Microseconds: int64(gm.config.LobbyState.Microseconds()),
-				Days:         0,
-				Months:       0,
-				Valid:        true,
-			},
+			PThemeID:           themeId,
+			PPlayerID:          playerId,
+			PLobbyState:        qg.GameStateLobby,
+			PLobbyStateClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
+			PMaxPlayers:        gm.config.MaxPlayers,
+			PNextStateChangeIn: db.ToPgInterval(gm.config.LobbyState),
 		})
 
 		if err != nil {

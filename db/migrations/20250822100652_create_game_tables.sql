@@ -7,10 +7,13 @@ CREATE TABLE
     id BIGSERIAL PRIMARY KEY,
     theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
     state game_state NOT NULL DEFAULT 'lobby',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    state_changed_at TIMESTAMPTZ NOT NULL DEFAULT now (),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    state_changed_at TIMESTAMPTZ,
     next_state_change_at TIMESTAMPTZ,
-    state_change_published BOOLEAN DEFAULT false
+    enqueued BOOLEAN DEFAULT false,
+    enqueued_at TIMESTAMPTZ,
+    processed BOOLEAN DEFAULT false,
+    processed_at TIMESTAMPTZ
   );
 
 CREATE TABLE
@@ -32,13 +35,11 @@ BEGIN
     IF NEW.state_changed_at IS NULL THEN
       NEW.state_changed_at := now();
     END IF;
-    NEW.state_change_published := false;
     RETURN NEW;
   ELSIF TG_OP = 'UPDATE' THEN
     -- Only update when status actually changes
     IF NEW.state IS DISTINCT FROM OLD.state THEN
       NEW.state_changed_at := now();
-      NEW.state_change_published := false;
     END IF;
     RETURN NEW;
   END IF;

@@ -95,10 +95,11 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:      5,
-		LobbyState:      30 * time.Second,
-		SubmittingState: 30 * time.Second,
-		WatchingState:   30 * time.Second,
+		MaxPlayers:        5,
+		LobbyState:        30 * time.Second,
+		LobbyClosedBefore: 5 * time.Second,
+		SubmittingState:   30 * time.Second,
+		WatchingState:     30 * time.Second,
 	}
 
 	ts := services.NewThemeService(dbManager)
@@ -121,7 +122,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
-	gamesWatchdog := services.NewGamesWatchdog(dbManager, 1*time.Second, gameConfig)
+	gamesWatchdog := services.NewGamesWatchdog(dbManager, redisClient, 1*time.Second, 100)
 
 	e := configureEcho()
 

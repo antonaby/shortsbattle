@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 /*
@@ -25,6 +27,15 @@ func IsClass23(err error) bool {
 
 func IsNoRows(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
+}
+
+func ToPgInterval(time time.Duration) pgtype.Interval {
+	return pgtype.Interval{
+		Microseconds: int64(time.Microseconds()),
+		Days:         0,
+		Months:       0,
+		Valid:        true,
+	}
 }
 
 func WithTx(ctx context.Context, txm TxManager, fn TxFunc) error {

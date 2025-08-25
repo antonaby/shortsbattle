@@ -5,7 +5,8 @@
 CREATE OR REPLACE FUNCTION join_game_for_theme(
   p_theme_id              BIGINT,
   p_player_id             BIGINT,
-  p_state                 game_state,
+  p_lobby_state           game_state,
+  p_lobby_state_closed    INTERVAL,
   p_max_players           INT,
   p_next_state_change_in  INTERVAL
 ) RETURNS BIGINT
@@ -22,7 +23,8 @@ BEGIN
   FROM games g
   LEFT JOIN game_players gp ON gp.game_id = g.id
   WHERE g.theme_id = p_theme_id
-    AND g.state = p_state
+    AND g.state = p_lobby_state
+    AND g.next_state_change_at >= now() + p_lobby_state_closed
   GROUP BY g.id, g.created_at
   HAVING COUNT(gp.player_id) < p_max_players
   ORDER BY COUNT(gp.player_id) ASC, g.created_at ASC, g.id ASC
@@ -33,7 +35,7 @@ BEGIN
     INSERT INTO games (theme_id, state, next_state_change_at)
     VALUES (
       p_theme_id, 
-      p_state, 
+      p_lobby_state, 
       now() + p_next_state_change_in
     )
     RETURNING id INTO v_game_id;
