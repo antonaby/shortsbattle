@@ -11,7 +11,7 @@ const gameStore = useGameStore()
 async function joinAndOpenGame(id: number) {
   let game = await gameStore.joinGame(id)
   if (game) {
-    router.push({ name: "game", params: { id: game?.id } });
+    router.push({ name: "game", params: { id: game?.game_id } });
   }
 }
 

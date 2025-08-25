@@ -4,24 +4,21 @@ import { useWSStore } from "../stores/wsStore";
 import { useRoute } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
 
-import CreatedView from "../components/game/CreatedView.vue";
 import LobbyView from "../components/game/LobbyView.vue";
-import type { GameStatus } from "../models/common";
+import type { GameState } from "../models/common";
 import HeaderView from "../components/game/HeaderView.vue";
 import SubmittingView from "../components/game/SubmittingView.vue";
 
 const { useView, viewName } = defineProps<{
   useView: boolean,
-  viewName: GameStatus
+  viewName: GameState
 }>();
 
-const componentMap: Record<GameStatus, Component> = {
-  created: CreatedView,
+const componentMap: Record<GameState, Component> = {
   lobby: LobbyView,
   submitting: SubmittingView,
-  voting: CreatedView,
-  winner: CreatedView,
-  complete: CreatedView
+  wathching: LobbyView,
+  complete: LobbyView
 }
 
 const route = useRoute();
@@ -34,10 +31,10 @@ const currentComponent = computed(() => {
   }
 
   if (!gameStore.gameInstance) {
-    return componentMap['created'];
+    return componentMap['lobby'];
   }
 
-  return componentMap[gameStore.gameInstance.status];
+  return componentMap[gameStore.gameInstance.state];
 })
 
 onMounted(() => {
@@ -53,7 +50,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="gameStore.gameInstance && wsStore.subscribed" class="flex flex-col justify-start min-h-screen">
-    <HeaderView v-if="gameStore.gameInstance.status != 'voting'" />
+    <HeaderView v-if="gameStore.gameInstance.state != 'wathching'" />
     <div class="flex-1">
       <component :is="currentComponent" />
     </div>

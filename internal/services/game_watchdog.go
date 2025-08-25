@@ -225,16 +225,8 @@ func (gsl *GameStateListener) handleMessage(ctx context.Context, gameId int64) e
 		return err
 	}
 
-	err = gsl.updatePublisher.PublishGameUpdate(CfChannelName(gameId), models.GameUpdate{
-		ID: game.ID,
-		ThemeID: game.ThemeID,
-		State: game.State,
-		CreatedAt: game.CreatedAt,
-		StateChangedAt: game.StateChangedAt,
-		NextStateChangeAt: game.NextStateChangeAt,
-	})
-
-	return nil
+	upd := GameToGameUpdate(*game)
+	return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), upd)
 }
 
 func parseGameId(msg redis.XMessage) (int64, error) {

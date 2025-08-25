@@ -98,6 +98,32 @@ func (q *Queries) GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) 
 	return i, err
 }
 
+const getGameForPlayer = `-- name: GetGameForPlayer :one
+SELECT g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at FROM games g
+JOIN game_players gp ON gp.game_id = g.id
+WHERE g.id = $1 AND gp.player_id = $2
+`
+
+type GetGameForPlayerParams struct {
+	ID       int64 `json:"id"`
+	PlayerID int64 `json:"player_id"`
+}
+
+func (q *Queries) GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (Game, error) {
+	row := q.db.QueryRow(ctx, getGameForPlayer, arg.ID, arg.PlayerID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
 const joinGameForTheme = `-- name: JoinGameForTheme :one
 SELECT join_game_for_theme($1, $2, $3, $4, $5, $6) AS game_id
 `

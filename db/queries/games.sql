@@ -22,6 +22,11 @@ WITH candidates AS (
   )
   SELECT * FROM upd;
 
+-- name: GetGameForPlayer :one
+SELECT g.* FROM games g
+JOIN game_players gp ON gp.game_id = g.id
+WHERE g.id = $1 AND gp.player_id = $2;
+
 -- name: GetGameAndLock :one
 SELECT * from games WHERE id = $1 FOR UPDATE;
 

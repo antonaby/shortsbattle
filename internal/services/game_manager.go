@@ -7,6 +7,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -52,6 +53,24 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 
 		return gameId, nil
 	})
+}
+
+func (gm *GameManager) GetGameUpdateForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
+		q := gm.txm.Querier(tx)
+		game, err := q.GetGameForPlayer(ctx, qg.GetGameForPlayerParams{ID: gameId, PlayerID: playerId})
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to fetch game",
+				Cause:   err,
+			}
+		}
+
+		upd := GameToGameUpdate(game)
+		return &upd, nil
+	})
+
 }
 
 func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game, error) {

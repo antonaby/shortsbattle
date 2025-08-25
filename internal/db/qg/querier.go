@@ -15,6 +15,7 @@ type Querier interface {
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVideoRequest(ctx context.Context, arg CreateVideoRequestParams) (VideoRequest, error)
 	GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error)
+	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (Game, error)
 	GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams) (Player, error)
 	GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error)
 	GetVideo(ctx context.Context, arg GetVideoParams) (Video, error)

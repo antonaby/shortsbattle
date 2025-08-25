@@ -3,30 +3,31 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/centrifugal/centrifuge"
+
+	"github.com/rs/zerolog/log"
 )
 
-type JoinGameRequest struct {
-	UserID int `json:"user_id"`
-	GameID int `json:"game_id"`
-}
-
 type CentrifugeServer struct {
-	Node *centrifuge.Node
+	node    *centrifuge.Node
+	manager *services.GameManager
 }
 
-func NewCentrifugeServer() (*CentrifugeServer, error) {
+func NewCentrifugeServer(manager *services.GameManager) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		return nil, err
 	}
 
 	r := &CentrifugeServer{
-		Node: node,
+		node:    node,
+		manager: manager,
 	}
 
 	node.OnConnecting(r.handleConnecting)
@@ -36,7 +37,7 @@ func NewCentrifugeServer() (*CentrifugeServer, error) {
 }
 
 func (r CentrifugeServer) Handler() http.Handler {
-	wsHandler := centrifuge.NewWebsocketHandler(r.Node, centrifuge.WebsocketConfig{
+	wsHandler := centrifuge.NewWebsocketHandler(r.node, centrifuge.WebsocketConfig{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
@@ -45,25 +46,25 @@ func (r CentrifugeServer) Handler() http.Handler {
 	return wsHandler
 }
 
-func (r *CentrifugeServer) Run() error {
-	if err := r.Node.Run(); err != nil {
+func (cf *CentrifugeServer) Run() error {
+	if err := cf.node.Run(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
+func (cf *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
 	jsonBytes, err := json.Marshal(upd)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.Node.Publish(channel, jsonBytes)
+	_, err = cf.node.Publish(channel, jsonBytes)
 	return err
 }
 
-func (r *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
 	return centrifuge.ConnectReply{
 		ClientSideRefresh: true,
 		Credentials: &centrifuge.Credentials{
@@ -72,13 +73,41 @@ func (r *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.Co
 	}, nil
 }
 
-func (r *CentrifugeServer) handleConnection(client *centrifuge.Client) {
+func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-		cb(centrifuge.SubscribeReply{}, nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		defer cancel()
+		
+		gameId, err := services.ParseCfChannelName(e.Channel)
+		if err != nil {
+			log.Error().Err(err).Msgf("can't parse channel name: %s", e.Channel)
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			return
+		}
+
+		upd, err := cf.manager.GetGameUpdateForPlayer(ctx, gameId, 1)
+		if err != nil {
+			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			return
+		}
+
+		updBytes, err := json.Marshal(upd)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to convert game update to bytes: %s", e.Channel)
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			return
+		}
+
+		cb(centrifuge.SubscribeReply{
+			Options: centrifuge.SubscribeOptions{
+				Data: updBytes,
+			},
+		}, nil)
 	})
 
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
-		
+
 	})
 
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {

@@ -102,22 +102,22 @@ func main() {
 		WatchingState:     30 * time.Second,
 	}
 
-	ts := services.NewThemeService(dbManager)
-	vs := services.NewVideosService(dbManager)
-	ps := services.NewPlayersService(dbManager, redisClient)
-	gm := services.NewGameManager(dbManager, gameConfig)
+	themeService := services.NewThemeService(dbManager)
+	videoService := services.NewVideosService(dbManager)
+	playerService := services.NewPlayersService(dbManager, redisClient)
+	gameManager := services.NewGameManager(dbManager, gameConfig)
 
-	cf, err := ws.NewCentrifugeServer()
+	centrifugeServer, err := ws.NewCentrifugeServer(gameManager)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't create Centriguge server")
 	}
 
-	err = cf.Run()
+	err = centrifugeServer.Run()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't run Centriguge server")
 	}
 
-	botManager, err := bot.NewTgBotManager(ps, vs)
+	botManager, err := bot.NewTgBotManager(playerService, videoService)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
@@ -130,15 +130,15 @@ func main() {
 	}
 
 	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
-	gameStateListener := services.NewGameStateListener(redisClient, gm, cf, gameStream, gameConsumerGroup, "1", 10, 5*time.Second, 20*time.Second, 1000)
+	gameStateListener := services.NewGameStateListener(redisClient, gameManager, centrifugeServer, gameStream, gameConsumerGroup, "1", 10, 5*time.Second, 20*time.Second, 1000)
 
 	e := configureEcho()
 
-	e.GET("/api/v1/games/updates", echo.WrapHandler(cf.Handler()))
+	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 	apiGroup := e.Group("/api")
-	_ = api.NewThemesApi(ts, apiGroup)
-	_ = api.NewVideosApi(vs, apiGroup)
-	_ = api.NewGamesApi(gm, apiGroup)
+	_ = api.NewThemesApi(themeService, apiGroup)
+	_ = api.NewVideosApi(videoService, apiGroup)
+	_ = api.NewGamesApi(gameManager, apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

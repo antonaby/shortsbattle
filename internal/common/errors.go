@@ -15,6 +15,7 @@ const (
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
 	ErrorRedisStream
+	ErrorParse
 )
 
 type ServiceError struct {
