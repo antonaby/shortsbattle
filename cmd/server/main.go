@@ -130,7 +130,7 @@ func main() {
 	}
 
 	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
-	gameStateListener := services.NewGameStateListener(redisClient, "worker-1", gameStream, gameConsumerGroup)
+	gameStateListener := services.NewGameStateListener(redisClient, gameStream, gameConsumerGroup)
 
 	e := configureEcho()
 
