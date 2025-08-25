@@ -8,6 +8,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type GameManager struct {
@@ -54,8 +55,8 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, error) {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.UpdateGameStatusRow, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.UpdateGameStatusRow, error) {
 		q := gm.txm.Querier(tx)
 		game, err := q.GetGameAndLock(ctx, qg.GetGameAndLockParams{ID: gameId})
 		if err != nil {
@@ -82,8 +83,8 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game,
 	})
 }
 
-func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	newGame, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.UpdateGameStatusRow, error) {
+	upd, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
 		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
@@ -96,11 +97,11 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Quer
 		}
 	}
 
-	return &newGame, nil
+	return &upd, nil
 }
 
-func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	newGame, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.UpdateGameStatusRow, error) {
+	upd, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateWathching,
 		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
@@ -113,11 +114,11 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg
 		}
 	}
 
-	return &newGame, nil
+	return &upd, nil
 }
 
-func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	newGame, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
+func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.UpdateGameStatusRow, error) {
+	upd, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
 		ID:    game.ID,
 		State: qg.GameStateCompleted,
 	})
@@ -129,5 +130,14 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.
 		}
 	}
 
-	return &newGame, nil
+	return &qg.UpdateGameStatusRow{
+		ID:             upd.ID,
+		ThemeID:        upd.ThemeID,
+		State:          upd.State,
+		CreatedAt:      upd.CreatedAt,
+		StateChangedAt: upd.StateChangedAt,
+		NextStateChangeAt: pgtype.Timestamptz{Valid: false},
+		EnqueuedAt: pgtype.Timestamptz{Valid: false},
+		MsUntilNextState: 0,
+	}, nil
 }

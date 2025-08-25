@@ -24,7 +24,7 @@ type Querier interface {
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
-	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error)
+	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

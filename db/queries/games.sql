@@ -30,7 +30,12 @@ UPDATE games SET
   state = sqlc.arg(state), 
   next_state_change_at = now() + (sqlc.arg(next_state_in)::interval) 
 WHERE id = sqlc.arg(id) 
-RETURNING *;
+RETURNING 
+  *,
+  GREATEST(
+    FLOOR(EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000),
+    0
+  )::bigint AS ms_until_next_state;
 
 -- name: SetCompletedStatus :one
 UPDATE games SET 
