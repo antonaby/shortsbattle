@@ -122,7 +122,15 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
-	gamesWatchdog := services.NewGamesWatchdog(dbManager, redisClient, 1*time.Second, 100)
+	gameStream := "games"
+	gameConsumerGroup := "games-workers"
+	err = db.EnsureStreamGroup(redisClient, gameStream, gameConsumerGroup)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't create Redis Stream")
+	}
+
+	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
+	gameStateListener := services.NewGameStateListener(redisClient, "worker-1", gameStream, gameConsumerGroup)
 
 	e := configureEcho()
 
@@ -135,7 +143,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	go gamesWatchdog.Run(ctx)
+	go gameStateListener.Listen(ctx)
+	go gameWatchdog.Run(ctx)
 	go botManager.Start(ctx)
 
 	go func() {
