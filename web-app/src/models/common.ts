@@ -24,28 +24,3 @@ export interface GameJoined {
   game_id: number;
   message: string
 }
-
-export interface Player {
-  id: number;
-  username: string;
-  created_at: string;
-}
-
-export interface Video {
-  id: number;
-  game_id: number;
-  player_id: number;
-  video_url: string;
-  is_actual: boolean;
-  submitted_at: string;
-}
-
-export interface Vote {
-  id: number;
-  game_id: number;
-  video_id: number;
-  voter_id: number;
-  value: string;
-  is_actual: boolean;
-  voted_at: string;
-}

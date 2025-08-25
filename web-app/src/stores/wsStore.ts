@@ -32,6 +32,9 @@ export const useWSStore = defineStore("centrifuge", {
       cf.on("disconnected", () => {
         this.connected = false;
       });
+      cf.on("error", (ctx) => {
+        console.log(ctx)
+      })
       cf.connect();
 
       this.client = cf;
@@ -66,10 +69,9 @@ export const useWSStore = defineStore("centrifuge", {
         const gameStore = useGameStore();
         gameStore.setGameInstance(upd);
       });
-      sub.on("unsubscribed", () => {
+      sub.on("unsubscribed", (ctx) => {
         this.subscribed = false;
       });
-
       sub.on("publication", (ctx) => {
         const gameStore = useGameStore();
         let data = ctx.data as GameUpdate;

@@ -3,10 +3,12 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"net/http"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/centrifugal/centrifuge"
@@ -75,9 +77,9 @@ func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.C
 
 func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		
+
 		gameId, err := services.ParseCfChannelName(e.Channel)
 		if err != nil {
 			log.Error().Err(err).Msgf("can't parse channel name: %s", e.Channel)
@@ -88,14 +90,23 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		upd, err := cf.manager.GetGameUpdateForPlayer(ctx, gameId, 1)
 		if err != nil {
 			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+
+			var gErr common.ServiceError
+			if errors.As(err, &gErr) {
+				if gErr.Code == common.ErrorDbNotFound {
+					cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
+					return
+				}
+			}
+
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
 
 		updBytes, err := json.Marshal(upd)
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to convert game update to bytes: %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
 
