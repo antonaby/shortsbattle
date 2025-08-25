@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import axios from "axios";
-import type { GameJoined, GameInstance, GameUpdate } from "../models/common";
+import type { GameJoined, GameUpdate } from "../models/common";
 
 interface GameStoreState {
-  gameInstance: GameInstance | null;
+  lastGameUpdate: GameUpdate | null;
   remainingTimeMs: number;
   intervalId: number | null;
 }
@@ -20,7 +20,7 @@ function diffInMilliseconds(
 
 export const useGameStore = defineStore("game", {
   state: (): GameStoreState => ({
-    gameInstance: null,
+    lastGameUpdate: null,
     remainingTimeMs: 0,
     intervalId: null,
   }),
@@ -58,9 +58,12 @@ export const useGameStore = defineStore("game", {
         return null;
       }
     },
-    setGameInstance(gi: GameInstance) {
-      this.gameInstance = gi;
-      this.remainingTimeMs = diffInMilliseconds(gi.state_changed_at, gi.next_state_change_at);
+    setGameInstance(upd: GameUpdate) {
+      this.lastGameUpdate = upd;
+      this.remainingTimeMs = diffInMilliseconds(
+        upd.state_changed_at,
+        upd.next_state_change_at
+      );
 
       if (this.intervalId) {
         clearInterval(this.intervalId);
@@ -70,12 +73,15 @@ export const useGameStore = defineStore("game", {
         this.remainingTimeMs -= 1000;
       }, 1000);
     },
-    updateGameStatus(data: GameUpdate) {
-      if (this.gameInstance) {
-        if (this.gameInstance.state !== data.status) {
-          this.remainingTimeMs = data.stage_time_remaining;
+    updateGameStatus(upd: GameUpdate) {
+      if (this.lastGameUpdate) {
+        if (this.lastGameUpdate.state !== upd.state) {
+          this.remainingTimeMs = diffInMilliseconds(
+            upd.state_changed_at,
+            upd.next_state_change_at
+          );
         }
-        this.gameInstance.state = data.status;
+        this.lastGameUpdate = upd;
       }
     },
     submitVideo(url: string) {
@@ -86,7 +92,7 @@ export const useGameStore = defineStore("game", {
         clearInterval(this.intervalId);
         this.intervalId = null;
       }
-      this.gameInstance = null;
+      this.lastGameUpdate = null;
     },
   },
 });

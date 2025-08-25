@@ -18,7 +18,7 @@ const componentMap: Record<GameState, Component> = {
   lobby: LobbyView,
   submitting: SubmittingView,
   wathching: LobbyView,
-  complete: LobbyView
+  completed: LobbyView
 }
 
 const route = useRoute();
@@ -30,11 +30,11 @@ const currentComponent = computed(() => {
     return componentMap[viewName];
   }
 
-  if (!gameStore.gameInstance) {
+  if (!gameStore.lastGameUpdate) {
     return componentMap['lobby'];
   }
 
-  return componentMap[gameStore.gameInstance.state];
+  return componentMap[gameStore.lastGameUpdate.state];
 })
 
 onMounted(() => {
@@ -49,8 +49,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="gameStore.gameInstance && wsStore.subscribed" class="flex flex-col justify-start min-h-screen">
-    <HeaderView v-if="gameStore.gameInstance.state != 'wathching'" />
+  <div v-if="gameStore.lastGameUpdate && wsStore.subscribed" class="flex flex-col justify-start min-h-screen">
+    <HeaderView v-if="gameStore.lastGameUpdate.state != 'wathching'" />
     <div class="flex-1">
       <component :is="currentComponent" />
     </div>

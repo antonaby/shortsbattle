@@ -2,12 +2,15 @@ export type GameState =
   | "lobby"
   | "submitting"
   | "wathching"
-  | "complete";
+  | "completed";
 
 export interface GameUpdate {
   id: number;
-  status: GameState;
-  stage_time_remaining: number;
+  theme_id: number;
+  state: GameState;
+  created_at: string;
+  state_changed_at: string;
+  next_state_change_at: string;
 }
 
 export interface GameTheme {
@@ -45,13 +48,4 @@ export interface Vote {
   value: string;
   is_actual: boolean;
   voted_at: string;
-}
-
-export interface GameInstance {
-  id: number;
-  theme_id: number;
-  state: GameState;
-  created_at: string;
-  state_changed_at: string;
-  next_state_change_at: string;
 }
