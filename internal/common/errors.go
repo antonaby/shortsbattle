@@ -13,6 +13,7 @@ const (
 	ErrorDbNotFound
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
+	ErrorRedisStream
 )
 
 type ServiceError struct {

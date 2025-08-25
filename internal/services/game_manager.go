@@ -52,3 +52,8 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 		return gameId, nil
 	})
 }
+
+// TODO: handle game state
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) error {
+	return nil
+}
