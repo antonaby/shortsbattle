@@ -158,12 +158,7 @@ UPDATE games SET
   state = $1, 
   next_state_change_at = now() + ($2::interval) 
 WHERE id = $3 
-RETURNING 
-  id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at,
-  GREATEST(
-    FLOOR(EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000),
-    0
-  )::bigint AS ms_until_next_state
+RETURNING id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at
 `
 
 type UpdateGameStatusParams struct {
@@ -172,20 +167,9 @@ type UpdateGameStatusParams struct {
 	ID          int64           `json:"id"`
 }
 
-type UpdateGameStatusRow struct {
-	ID                int64              `json:"id"`
-	ThemeID           int64              `json:"theme_id"`
-	State             GameState          `json:"state"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
-	MsUntilNextState  int64              `json:"ms_until_next_state"`
-}
-
-func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error) {
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error) {
 	row := q.db.QueryRow(ctx, updateGameStatus, arg.State, arg.NextStateIn, arg.ID)
-	var i UpdateGameStatusRow
+	var i Game
 	err := row.Scan(
 		&i.ID,
 		&i.ThemeID,
@@ -194,7 +178,6 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
 		&i.EnqueuedAt,
-		&i.MsUntilNextState,
 	)
 	return i, err
 }

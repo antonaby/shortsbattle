@@ -1,6 +1,9 @@
 package services
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type GameConfig struct {
 	MaxPlayers        int32
@@ -8,4 +11,8 @@ type GameConfig struct {
 	LobbyClosedBefore time.Duration
 	SubmittingState   time.Duration
 	WatchingState     time.Duration
+}
+
+func CfChannelName(gameId int64) string {
+	return fmt.Sprintf("game_%d", gameId)
 }

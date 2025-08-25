@@ -5,12 +5,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type GameState string
-
-const (
-	StateLobby GameState = "lobby"
-)
-
 type ThemeExt struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`
@@ -19,7 +13,11 @@ type ThemeExt struct {
 	Requests    []qg.VideoRequest  `json:"requests"`
 }
 
-type GemeDetails struct {
-	ThemeID int64
-	Status  string
+type GameUpdate struct {
+	ID                int64              `json:"id"`
+	ThemeID           int64              `json:"theme_id"`
+	State             qg.GameState       `json:"state"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 }

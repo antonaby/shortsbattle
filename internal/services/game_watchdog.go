@@ -13,14 +13,19 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
+type GameUpdatePublisher interface {
+	PublishGameUpdate(channel string, upd models.GameUpdate) error
+}
+
 type GameWatchdog struct {
 	txm           db.TxManager
-	rc            *redis.Client
+	redis         *redis.Client
 	interval      time.Duration
 	limit         int32
 	streamName    string
@@ -28,12 +33,12 @@ type GameWatchdog struct {
 }
 
 func NewGameWatchdog(
-	txm db.TxManager, rc *redis.Client,
+	txm db.TxManager, redis *redis.Client,
 	interval time.Duration, limit int32,
 	streamName string, streamMaxLean int64) *GameWatchdog {
 	return &GameWatchdog{
 		txm:           txm,
-		rc:            rc,
+		redis:         redis,
 		interval:      interval,
 		limit:         limit,
 		streamName:    streamName,
@@ -65,7 +70,7 @@ func (wd *GameWatchdog) checkPendingGames() {
 		}
 
 		if len(games) > 0 {
-			_, err = wd.rc.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			_, err = wd.redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 				for _, game := range games {
 					pipe.XAdd(ctx, &redis.XAddArgs{
 						Stream: wd.streamName,
@@ -92,8 +97,9 @@ func (wd *GameWatchdog) checkPendingGames() {
 }
 
 type GameStateListener struct {
-	rc                *redis.Client
-	gm                *GameManager
+	redis             *redis.Client
+	manager           *GameManager
+	updatePublisher   GameUpdatePublisher
 	streamName        string
 	consumerGroupName string
 	count             int64
@@ -104,13 +110,14 @@ type GameStateListener struct {
 }
 
 func NewGameStateListener(
-	rc *redis.Client, gm *GameManager,
+	redis *redis.Client, manager *GameManager, updatePublisher GameUpdatePublisher,
 	streamName, consumerGroupName, consumerId string,
-	count int64, block time.Duration, idleDLQ time.Duration,
+	count int64, block, idleDLQ time.Duration,
 	streamMaxLean int64) *GameStateListener {
 	return &GameStateListener{
-		rc:                rc,
-		gm:                gm,
+		redis:             redis,
+		manager:           manager,
+		updatePublisher:   updatePublisher,
 		streamName:        streamName,
 		consumerGroupName: consumerGroupName,
 		count:             count,
@@ -128,7 +135,7 @@ LOOP:
 		case <-ctx.Done():
 			break LOOP
 		default:
-			res, err := gsl.rc.XReadGroup(ctx, &redis.XReadGroupArgs{
+			res, err := gsl.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
 				Group:    gsl.consumerGroupName,
 				Consumer: gsl.consumerName,
 				Streams:  []string{gsl.streamName, ">"},
@@ -159,7 +166,7 @@ LOOP:
 						continue
 					}
 
-					if err := gsl.rc.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err(); err != nil {
+					if err := gsl.redis.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err(); err != nil {
 						log.Error().Err(err).Msgf("ack failed %s:%s", gsl.streamName, msg.ID)
 					}
 				}
@@ -169,7 +176,7 @@ LOOP:
 
 	delCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
-	err := gsl.rc.XGroupDelConsumer(delCtx, gsl.streamName, gsl.consumerGroupName, gsl.consumerName).Err()
+	err := gsl.redis.XGroupDelConsumer(delCtx, gsl.streamName, gsl.consumerGroupName, gsl.consumerName).Err()
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to delete consumer %s:%s", gsl.streamName, gsl.consumerName)
 	}
@@ -177,7 +184,7 @@ LOOP:
 
 func (gsl *GameStateListener) ReclaimPending(ctx context.Context) error {
 	for {
-		msgs, _, err := gsl.rc.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+		msgs, _, err := gsl.redis.XAutoClaim(ctx, &redis.XAutoClaimArgs{
 			Stream:   gsl.streamName,
 			Group:    gsl.consumerGroupName,
 			Consumer: gsl.consumerName,
@@ -199,15 +206,35 @@ func (gsl *GameStateListener) ReclaimPending(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
-			_ = gsl.handleMessage(ctx, gameId)
-			_ = gsl.rc.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err()
+			err = gsl.handleMessage(ctx, gameId)
+			if err != nil {
+				log.Error().Err(err).Msgf("reclaim handler failed for %s:%s", gsl.streamName, msg.ID)
+			}
+
+			err = gsl.redis.XAck(ctx, gsl.streamName, gsl.consumerGroupName, msg.ID).Err()
+			if err != nil {
+				log.Error().Err(err).Msgf("reclaim ack failed %s:%s", gsl.streamName, msg.ID)
+			}
 		}
 	}
 }
 
 func (gsl *GameStateListener) handleMessage(ctx context.Context, gameId int64) error {
-	_, err := gsl.gm.AdvanceGame(ctx, gameId)
-	return err
+	game, err := gsl.manager.AdvanceGame(ctx, gameId)
+	if err != nil {
+		return err
+	}
+
+	err = gsl.updatePublisher.PublishGameUpdate(CfChannelName(gameId), models.GameUpdate{
+		ID: game.ID,
+		ThemeID: game.ThemeID,
+		State: game.State,
+		CreatedAt: game.CreatedAt,
+		StateChangedAt: game.StateChangedAt,
+		NextStateChangeAt: game.NextStateChangeAt,
+	})
+
+	return nil
 }
 
 func parseGameId(msg redis.XMessage) (int64, error) {
