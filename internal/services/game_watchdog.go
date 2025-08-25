@@ -92,6 +92,7 @@ func (wd *GameWatchdog) checkPendingGames() {
 }
 
 // TODO: add better error handler
+// TODO: test that consumer gets deleted
 type GameStateListener struct {
 	rc                *redis.Client
 	gm                *GameManager
@@ -104,7 +105,7 @@ type GameStateListener struct {
 
 func NewGameStateListener(
 	rc *redis.Client, gm *GameManager,
-	streamName, consumerGroupName string,
+	streamName, consumerGroupName, consumerId string,
 	count int64, block time.Duration) *GameStateListener {
 	return &GameStateListener{
 		rc:                rc,
@@ -113,7 +114,7 @@ func NewGameStateListener(
 		consumerGroupName: consumerGroupName,
 		count:             count,
 		block:             block,
-		consumerName:      newConsumerName("worker", "1"),
+		consumerName:      newConsumerName("worker", consumerId),
 	}
 }
 

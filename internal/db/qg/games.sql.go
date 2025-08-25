@@ -108,3 +108,23 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 	err := row.Scan(&game_id)
 	return game_id, err
 }
+
+const updateGameStatus = `-- name: UpdateGameStatus :exec
+UPDATE games
+SET 
+    state = $1,        
+    processed = $2,     
+    processed_at = NOW()
+WHERE id = $3
+`
+
+type UpdateGameStatusParams struct {
+	State     GameState   `json:"state"`
+	Processed pgtype.Bool `json:"processed"`
+	ID        int64       `json:"id"`
+}
+
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error {
+	_, err := q.db.Exec(ctx, updateGameStatus, arg.State, arg.Processed, arg.ID)
+	return err
+}

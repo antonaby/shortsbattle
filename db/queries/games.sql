@@ -22,3 +22,11 @@ WITH candidates AS (
     RETURNING g.*
   )
   SELECT * FROM upd;
+
+-- name: UpdateGameStatus :exec
+UPDATE games
+SET 
+    state = $1,        
+    processed = $2,     
+    processed_at = NOW()
+WHERE id = $3;

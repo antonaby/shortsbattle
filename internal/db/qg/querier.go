@@ -22,6 +22,7 @@ type Querier interface {
 	JoinGameForTheme(ctx context.Context, arg JoinGameForThemeParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
+	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error
 }
 
 var _ Querier = (*Queries)(nil)

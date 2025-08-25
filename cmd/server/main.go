@@ -130,7 +130,7 @@ func main() {
 	}
 
 	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
-	gameStateListener := services.NewGameStateListener(redisClient, gm, gameStream, gameConsumerGroup, 10, 5*time.Second)
+	gameStateListener := services.NewGameStateListener(redisClient, gm, gameStream, gameConsumerGroup, "1", 10, 5*time.Second)
 
 	e := configureEcho()
 
@@ -143,7 +143,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	gameStateListener.ReclaimPending(ctx)
+	err = gameStateListener.ReclaimPending(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't reclaim pending messages")
+	}
 
 	go gameStateListener.Listen(ctx)
 	go gameWatchdog.Run(ctx)
