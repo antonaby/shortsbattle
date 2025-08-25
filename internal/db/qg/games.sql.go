@@ -75,6 +75,29 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 	return items, nil
 }
 
+const getGameAndLock = `-- name: GetGameAndLock :one
+SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at from games WHERE id = $1 FOR UPDATE
+`
+
+type GetGameAndLockParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error) {
+	row := q.db.QueryRow(ctx, getGameAndLock, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
 const joinGameForTheme = `-- name: JoinGameForTheme :one
 SELECT join_game_for_theme($1, $2, $3, $4, $5, $6) AS game_id
 `
@@ -102,16 +125,59 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 	return game_id, err
 }
 
-const updateGameStatus = `-- name: UpdateGameStatus :exec
-UPDATE games SET state = $1 WHERE id = $2
+const setCompletedStatus = `-- name: SetCompletedStatus :one
+UPDATE games SET 
+  state = $1,
+  next_state_change_at = NULL
+WHERE id = $2 
+RETURNING id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at
 `
 
-type UpdateGameStatusParams struct {
+type SetCompletedStatusParams struct {
 	State GameState `json:"state"`
 	ID    int64     `json:"id"`
 }
 
-func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) error {
-	_, err := q.db.Exec(ctx, updateGameStatus, arg.State, arg.ID)
-	return err
+func (q *Queries) SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error) {
+	row := q.db.QueryRow(ctx, setCompletedStatus, arg.State, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
+const updateGameStatus = `-- name: UpdateGameStatus :one
+UPDATE games SET 
+  state = $1, 
+  next_state_change_at = now() + ($2::interval) 
+WHERE id = $3 
+RETURNING id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at
+`
+
+type UpdateGameStatusParams struct {
+	State       GameState       `json:"state"`
+	NextStateIn pgtype.Interval `json:"next_state_in"`
+	ID          int64           `json:"id"`
+}
+
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error) {
+	row := q.db.QueryRow(ctx, updateGameStatus, arg.State, arg.NextStateIn, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
 }

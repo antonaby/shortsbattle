@@ -11,6 +11,7 @@ type ErrorCode int
 const (
 	ErrorDbUnknown = iota
 	ErrorDbNotFound
+	ErrorWrongGameState
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
 	ErrorRedisStream

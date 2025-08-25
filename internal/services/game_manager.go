@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
@@ -53,13 +54,80 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-// TODO: handle game state
 func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, error) {
-		// TODO:
-		// 1) Get Game by Id with lock
-		// 2) Update Game state
+		q := gm.txm.Querier(tx)
+		game, err := q.GetGameAndLock(ctx, qg.GetGameAndLockParams{ID: gameId})
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to fetch game",
+				Cause:   err,
+			}
+		}
 
-		return nil, nil
+		switch game.State {
+		case qg.GameStateLobby:
+			return gm.handleLobby(ctx, &game, q)
+		case qg.GameStateSubmitting:
+			return gm.handleSubmitting(ctx, &game, q)
+		case qg.GameStateWathching:
+			return gm.handleWathching(ctx, &game, q)
+		default:
+			return nil, common.ServiceError{
+				Code:    common.ErrorWrongGameState,
+				Message: fmt.Sprintf("wrong game state: %s", game.State),
+			}
+		}
 	})
+}
+
+func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
+	newGame, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+		ID:          game.ID,
+		State:       qg.GameStateSubmitting,
+		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+	})
+
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("wrong game state: %s", game.State),
+		}
+	}
+
+	return &newGame, nil
+}
+
+func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
+	newGame, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+		ID:          game.ID,
+		State:       qg.GameStateWathching,
+		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
+	})
+
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("wrong game state: %s", game.State),
+		}
+	}
+
+	return &newGame, nil
+}
+
+func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
+	newGame, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
+		ID:    game.ID,
+		State: qg.GameStateCompleted,
+	})
+
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("wrong game state: %s", game.State),
+		}
+	}
+
+	return &newGame, nil
 }

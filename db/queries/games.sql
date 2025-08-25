@@ -22,5 +22,19 @@ WITH candidates AS (
   )
   SELECT * FROM upd;
 
--- name: UpdateGameStatus :exec
-UPDATE games SET state = $1 WHERE id = $2;
+-- name: GetGameAndLock :one
+SELECT * from games WHERE id = $1 FOR UPDATE;
+
+-- name: UpdateGameStatus :one
+UPDATE games SET 
+  state = sqlc.arg(state), 
+  next_state_change_at = now() + (sqlc.arg(next_state_in)::interval) 
+WHERE id = sqlc.arg(id) 
+RETURNING *;
+
+-- name: SetCompletedStatus :one
+UPDATE games SET 
+  state = sqlc.arg(state),
+  next_state_change_at = NULL
+WHERE id = sqlc.arg(id) 
+RETURNING *;
