@@ -1,7 +1,7 @@
 export type GameState =
   | "lobby"
   | "submitting"
-  | "wathching"
+  | "watching"
   | "completed";
 
 export interface GameUpdate {

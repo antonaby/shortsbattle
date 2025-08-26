@@ -90,7 +90,7 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game,
 			return gm.handleLobby(ctx, &game, q)
 		case qg.GameStateSubmitting:
 			return gm.handleSubmitting(ctx, &game, q)
-		case qg.GameStateWathching:
+		case qg.GameStateWatching:
 			return gm.handleWathching(ctx, &game, q)
 		default:
 			return nil, common.ServiceError{
@@ -121,7 +121,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Quer
 func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
 	upd, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
-		State:       qg.GameStateWathching,
+		State:       qg.GameStateWatching,
 		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
 	})
 

@@ -17,7 +17,7 @@ const { useView, viewName } = defineProps<{
 const componentMap: Record<GameState, Component> = {
   lobby: LobbyView,
   submitting: SubmittingView,
-  wathching: LobbyView,
+  watching: LobbyView,
   completed: LobbyView
 }
 
@@ -50,7 +50,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="gameStore.lastGameUpdate && wsStore.subscribed" class="flex flex-col justify-start min-h-screen">
-    <HeaderView v-if="gameStore.lastGameUpdate.state != 'wathching'" />
+    <HeaderView v-if="gameStore.lastGameUpdate.state != 'watching'" />
     <div class="flex-1">
       <component :is="currentComponent" />
     </div>

@@ -17,7 +17,7 @@ type GameState string
 const (
 	GameStateLobby      GameState = "lobby"
 	GameStateSubmitting GameState = "submitting"
-	GameStateWathching  GameState = "wathching"
+	GameStateWatching   GameState = "watching"
 	GameStateCompleted  GameState = "completed"
 )
 

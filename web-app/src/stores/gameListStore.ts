@@ -2,12 +2,12 @@ import { defineStore } from "pinia";
 import type { GameTheme } from "../models/common";
 import axios from "axios";
 
-interface GameListStore {
+interface GameListStoreState {
   games: GameTheme[]
 }
 
 export const useGameListStore = defineStore("game-list", {
-  state: (): GameListStore => ({
+  state: (): GameListStoreState => ({
     games: [] 
   }),
   actions: {

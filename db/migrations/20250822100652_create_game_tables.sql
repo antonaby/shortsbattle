@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TYPE game_state AS ENUM ('lobby', 'submitting', 'wathching', 'completed');
+CREATE TYPE game_state AS ENUM ('lobby', 'submitting', 'watching', 'completed');
 
 CREATE TABLE
   games (
