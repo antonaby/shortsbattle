@@ -1,83 +1,77 @@
 import { defineStore } from "pinia";
-import axios from "axios";
-import type { GameJoined, GameUpdate } from "../types/game";
-import { useUserStore } from "./user.store";
+import type { GameUpdate } from "../types/game";
+import { computed, ref } from "vue";
+import { useWSStore } from "./ws.store";
 
-interface GameStoreState {
-  lastGameUpdate: GameUpdate | null;
-  remainingTimeMs: number;
-  intervalId: number | null;
-}
+export const useGameStore = defineStore("game", () => {
+  const wsStore = useWSStore();
 
-function diffInMilliseconds(
-  state_changed_at: string,
-  next_state_change_at: string
-): number {
-  const start = new Date(state_changed_at).getTime();
-  const end = new Date(next_state_change_at).getTime();
+  const lastGameUpdate = ref<GameUpdate | null>(null);
+  const remainingTimeMs = ref<number>(0);
 
-  return end - start;
-}
+  let channelId: string | null = null;
+  let intervalId: number | null = null;
 
-export const useGameStore = defineStore("game", {
-  state: (): GameStoreState => ({
-    lastGameUpdate: null,
-    remainingTimeMs: 0,
-    intervalId: null,
-  }),
-  getters: {
-    theme: () => {
-      return {
-        name: "TDB",
-        description: "TBD",
-      };
-    },
-    formattedTime: (state) => {
-      const totalSeconds = Math.max(
-        0,
-        Math.floor(state.remainingTimeMs / 1000)
-      );
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    },
-  },
-  actions: {
-    initGame(upd: GameUpdate) {
-      this.lastGameUpdate = upd;
-      this.remainingTimeMs = diffInMilliseconds(
-        upd.state_changed_at,
-        upd.next_state_change_at
-      );
+  const formattedTime = computed(() => {
+    const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  });
 
-      if (this.intervalId) {
-        clearInterval(this.intervalId);
-      }
+  function updateRemainingTime(upd: GameUpdate) {
+    const start = new Date(upd.state_changed_at).getTime();
+    const end = new Date(upd.next_state_change_at).getTime();
 
-      this.intervalId = setInterval(() => {
-        this.remainingTimeMs -= 1000;
-      }, 1000);
-    },
-    updateGameStatus(upd: GameUpdate) {
-      if (this.lastGameUpdate) {
-        if (this.lastGameUpdate.state !== upd.state) {
-          this.remainingTimeMs = diffInMilliseconds(
-            upd.state_changed_at,
-            upd.next_state_change_at
-          );
+    remainingTimeMs.value = end - start;
+  }
+
+  function joinGame(gameId: number) {
+    channelId = `game_${gameId}`;
+
+    wsStore.subscribe(channelId, {
+      subscribed: (ctx) => {
+        if (ctx.data) {
+          var upd: GameUpdate = ctx.data;
+
+          lastGameUpdate.value = upd;
+          updateRemainingTime(upd);
+
+          if (intervalId) {
+            clearInterval(intervalId);
+          }
+
+          intervalId = setInterval(() => {
+            remainingTimeMs.value -= 1000;
+          }, 1000);
+        } else {
+          console.log("no subscription data");
         }
-        this.lastGameUpdate = upd;
-      }
-    },
-    submitVideo(url: string) {
-      console.log(url);
-    },
-    leaveGame() {
-      if (this.intervalId) {
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-      }
-      this.lastGameUpdate = null;
-    },
-  },
+      },
+      publication: (ctx) => {
+        var upd: GameUpdate = ctx.data;
+        if (lastGameUpdate.value) {
+          if (lastGameUpdate.value.state !== upd.state) {
+            updateRemainingTime(upd);
+          }
+          lastGameUpdate.value = upd;
+        }
+      },
+    });
+  }
+
+  function leaveGame() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+
+    if (channelId) {
+      wsStore.unsubscribe(channelId);
+    }
+
+    lastGameUpdate.value = null;
+  }
+
+  return { lastGameUpdate, formattedTime, joinGame, leaveGame };
 });

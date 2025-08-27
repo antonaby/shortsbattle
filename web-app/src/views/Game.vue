@@ -22,7 +22,6 @@ const componentMap: Record<GameState, Component> = {
 }
 
 const route = useRoute();
-const wsStore = useWSStore();
 const gameStore = useGameStore();
 
 const currentComponent = computed(() => {
@@ -39,17 +38,16 @@ const currentComponent = computed(() => {
 
 onMounted(() => {
   let id = Number(route.params.id);
-  wsStore.subscribe(id);
+  gameStore.joinGame(id);
 })
 
 onUnmounted(() => {
   gameStore.leaveGame();
-  wsStore.unsubsribe();
 })
 </script>
 
 <template>
-  <div v-if="gameStore.lastGameUpdate && wsStore.subscribed" class="flex flex-col justify-start min-h-screen">
+  <div v-if="gameStore.lastGameUpdate" class="flex flex-col justify-start min-h-screen">
     <HeaderView v-if="gameStore.lastGameUpdate.state != 'watching'" />
     <div class="flex-1">
       <component :is="currentComponent" />

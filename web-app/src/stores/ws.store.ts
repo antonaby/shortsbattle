@@ -1,5 +1,12 @@
 import { defineStore } from "pinia";
-import { Centrifuge, Subscription } from "centrifuge";
+import {
+  Centrifuge,
+  Subscription,
+  type PublicationContext,
+  type SubscribedContext,
+  type SubscriptionErrorContext,
+  type UnsubscribedContext,
+} from "centrifuge";
 import { ref } from "vue";
 import { useUIStore } from "./ui.store";
 
@@ -48,10 +55,10 @@ export const useWSStore = defineStore("ws", () => {
   function subscribe(
     channel: string,
     handlers: {
-      subscribed?: (ctx: any) => void;
-      unsubscribed?: (ctx: any) => void;
-      publication?: (ctx: any) => void;
-      error?: (ctx: any) => void;
+      subscribed?: (ctx: SubscribedContext) => void;
+      unsubscribed?: (ctx: UnsubscribedContext) => void;
+      publication?: (ctx: PublicationContext) => void;
+      error?: (ctx: SubscriptionErrorContext) => void;
     }
   ) {
     if (!client) {
@@ -62,7 +69,10 @@ export const useWSStore = defineStore("ws", () => {
       return subs[channel];
     }
 
-    const sub = client.newSubscription(channel);
+    let sub = client.getSubscription(channel);
+    if (!sub) {
+      sub = client.newSubscription(channel);
+    }
 
     if (handlers.publication) {
       sub.on("publication", handlers.publication);
@@ -83,5 +93,10 @@ export const useWSStore = defineStore("ws", () => {
     return sub;
   }
 
-  return { connected, connect, disconnect, subscribe };
+  function unsubscribe(channel: string) {
+    subs[channel]?.unsubscribe();
+    delete subs[channel];
+  }
+
+  return { connected, connect, disconnect, subscribe, unsubscribe };
 });
