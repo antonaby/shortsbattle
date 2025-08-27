@@ -18,7 +18,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
     }
   }
 
-  async function joinGame(themeId: number): Promise<GameJoined | null> {
+  async function joinGame(themeId: number): Promise<GameJoined> {
     try {
       const response = await axios.put<GameJoined>(
         `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
@@ -29,9 +29,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
       );
       return response.data;
     } catch (error) {
-      // TODO: handle with UI Store
-      console.error("Failed to fetch the game:", error);
-      return null;
+      throw new Error("Failed to join game");
     }
   }
 
