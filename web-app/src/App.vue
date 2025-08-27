@@ -17,7 +17,6 @@ onUnmounted(() => {
 <template>
   <div class="p-3">
     <FullscreenLoaderView v-if="!uiStore.isReady" />
-    <!-- Content -->
     <main v-else>
       <router-view />
     </main>

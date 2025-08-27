@@ -8,6 +8,8 @@ import Game from "./views/Game.vue";
 import LobbyView from "./components/game/LobbyView.vue";
 import SubmitView from "./components/game/SubmitView.vue";
 import OpenView from "./components/game/OpenView.vue";
+import WatchView from "./components/game/WatchView.vue";
+import CompleteView from "./components/game/CompleteView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -23,6 +25,8 @@ const routes: RouteRecordRaw[] = [
       { path: "open", name: "game-open", component: OpenView },
       { path: "lobby", name: "game-lobby", component: LobbyView },
       { path: "submit", name: "game-submit", component: SubmitView },
+      { path: "watch", name: "game-watch", component: WatchView },
+      { path: "complete", name: "game-complete", component: CompleteView },
     ],
   },
 ];

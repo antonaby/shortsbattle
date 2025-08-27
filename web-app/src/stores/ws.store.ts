@@ -60,7 +60,7 @@ export const useWSStore = defineStore("ws", () => {
       publication?: (ctx: PublicationContext) => void;
       error?: (ctx: SubscriptionErrorContext) => void;
     }
-  ) {
+  ): Subscription {
     if (!client) {
       throw new Error("Socket not connected");
     }
@@ -77,6 +77,8 @@ export const useWSStore = defineStore("ws", () => {
     if (handlers.publication) {
       sub.on("publication", handlers.publication);
     }
+
+    // TODO: check why subscribed is not called after fast unsubscribing -> subscribing
     if (handlers.subscribed) {
       sub.on("subscribed", handlers.subscribed);
     }

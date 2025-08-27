@@ -39,13 +39,19 @@ export const useGameStore = defineStore("game", () => {
       case "submitting":
         router.push({ name: "game-submit", params: { id: gameId.value } });
         break;
+      case "watching":
+        router.push({ name: "game-watch", params: { id: gameId.value } });
+        break;
+      case "completed":
+        router.push({ name: "game-complete", params: { id: gameId.value } });
+        break;
     }
   }
 
   function joinGame(openGameId: number) {
     gameId.value = openGameId;
 
-    wsStore.subscribe(`game_${gameId.value}`, {
+    let sub = wsStore.subscribe(`game_${gameId.value}`, {
       subscribed: (ctx) => {
         if (ctx.data) {
           var upd: GameUpdate = ctx.data;
@@ -103,5 +109,12 @@ export const useGameStore = defineStore("game", () => {
     console.log(url);
   }
 
-  return { gameId, lastGameUpdate, formattedTime, joinGame, leaveGame, submitVideo };
+  return {
+    gameId,
+    lastGameUpdate,
+    formattedTime,
+    joinGame,
+    leaveGame,
+    submitVideo,
+  };
 });
