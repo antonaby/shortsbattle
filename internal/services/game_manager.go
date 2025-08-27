@@ -55,6 +55,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
+// TODO: add remainig time
 func (gm *GameManager) GetGameUpdateForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
 		q := gm.txm.Querier(tx)

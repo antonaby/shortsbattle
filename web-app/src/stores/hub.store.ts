@@ -29,7 +29,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
         `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
         {
           theme_id: themeId,
-          player_id: 1,
+          player_id: 1, // TODO: use user store
         }
       );
       const game = response.data;

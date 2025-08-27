@@ -12,8 +12,12 @@ export const useUIStore = defineStore("ui", () => {
   }
 
   function openGame(gameId: number) {
-    router.push({ name: "game", params: { id: gameId } });
+    router.push({ name: "game-open", params: { id: gameId } });
   }
 
-  return { isReady, setWsConnected, openGame };
+  function returnToHub() {
+    router.replace({ name: "hub" });
+  }
+
+  return { isReady, setWsConnected, openGame, returnToHub };
 });

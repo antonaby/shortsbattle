@@ -2,14 +2,18 @@ import { defineStore } from "pinia";
 import type { GameUpdate } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
+import { useRouter } from "vue-router";
+import { useUIStore } from "./ui.store";
 
 export const useGameStore = defineStore("game", () => {
   const wsStore = useWSStore();
+  const uiStore = useUIStore();
+  const router = useRouter();
 
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
+  const gameId = ref<number | null>(null);
 
-  let channelId: string | null = null;
   let intervalId: number | null = null;
 
   const formattedTime = computed(() => {
@@ -19,6 +23,7 @@ export const useGameStore = defineStore("game", () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   });
 
+  // TODO: use ramaining time from backend
   function updateRemainingTime(upd: GameUpdate) {
     const start = new Date(upd.state_changed_at).getTime();
     const end = new Date(upd.next_state_change_at).getTime();
@@ -26,10 +31,21 @@ export const useGameStore = defineStore("game", () => {
     remainingTimeMs.value = end - start;
   }
 
-  function joinGame(gameId: number) {
-    channelId = `game_${gameId}`;
+  function navigateToGameState(upd: GameUpdate) {
+    switch (upd.state) {
+      case "lobby":
+        router.push({ name: "game-lobby", params: { id: gameId.value } });
+        break;
+      case "submitting":
+        router.push({ name: "game-submit", params: { id: gameId.value } });
+        break;
+    }
+  }
 
-    wsStore.subscribe(channelId, {
+  function joinGame(openGameId: number) {
+    gameId.value = openGameId;
+
+    wsStore.subscribe(`game_${gameId.value}`, {
       subscribed: (ctx) => {
         if (ctx.data) {
           var upd: GameUpdate = ctx.data;
@@ -44,6 +60,8 @@ export const useGameStore = defineStore("game", () => {
           intervalId = setInterval(() => {
             remainingTimeMs.value -= 1000;
           }, 1000);
+
+          navigateToGameState(upd);
         } else {
           console.log("no subscription data");
         }
@@ -53,8 +71,15 @@ export const useGameStore = defineStore("game", () => {
         if (lastGameUpdate.value) {
           if (lastGameUpdate.value.state !== upd.state) {
             updateRemainingTime(upd);
+            navigateToGameState(upd);
           }
           lastGameUpdate.value = upd;
+        }
+      },
+      unsubscribed: (ctx) => {
+        if (ctx.reason == "permission denied") {
+          leaveGame();
+          uiStore.returnToHub();
         }
       },
     });
@@ -66,12 +91,13 @@ export const useGameStore = defineStore("game", () => {
       intervalId = null;
     }
 
-    if (channelId) {
-      wsStore.unsubscribe(channelId);
+    if (gameId.value) {
+      wsStore.unsubscribe(`game_${gameId}`);
     }
 
+    gameId.value = null;
     lastGameUpdate.value = null;
   }
 
-  return { lastGameUpdate, formattedTime, joinGame, leaveGame };
+  return { gameId, lastGameUpdate, formattedTime, joinGame, leaveGame };
 });
