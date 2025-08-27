@@ -99,5 +99,9 @@ export const useGameStore = defineStore("game", () => {
     lastGameUpdate.value = null;
   }
 
-  return { gameId, lastGameUpdate, formattedTime, joinGame, leaveGame };
+  function submitVideo(url: string) {
+    console.log(url);
+  }
+
+  return { gameId, lastGameUpdate, formattedTime, joinGame, leaveGame, submitVideo };
 });

@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import { useGameStore } from "../stores/game.store";
-import FullscreenLoaderView from "../components/common/FullscreenLoaderView.vue";
 
 const route = useRoute();
 const gameStore = useGameStore();
@@ -18,10 +17,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="gameStore.lastGameUpdate" class="flex flex-col justify-start min-h-screen">
-    <div class="flex-1">
-      <router-view />
-    </div>
+  <div class="flex flex-col justify-start items-stretch min-h-screen">
+    <router-view />
   </div>
-  <FullscreenLoaderView v-else />
 </template>
