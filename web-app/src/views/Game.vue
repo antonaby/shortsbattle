@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, type Component } from "vue";
-import { useWSStore } from "../stores/wsStore";
+import { useWSStore } from "../stores/ws.store";
 import { useRoute } from "vue-router";
-import { useGameStore } from "../stores/gameStore";
+import { useGameStore } from "../stores/game.store";
 
 import LobbyView from "../components/game/LobbyView.vue";
-import type { GameState } from "../models/common";
+import type { GameState } from "../types/game";
 import HeaderView from "../components/game/HeaderView.vue";
 import SubmittingView from "../components/game/SubmittingView.vue";
 

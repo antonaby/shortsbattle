@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { useGameStore } from '../../stores/gameStore';
+import { useGameStore } from '../../stores/game.store';
 
 const router = useRouter();
 

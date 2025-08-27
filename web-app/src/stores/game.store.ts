@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
-import type { GameJoined, GameUpdate } from "../models/common";
+import type { GameJoined, GameUpdate } from "../types/game";
+import { useUserStore } from "./user.store";
 
 interface GameStoreState {
   lastGameUpdate: GameUpdate | null;
@@ -25,7 +26,7 @@ export const useGameStore = defineStore("game", {
     intervalId: null,
   }),
   getters: {
-    theme: (state) => {
+    theme: () => {
       return {
         name: "TDB",
         description: "TBD",
@@ -42,23 +43,7 @@ export const useGameStore = defineStore("game", {
     },
   },
   actions: {
-    async joinGame(id: number): Promise<GameJoined | null> {
-      try {
-        const response = await axios.put<GameJoined>(
-          `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
-          {
-            theme_id: id,
-            player_id: 1,
-          }
-        );
-        return response.data;
-      } catch (error) {
-        // TODO: show error and get back
-        console.error("Failed to fetch the game:", error);
-        return null;
-      }
-    },
-    setGameInstance(upd: GameUpdate) {
+    initGame(upd: GameUpdate) {
       this.lastGameUpdate = upd;
       this.remainingTimeMs = diffInMilliseconds(
         upd.state_changed_at,

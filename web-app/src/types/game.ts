@@ -13,7 +13,7 @@ export interface GameUpdate {
   next_state_change_at: string;
 }
 
-export interface GameTheme {
+export interface Theme {
   id: number;
   name: string;
   description: string;
