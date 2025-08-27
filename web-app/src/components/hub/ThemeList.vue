@@ -11,7 +11,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <ul  class="divide-y divide-gray-100">
+  <ul class="divide-y divide-gray-100">
     <li v-for="theme in gameHubStore.themes" v-if="gameHubStore.themes.length > 0">
       <ThemeButtonView :theme="theme" />
     </li>

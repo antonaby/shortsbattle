@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
 import { useGameHubStore } from '../../stores/hub.store';
 import type { Theme } from '../../types/game';
 
@@ -7,16 +6,18 @@ const props = defineProps<{
   theme?: Theme
 }>()
 
-const router = useRouter()
 const gameHubStore = useGameHubStore();
 
 async function joinAndOpenGame() {
   if (!props.theme) {
     return;
   }
-
-  let game = await gameHubStore.joinGame(props.theme.id);
-  router.push({ name: "game", params: { id: game.game_id } });
+  
+  try {
+    await gameHubStore.joinGame(props.theme.id);
+  } catch (error) {
+    console.error(error);
+  }
 }
 </script>
 
