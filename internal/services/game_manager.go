@@ -67,13 +67,29 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 			}
 		}
 
+		theme, err := q.GetTheme(ctx, qg.GetThemeParams{ID: game.ThemeID})
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to fetch game theme",
+				Cause:   err,
+			}
+		}
+
 		return &models.GameDetails{
-			GameID:            game.ID,
-			MsgType:           models.GameDetailsMsg,
-			State:             game.State,
-			StateChangedAt:    game.StateChangedAt,
-			NextStateChangeAt: game.NextStateChangeAt,
-			RamaningTimeMs:    game.RemainingMs,
+			GameUpdate: models.GameUpdate{
+				GameID:            game.ID,
+				MsgType:           models.GameDetailsMsg,
+				State:             game.State,
+				StateChangedAt:    game.StateChangedAt,
+				NextStateChangeAt: game.NextStateChangeAt,
+				RamaningTimeMs:    game.RemainingMs,
+			},
+			Theme: models.ThemeDetails{
+				ID: theme.ID,
+				Name: theme.Name,
+				Description: theme.Description.String,
+			},
 		}, nil
 	})
 }

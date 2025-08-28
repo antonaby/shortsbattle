@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { GameUpdate, Theme } from "../types/game";
+import type { ThemeDetails, GameUpdate } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
@@ -18,6 +18,7 @@ export const useGameStore = defineStore("game", () => {
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
   const gameId = ref<number | null>(null);
+  const theme = ref<ThemeDetails | null>(null);
 
   let intervalId: number | null = null;
 
@@ -28,7 +29,6 @@ export const useGameStore = defineStore("game", () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   });
 
-  
   function updateRemainingTime(upd: GameUpdate) {
     remainingTimeMs.value = upd.remaning_time_ms;
   }
@@ -50,17 +50,23 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  function setLastUpdate(upd: GameUpdate) {
+    if (upd.theme && upd.msg_type == "details") {
+      theme.value = upd.theme;
+    }
+    lastGameUpdate.value = upd;
+  }
+
   function handleSubscribed(ctx: SubscribedContext) {
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
-
-      lastGameUpdate.value = upd;
-      updateRemainingTime(upd);
+      setLastUpdate(upd);
 
       if (intervalId) {
         clearInterval(intervalId);
       }
 
+      updateRemainingTime(upd);
       intervalId = setInterval(() => {
         remainingTimeMs.value -= 1000;
       }, 1000);
@@ -78,7 +84,7 @@ export const useGameStore = defineStore("game", () => {
         updateRemainingTime(upd);
         navigateToGameState(upd);
       }
-      lastGameUpdate.value = upd;
+      setLastUpdate(upd);
     }
   }
 
@@ -119,6 +125,7 @@ export const useGameStore = defineStore("game", () => {
 
   return {
     gameId,
+    theme,
     lastGameUpdate,
     formattedTime,
     joinGame,

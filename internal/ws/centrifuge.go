@@ -88,7 +88,7 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		}
 
 		// TODO: add proper player id
-		upd, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, 1)
+		details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, 1)
 		if err != nil {
 			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
 
@@ -104,7 +104,7 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 			return
 		}
 
-		updBytes, err := json.Marshal(upd)
+		updBytes, err := json.Marshal(details)
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to convert game update to bytes: %s", e.Channel)
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
