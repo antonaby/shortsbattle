@@ -8,11 +8,11 @@ const url: Ref<string> = ref("")
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="gameStore.submitVideo(url)">
+  <form class="space-y-4" @submit.prevent="gameStore.newVideo(url)">
     <label class="block">
       <span class="block mb-1">Video URL</span>
-      <input v-model="url" type="url" name="url" placeholder="https://…" required class="w-full border rounded p-2" />
+      <input v-model="url" type="url" name="url" placeholder="https://www.youtube.com/shorts/Xyz" required class="w-full border rounded p-2" />
     </label>
-    <button type="submit" class="w-full py-2 bg-black text-white rounded">Ok</button>
+    <button type="submit" class="w-full py-2 bg-black text-white rounded">Submit</button>
   </form>
 </template>

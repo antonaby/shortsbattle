@@ -37,20 +37,22 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function navigateToGameState(upd: GameUpdate) {
-    switch (upd.state) {
-      case "lobby":
-        router.push({ name: "game-lobby", params: { id: gameId } });
-        break;
-      case "submitting":
-        router.push({ name: "game-submit", params: { id: gameId } });
-        break;
-      case "watching":
-        router.push({ name: "game-watch", params: { id: gameId } });
-        break;
-      case "completed":
-        router.push({ name: "game-complete", params: { id: gameId } });
-        break;
-    }
+    router.push({ name: "game-submit", params: { id: gameId } });
+
+    // switch (upd.state) {
+    //   case "lobby":
+    //     router.push({ name: "game-lobby", params: { id: gameId } });
+    //     break;
+    //   case "submitting":
+    //     router.push({ name: "game-submit", params: { id: gameId } });
+    //     break;
+    //   case "watching":
+    //     router.push({ name: "game-watch", params: { id: gameId } });
+    //     break;
+    //   case "completed":
+    //     router.push({ name: "game-complete", params: { id: gameId } });
+    //     break;
+    // }
   }
 
   function setLastUpdate(upd: GameUpdate) {
@@ -108,7 +110,9 @@ export const useGameStore = defineStore("game", () => {
     });
   }
 
-  async function loadPlayerVideos() {
+  async function reloadPlayerVideos() {
+    playerVideos.value = [];
+
     try {
       // TODO: set proper player id
       const response = await axios.get<Video[]>(
@@ -139,7 +143,7 @@ export const useGameStore = defineStore("game", () => {
     console.log(videoId);
   }
 
-  function submitVideo(url: string) {
+  function newVideo(url: string) {
     console.log(url);
   }
 
@@ -150,8 +154,8 @@ export const useGameStore = defineStore("game", () => {
     playerVideos,
     joinGame,
     leaveGame,
-    loadPlayerVideos,
+    reloadPlayerVideos,
     selectVideo,
-    submitVideo,
+    newVideo,
   };
 });
