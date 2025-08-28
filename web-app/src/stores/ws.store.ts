@@ -78,7 +78,6 @@ export const useWSStore = defineStore("ws", () => {
       sub.on("publication", handlers.publication);
     }
 
-    // TODO: check why subscribed is not called after fast unsubscribing -> subscribing
     if (handlers.subscribed) {
       sub.on("subscribed", handlers.subscribed);
     }

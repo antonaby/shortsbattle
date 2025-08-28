@@ -110,7 +110,7 @@ export const useGameStore = defineStore("game", () => {
     }
 
     if (gameId.value) {
-      wsStore.unsubscribe(`game_${gameId}`);
+      wsStore.unsubscribe(`game_${gameId.value}`);
     }
 
     gameId.value = null;
