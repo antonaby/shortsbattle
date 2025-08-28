@@ -29,6 +29,8 @@ func (api *VideosApi) register(g *echo.Group) {
 
 	v1group.POST("/videos", api.submitVideo)
 	v1group.GET("/videos/:id", api.getVideo)
+
+	v1group.GET("/players/:id/videos", api.getVideosForPlayer)
 }
 
 func (api *VideosApi) submitVideo(c echo.Context) error {
@@ -94,4 +96,24 @@ func (api *VideosApi) getVideo(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, video)
+}
+
+func (api *VideosApi) getVideosForPlayer(c echo.Context) error {
+	playerId, err := parseInt64(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	ctx := c.Request().Context()
+	videos, err := api.vs.GetVideosByPlayer(ctx, playerId)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, videos)
 }

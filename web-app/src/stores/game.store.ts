@@ -17,9 +17,9 @@ export const useGameStore = defineStore("game", () => {
 
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
-  const gameId = ref<number | null>(null);
   const theme = ref<ThemeDetails | null>(null);
 
+  let gameId: number | null = null;
   let intervalId: number | null = null;
 
   const formattedTime = computed(() => {
@@ -36,16 +36,16 @@ export const useGameStore = defineStore("game", () => {
   function navigateToGameState(upd: GameUpdate) {
     switch (upd.state) {
       case "lobby":
-        router.push({ name: "game-lobby", params: { id: gameId.value } });
+        router.push({ name: "game-lobby", params: { id: gameId } });
         break;
       case "submitting":
-        router.push({ name: "game-submit", params: { id: gameId.value } });
+        router.push({ name: "game-submit", params: { id: gameId } });
         break;
       case "watching":
-        router.push({ name: "game-watch", params: { id: gameId.value } });
+        router.push({ name: "game-watch", params: { id: gameId } });
         break;
       case "completed":
-        router.push({ name: "game-complete", params: { id: gameId.value } });
+        router.push({ name: "game-complete", params: { id: gameId } });
         break;
     }
   }
@@ -96,13 +96,17 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function joinGame(openGameId: number) {
-    gameId.value = openGameId;
+    gameId = openGameId;
 
-    let sub = wsStore.subscribe(`game_${gameId.value}`, {
+    let sub = wsStore.subscribe(`game_${gameId}`, {
       subscribed: handleSubscribed,
       publication: handlePublication,
       unsubscribed: handleUnsubscribed,
     });
+  }
+
+  async function loadPlayerVideos() {
+    
   }
 
   function leaveGame() {
@@ -111,11 +115,11 @@ export const useGameStore = defineStore("game", () => {
       intervalId = null;
     }
 
-    if (gameId.value) {
-      wsStore.unsubscribe(`game_${gameId.value}`);
+    if (gameId) {
+      wsStore.unsubscribe(`game_${gameId}`);
     }
 
-    gameId.value = null;
+    gameId = null;
     lastGameUpdate.value = null;
   }
 
@@ -124,7 +128,6 @@ export const useGameStore = defineStore("game", () => {
   }
 
   return {
-    gameId,
     theme,
     lastGameUpdate,
     formattedTime,

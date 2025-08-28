@@ -54,6 +54,26 @@ func (vs *VideosService) CreateVideo(ctx context.Context, params models.SubmitVi
 	})
 }
 
+func (vs *VideosService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
+	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
+		q := vs.txm.Querier(tx)
+		videos, err := q.GetVideosByPlayer(ctx, qg.GetVideosByPlayerParams{PlayerID: playerId})
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to fetch video",
+				Cause:   err,
+			}
+		}
+
+		if len(videos) == 0 {
+			videos = []qg.Video{}
+		}
+
+		return videos, nil
+	})
+}
+
 func (vs *VideosService) GetVideo(ctx context.Context, videoId int64) (*qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := vs.txm.Querier(tx)
