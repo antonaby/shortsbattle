@@ -16,6 +16,7 @@ async function joinAndOpenGame() {
   try {
     await gameHubStore.joinGame(props.theme.id);
   } catch (error) {
+    // TODO: handle with UI Store
     console.error(error);
   }
 }

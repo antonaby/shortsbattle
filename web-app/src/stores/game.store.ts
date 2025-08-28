@@ -1,9 +1,14 @@
 import { defineStore } from "pinia";
-import type { GameUpdate } from "../types/game";
+import type { GameUpdate, Theme } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
 import { useUIStore } from "./ui.store";
+import type {
+  PublicationContext,
+  SubscribedContext,
+  UnsubscribedContext,
+} from "centrifuge";
 
 export const useGameStore = defineStore("game", () => {
   const wsStore = useWSStore();
@@ -13,6 +18,7 @@ export const useGameStore = defineStore("game", () => {
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
   const gameId = ref<number | null>(null);
+  const theme = ref<Theme | null>(null);
 
   let intervalId: number | null = null;
 
@@ -48,46 +54,52 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  function handleSubscribed(ctx: SubscribedContext) {
+    if (ctx.data) {
+      var upd: GameUpdate = ctx.data;
+
+      lastGameUpdate.value = upd;
+      updateRemainingTime(upd);
+
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+
+      intervalId = setInterval(() => {
+        remainingTimeMs.value -= 1000;
+      }, 1000);
+
+      navigateToGameState(upd);
+    } else {
+      console.log("no subscription data");
+    }
+  }
+
+  function handlePublication(ctx: PublicationContext) {
+    var upd: GameUpdate = ctx.data;
+    if (lastGameUpdate.value) {
+      if (lastGameUpdate.value.state !== upd.state) {
+        updateRemainingTime(upd);
+        navigateToGameState(upd);
+      }
+      lastGameUpdate.value = upd;
+    }
+  }
+
+  function handleUnsubscribed(ctx: UnsubscribedContext) {
+    if (ctx.reason == "permission denied") {
+      leaveGame();
+      uiStore.returnToHub();
+    }
+  }
+
   function joinGame(openGameId: number) {
     gameId.value = openGameId;
 
     let sub = wsStore.subscribe(`game_${gameId.value}`, {
-      subscribed: (ctx) => {
-        if (ctx.data) {
-          var upd: GameUpdate = ctx.data;
-
-          lastGameUpdate.value = upd;
-          updateRemainingTime(upd);
-
-          if (intervalId) {
-            clearInterval(intervalId);
-          }
-
-          intervalId = setInterval(() => {
-            remainingTimeMs.value -= 1000;
-          }, 1000);
-
-          navigateToGameState(upd);
-        } else {
-          console.log("no subscription data");
-        }
-      },
-      publication: (ctx) => {
-        var upd: GameUpdate = ctx.data;
-        if (lastGameUpdate.value) {
-          if (lastGameUpdate.value.state !== upd.state) {
-            updateRemainingTime(upd);
-            navigateToGameState(upd);
-          }
-          lastGameUpdate.value = upd;
-        }
-      },
-      unsubscribed: (ctx) => {
-        if (ctx.reason == "permission denied") {
-          leaveGame();
-          uiStore.returnToHub();
-        }
-      },
+      subscribed: handleSubscribed,
+      publication: handlePublication,
+      unsubscribed: handleUnsubscribed,
     });
   }
 

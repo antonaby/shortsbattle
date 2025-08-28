@@ -6,7 +6,7 @@ import { useGameStore } from "../stores/game.store";
 const route = useRoute();
 const gameStore = useGameStore();
 
-onMounted(() => {
+onMounted(async () => {
   let id = Number(route.params.id);
   gameStore.joinGame(id);
 })

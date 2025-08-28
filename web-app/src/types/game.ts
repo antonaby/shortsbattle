@@ -1,8 +1,4 @@
-export type GameState =
-  | "lobby"
-  | "submitting"
-  | "watching"
-  | "completed";
+export type GameState = "lobby" | "submitting" | "watching" | "completed";
 
 export interface GameUpdate {
   id: number;
@@ -13,14 +9,22 @@ export interface GameUpdate {
   next_state_change_at: string;
 }
 
+export interface ThemeVideoRequest {
+  id: number;
+  request: string;
+  theme_id: number;
+  created_at: string;
+}
+
 export interface Theme {
   id: number;
   name: string;
   description: string;
   created_at: string;
+  requests: ThemeVideoRequest[];
 }
 
 export interface GameJoined {
   game_id: number;
-  message: string
+  message: string;
 }
