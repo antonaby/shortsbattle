@@ -1,12 +1,14 @@
 export type GameState = "lobby" | "submitting" | "watching" | "completed";
 
+export type MsgType = "details" | "state_change";
+
 export interface GameUpdate {
   id: number;
-  theme_id: number;
+  msg_type: MsgType;
   state: GameState;
-  created_at: string;
   state_changed_at: string;
   next_state_change_at: string;
+  remaning_time_ms: number;
 }
 
 export interface ThemeVideoRequest {

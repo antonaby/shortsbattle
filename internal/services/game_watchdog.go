@@ -220,13 +220,12 @@ func (gsl *GameStateListener) ReclaimPending(ctx context.Context) error {
 }
 
 func (gsl *GameStateListener) handleMessage(ctx context.Context, gameId int64) error {
-	game, err := gsl.manager.AdvanceGame(ctx, gameId)
+	upd, err := gsl.manager.AdvanceGame(ctx, gameId)
 	if err != nil {
 		return err
 	}
 
-	upd := GameToGameUpdate(*game)
-	return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), upd)
+	return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), *upd)
 }
 
 func parseGameId(msg redis.XMessage) (int64, error) {

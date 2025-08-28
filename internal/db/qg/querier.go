@@ -15,7 +15,7 @@ type Querier interface {
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVideoRequest(ctx context.Context, arg CreateVideoRequestParams) (VideoRequest, error)
 	GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error)
-	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (Game, error)
+	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (GetGameForPlayerRow, error)
 	GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams) (Player, error)
 	GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error)
 	GetVideo(ctx context.Context, arg GetVideoParams) (Video, error)
@@ -25,7 +25,7 @@ type Querier interface {
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
-	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (Game, error)
+	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

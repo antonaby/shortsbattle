@@ -88,7 +88,7 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		}
 
 		// TODO: add proper player id
-		upd, err := cf.manager.GetGameUpdateForPlayer(ctx, gameId, 1)
+		upd, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, 1)
 		if err != nil {
 			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
 

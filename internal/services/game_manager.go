@@ -55,9 +55,8 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-// TODO: add remainig time
-func (gm *GameManager) GetGameUpdateForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
+func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameDetails, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
 		q := gm.txm.Querier(tx)
 		game, err := q.GetGameForPlayer(ctx, qg.GetGameForPlayerParams{ID: gameId, PlayerID: playerId})
 		if err != nil {
@@ -68,14 +67,19 @@ func (gm *GameManager) GetGameUpdateForPlayer(ctx context.Context, gameId int64,
 			}
 		}
 
-		upd := GameToGameUpdate(game)
-		return &upd, nil
+		return &models.GameDetails{
+			GameID:            game.ID,
+			MsgType:           models.GameDetailsMsg,
+			State:             game.State,
+			StateChangedAt:    game.StateChangedAt,
+			NextStateChangeAt: game.NextStateChangeAt,
+			RamaningTimeMs:    game.RemainingMs,
+		}, nil
 	})
-
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, error) {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
 		q := gm.txm.Querier(tx)
 		game, err := q.GetGameAndLock(ctx, qg.GetGameAndLockParams{ID: gameId})
 		if err != nil {
@@ -102,8 +106,8 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*qg.Game,
 	})
 }
 
-func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	upd, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
 		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
@@ -116,11 +120,12 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Quer
 		}
 	}
 
+	upd := statusRowToGameUpdate(status)
 	return &upd, nil
 }
 
-func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	upd, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateWatching,
 		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
@@ -133,11 +138,12 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg
 		}
 	}
 
+	upd := statusRowToGameUpdate(status)
 	return &upd, nil
 }
 
-func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*qg.Game, error) {
-	upd, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
+func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+	completeGame, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
 		ID:    game.ID,
 		State: qg.GameStateCompleted,
 	})
@@ -149,5 +155,28 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.
 		}
 	}
 
+	upd := gameToGameUpdate(completeGame)
 	return &upd, nil
+}
+
+func statusRowToGameUpdate(row qg.UpdateGameStatusRow) models.GameUpdate {
+	return models.GameUpdate{
+		GameID:            row.ID,
+		MsgType:           models.GameUpdateMsg,
+		State:             row.State,
+		StateChangedAt:    row.StateChangedAt,
+		NextStateChangeAt: row.NextStateChangeAt,
+		RamaningTimeMs:    row.RemainingMs,
+	}
+}
+
+func gameToGameUpdate(game qg.Game) models.GameUpdate {
+	return models.GameUpdate{
+		GameID:            game.ID,
+		MsgType:           models.GameUpdateMsg,
+		State:             game.State,
+		StateChangedAt:    game.StateChangedAt,
+		NextStateChangeAt: game.NextStateChangeAt,
+		RamaningTimeMs:    0,
+	}
 }

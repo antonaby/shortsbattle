@@ -18,7 +18,6 @@ export const useGameStore = defineStore("game", () => {
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
   const gameId = ref<number | null>(null);
-  const theme = ref<Theme | null>(null);
 
   let intervalId: number | null = null;
 
@@ -29,12 +28,9 @@ export const useGameStore = defineStore("game", () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   });
 
-  // TODO: use ramaining time from backend
+  
   function updateRemainingTime(upd: GameUpdate) {
-    const start = new Date(upd.state_changed_at).getTime();
-    const end = new Date(upd.next_state_change_at).getTime();
-
-    remainingTimeMs.value = end - start;
+    remainingTimeMs.value = upd.remaning_time_ms;
   }
 
   function navigateToGameState(upd: GameUpdate) {
