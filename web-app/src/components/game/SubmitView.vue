@@ -34,8 +34,8 @@ function onTabSelect(tab: Tab) {
     <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
     <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
     <div class="pt-4">
-      <NewVideoView v-if="activeTab.key == 'new'"/>
       <PlayerVideoLibraryView v-if="activeTab.key == 'library'"/>
+      <NewVideoView v-if="activeTab.key == 'new'"/>
     </div>
   </div>
 </template>
