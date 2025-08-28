@@ -27,9 +27,10 @@ type AddVideoRequest struct {
 	VideoUrl string `json:"video_url" validate:"required,url"`
 }
 
-type SubmitExistingVideoRequest struct {
-	GameID   int64 `json:"game_id" validate:"required"`
-	PlayerID int64 `json:"player_id" validate:"required"`
+type SubmitVideoRequest struct {
+	VideoID  *int64  `json:"video_id"`
+	VideoUrl *string `json:"video_url"`
+	PlayerID int64   `json:"player_id" validate:"required"`
 }
 
 type JoinGameRequest struct {

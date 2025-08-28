@@ -151,7 +151,7 @@ export const useGameStore = defineStore("game", () => {
         `${import.meta.env.VITE_BASE_URL}/api/v1/videos/${videoId}/submit`, 
         {
           game_id: gameId,
-          player_id: 1
+          player_id: 1 // TODO: get game id from user store
         }
       );
       let foundVideo = playerVideos.value.find((v) => v.id == videoId);

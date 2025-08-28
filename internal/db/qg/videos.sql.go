@@ -54,6 +54,36 @@ func (q *Queries) GetVideo(ctx context.Context, arg GetVideoParams) (Video, erro
 	return i, err
 }
 
+const getVideoByPlayerInGame = `-- name: GetVideoByPlayerInGame :one
+SELECT v.id, v.player_id, v.video_url, v.oembed, v.added_at
+FROM videos AS v
+JOIN game_players AS gp
+  ON gp.player_id = v.player_id 
+ AND gp.game_id   = $1 
+WHERE v.id         = $2
+  AND v.player_id  = $3
+LIMIT 1
+`
+
+type GetVideoByPlayerInGameParams struct {
+	GameID   int64 `json:"game_id"`
+	ID       int64 `json:"id"`
+	PlayerID int64 `json:"player_id"`
+}
+
+func (q *Queries) GetVideoByPlayerInGame(ctx context.Context, arg GetVideoByPlayerInGameParams) (Video, error) {
+	row := q.db.QueryRow(ctx, getVideoByPlayerInGame, arg.GameID, arg.ID, arg.PlayerID)
+	var i Video
+	err := row.Scan(
+		&i.ID,
+		&i.PlayerID,
+		&i.VideoUrl,
+		&i.Oembed,
+		&i.AddedAt,
+	)
+	return i, err
+}
+
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
 SELECT id, player_id, video_url, oembed, added_at FROM videos WHERE player_id = $1
 `

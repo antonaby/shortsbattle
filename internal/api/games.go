@@ -29,6 +29,7 @@ func (api *GamesApi) register(g *echo.Group) {
 	v1group := g.Group("/v1")
 
 	v1group.PUT("/games/join", api.joinGame)
+	v1group.PUT("/games/:id/video", api.submitVideo)
 }
 
 func (api *GamesApi) joinGame(c echo.Context) error {
@@ -67,5 +68,62 @@ func (api *GamesApi) joinGame(c echo.Context) error {
 	return c.JSON(http.StatusOK, m.OkGameIdReposne{
 		Msg:    "game created",
 		GameId: gameId,
+	})
+}
+
+func (api *GamesApi) submitVideo(c echo.Context) error {
+	gameId, err := parseInt64(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	request := new(m.SubmitVideoRequest)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidRequestFormatMsg,
+		})
+	}
+
+	if err := c.Validate(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: RequestValidationErrorMsg,
+		})
+	}
+
+	ctx := c.Request().Context()
+	if request.VideoID != nil {
+		video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, request.PlayerID)
+		if err != nil {
+			var sErr common.ServiceError
+			if errors.As(err, &sErr) {
+				if sErr.Code == common.ErrorDbNotFound {
+					return c.JSON(http.StatusNotFound, m.ErrorResponse{
+						Error: "player not in the game or game, player or video not found",
+					})
+				}
+			}
+
+			c.Echo().Logger.Errorf("failed to submit video: %v", err)
+			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+				Error: "Something went wrong",
+			})
+		}
+
+		return c.JSON(http.StatusOK, video)
+	} else if request.VideoUrl != nil {
+		err = api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, request.PlayerID)
+		if err != nil {
+			// TODO: handle more errors
+			c.Echo().Logger.Errorf("failed to submit video: %v", err)
+			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+				Error: "Something went wrong",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+		Error: "video_id or video_url must be provided",
 	})
 }

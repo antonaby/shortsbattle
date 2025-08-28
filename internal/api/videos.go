@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/labstack/echo/v4"
@@ -13,13 +12,11 @@ import (
 
 type VideosApi struct {
 	vs *services.VideosService
-	gm *services.GameManager
 }
 
-func NewVideosApi(vs *services.VideosService, gm *services.GameManager, g *echo.Group) *VideosApi {
+func NewVideosApi(vs *services.VideosService, g *echo.Group) *VideosApi {
 	api := &VideosApi{
 		vs: vs,
-		gm: gm,
 	}
 
 	api.register(g)
@@ -32,7 +29,6 @@ func (api *VideosApi) register(g *echo.Group) {
 
 	v1group.POST("/videos", api.addVideo)
 	v1group.GET("/videos/:id", api.getVideo)
-	v1group.PUT("/videos/:id/submit", api.submitExistingVideo)
 
 	v1group.GET("/players/:id/videos", api.getVideosForPlayer)
 }
@@ -71,40 +67,6 @@ func (api *VideosApi) addVideo(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, video)
-}
-
-func (api *VideosApi) submitExistingVideo(c echo.Context) error {
-	videoId, err := parseInt64(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
-	}
-
-	request := new(m.SubmitExistingVideoRequest)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
-	}
-
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
-	}
-
-	ctx := c.Request().Context()
-	err = api.gm.SubmitExistingVideo(ctx, request.GameID, videoId, request.PlayerID)
-	if err != nil {
-		// TODO: handle more errors
-		c.Echo().Logger.Errorf("failed to submit video: %v", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
-	}
-
-	return c.JSON(http.StatusOK, models.OkResponse{Msg: "submitted"})
 }
 
 func (api *VideosApi) getVideo(c echo.Context) error {

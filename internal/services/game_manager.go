@@ -17,12 +17,14 @@ type GameManager struct {
 	config GameConfig
 	txm    db.TxManager
 	redis  *redis.Client
+	vs     *VideosService
 }
 
-func NewGameManager(txm db.TxManager, redis *redis.Client, config GameConfig) *GameManager {
+func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideosService, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
 		redis:  redis,
+		vs:     vs,
 		config: config,
 	}
 }
@@ -59,10 +61,43 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, videoId int64, playerId int64) error {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, videoId int64, playerId int64) (*qg.Video, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
+		q := gm.txm.Querier(tx)
+		video, err := q.GetVideoByPlayerInGame(ctx, qg.GetVideoByPlayerInGameParams{
+			GameID:   gameId,
+			ID:       videoId,
+			PlayerID: playerId,
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to fetch game",
+				Cause:   err,
+			}
+		}
+
+		err = gm.addVideoToGame(ctx, gameId, videoId, playerId)
+		if err != nil {
+			return nil, err
+		}
+
+		return &video, nil
+	})
+}
+
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64) error {
+	return db.WithTx(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) error {
+		// TODO: implement
+		return nil
+	})
+}
+
+func (gm *GameManager) addVideoToGame(ctx context.Context, gameId int64, videoId int64, playerId int64) error {
 	_, err := gm.redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 		key := kGameVideos(gameId)
-		pipe.SAdd(ctx, key, videoId)
+		pipe.HSet(ctx, key, fmt.Sprint(playerId), videoId)
 		pipe.Expire(ctx, key, 24*time.Hour)
 
 		return nil
@@ -71,7 +106,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, vi
 	if err != nil {
 		return common.ServiceError{
 			Code:    common.ErrorRedis,
-			Message: "failed to add video",
+			Message: "failed to add video to game",
 			Cause:   err,
 		}
 	}

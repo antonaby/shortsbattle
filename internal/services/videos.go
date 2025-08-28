@@ -27,31 +27,35 @@ func NewVideosService(txm db.TxManager) *VideosService {
 
 func (vs *VideosService) AddVideo(ctx context.Context, params models.AddVideoRequest) (*qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
-		oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.ErrorOEmbedFailed,
-				Message: "failed to submit video",
-				Cause:   err,
-			}
-		}
-
 		q := vs.txm.Querier(tx)
-		video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
-			PlayerID: params.PlayerID,
-			VideoUrl: params.VideoUrl,
-			Oembed:   oembed,
-		})
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to submit video",
-				Cause:   err,
-			}
-		}
-
-		return &video, nil
+		return vs.createVideo(ctx, q, params)
 	})
+}
+
+func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, params models.AddVideoRequest) (*qg.Video, error) {
+	oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.ErrorOEmbedFailed,
+			Message: "failed to submit video",
+			Cause:   err,
+		}
+	}
+
+	video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
+		PlayerID: params.PlayerID,
+		VideoUrl: params.VideoUrl,
+		Oembed:   oembed,
+	})
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: "failed to submit video",
+			Cause:   err,
+		}
+	}
+
+	return &video, nil
 }
 
 // TODO: add pagination and search
