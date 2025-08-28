@@ -23,7 +23,9 @@ WITH candidates AS (
   SELECT * FROM upd;
 
 -- name: GetGameForPlayer :one
-SELECT g.*, (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint AS remaining_ms FROM games g
+SELECT g.*, 
+  COALESCE((EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 0)::bigint AS remaining_ms
+FROM games g
 JOIN game_players gp ON gp.game_id = g.id
 WHERE g.id = $1 AND gp.player_id = $2;
 

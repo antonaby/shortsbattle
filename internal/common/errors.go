@@ -15,6 +15,7 @@ const (
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
 	ErrorRedisStream
+	ErrorRedis
 	ErrorParse
 )
 

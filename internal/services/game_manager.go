@@ -3,22 +3,26 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 type GameManager struct {
 	config GameConfig
 	txm    db.TxManager
+	redis  *redis.Client
 }
 
-func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
+func NewGameManager(txm db.TxManager, redis *redis.Client, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
+		redis:  redis,
 		config: config,
 	}
 }
@@ -55,6 +59,26 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, videoId int64, playerId int64) error {
+	_, err := gm.redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		key := kGameVideos(gameId)
+		pipe.SAdd(ctx, key, videoId)
+		pipe.Expire(ctx, key, 24*time.Hour)
+
+		return nil
+	})
+
+	if err != nil {
+		return common.ServiceError{
+			Code:    common.ErrorRedis,
+			Message: "failed to add video",
+			Cause:   err,
+		}
+	}
+
+	return nil
+}
+
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameDetails, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
 		q := gm.txm.Querier(tx)
@@ -86,8 +110,8 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 				RamaningTimeMs:    game.RemainingMs,
 			},
 			Theme: models.ThemeDetails{
-				ID: theme.ID,
-				Name: theme.Name,
+				ID:          theme.ID,
+				Name:        theme.Name,
 				Description: theme.Description.String,
 			},
 		}, nil

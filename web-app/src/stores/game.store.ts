@@ -1,5 +1,10 @@
 import { defineStore } from "pinia";
-import type { ThemeDetails, GameUpdate, Video } from "../types/game";
+import type {
+  ThemeDetails,
+  GameUpdate,
+  Video,
+  OkResponse,
+} from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
@@ -20,6 +25,7 @@ export const useGameStore = defineStore("game", () => {
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
   const theme = ref<ThemeDetails | null>(null);
+  const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
 
   let gameId: number | null = null;
@@ -139,11 +145,26 @@ export const useGameStore = defineStore("game", () => {
     lastGameUpdate.value = null;
   }
 
-  function selectVideo(videoId: number) {
-    console.log(videoId);
+  async function selectVideo(videoId: number) {
+    try {
+      const response = await axios.put<OkResponse>(
+        `${import.meta.env.VITE_BASE_URL}/api/v1/videos/${videoId}/submit`, 
+        {
+          game_id: gameId,
+          player_id: 1
+        }
+      );
+      let foundVideo = playerVideos.value.find((v) => v.id == videoId);
+      if (foundVideo) {
+        selectedVideo.value = foundVideo;
+      }
+    } catch (error) {
+      // TODO: handle with UI Store
+      throw new NetworkError("failed to join game", error);
+    }
   }
 
-  function newVideo(url: string) {
+  async function newVideo(url: string) {
     console.log(url);
   }
 
@@ -152,6 +173,7 @@ export const useGameStore = defineStore("game", () => {
     lastGameUpdate,
     formattedTime,
     playerVideos,
+    selectedVideo,
     joinGame,
     leaveGame,
     reloadPlayerVideos,

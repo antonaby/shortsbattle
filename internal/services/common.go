@@ -42,3 +42,7 @@ func ParseCfChannelName(channel string) (int64, error) {
 
 	return gameId, nil
 }
+
+func kGameVideos(gameId int64) string {
+	return fmt.Sprintf("game:{%d}:videos", gameId)
+}

@@ -63,3 +63,7 @@ export interface GameJoined {
   game_id: number;
   message: string;
 }
+
+export interface OkResponse {
+  message: string
+}

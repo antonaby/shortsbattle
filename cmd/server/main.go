@@ -105,7 +105,7 @@ func main() {
 	themeService := services.NewThemeService(dbManager)
 	videoService := services.NewVideosService(dbManager)
 	playerService := services.NewPlayersService(dbManager, redisClient)
-	gameManager := services.NewGameManager(dbManager, gameConfig)
+	gameManager := services.NewGameManager(dbManager, redisClient, gameConfig)
 
 	centrifugeServer, err := ws.NewCentrifugeServer(gameManager)
 	if err != nil {
@@ -137,7 +137,7 @@ func main() {
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 	apiGroup := e.Group("/api")
 	_ = api.NewThemesApi(themeService, apiGroup)
-	_ = api.NewVideosApi(videoService, apiGroup)
+	_ = api.NewVideosApi(videoService, gameManager, apiGroup)
 	_ = api.NewGamesApi(gameManager, apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

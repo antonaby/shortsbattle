@@ -25,7 +25,7 @@ func NewVideosService(txm db.TxManager) *VideosService {
 	}
 }
 
-func (vs *VideosService) CreateVideo(ctx context.Context, params models.SubmitVideoRequest) (*qg.Video, error) {
+func (vs *VideosService) AddVideo(ctx context.Context, params models.AddVideoRequest) (*qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
 		if err != nil {
@@ -54,6 +54,7 @@ func (vs *VideosService) CreateVideo(ctx context.Context, params models.SubmitVi
 	})
 }
 
+// TODO: add pagination and search
 func (vs *VideosService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
 		q := vs.txm.Querier(tx)
