@@ -146,26 +146,34 @@ export const useGameStore = defineStore("game", () => {
   }
 
   async function selectVideo(videoId: number) {
+    await makeSubmitRequest({
+      video_id: videoId,
+      player_id: 1, // TODO: get game id from user store
+    });
+  }
+
+  async function newVideo(url: string) {
+    await makeSubmitRequest({
+      video_url: url,
+      player_id: 1, // TODO: get game id from user store
+    });
+  }
+
+  async function makeSubmitRequest(query: {
+    player_id: number;
+    video_url?: string;
+    video_id?: number;
+  }) {
     try {
-      const response = await axios.put<OkResponse>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/videos/${videoId}/submit`, 
-        {
-          game_id: gameId,
-          player_id: 1 // TODO: get game id from user store
-        }
+      const response = await axios.put<Video>(
+        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/submit`,
+        query
       );
-      let foundVideo = playerVideos.value.find((v) => v.id == videoId);
-      if (foundVideo) {
-        selectedVideo.value = foundVideo;
-      }
+      selectedVideo.value = response.data;
     } catch (error) {
       // TODO: handle with UI Store
       throw new NetworkError("failed to join game", error);
     }
-  }
-
-  async function newVideo(url: string) {
-    console.log(url);
   }
 
   return {

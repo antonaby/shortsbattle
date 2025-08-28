@@ -29,7 +29,7 @@ func (api *GamesApi) register(g *echo.Group) {
 	v1group := g.Group("/v1")
 
 	v1group.PUT("/games/join", api.joinGame)
-	v1group.PUT("/games/:id/video", api.submitVideo)
+	v1group.PUT("/games/:id/submit", api.submitVideo)
 }
 
 func (api *GamesApi) joinGame(c echo.Context) error {
