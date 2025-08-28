@@ -10,6 +10,40 @@ import (
 	"encoding/json"
 )
 
+const addVideoByPlayerInGame = `-- name: AddVideoByPlayerInGame :one
+INSERT INTO videos (player_id, video_url, oembed)
+SELECT gp.player_id, $3, $4
+FROM game_players gp
+WHERE gp.game_id  = $1
+  AND gp.player_id = $2
+RETURNING id, player_id, video_url, oembed, added_at
+`
+
+type AddVideoByPlayerInGameParams struct {
+	GameID   int64           `json:"game_id"`
+	PlayerID int64           `json:"player_id"`
+	VideoUrl string          `json:"video_url"`
+	Oembed   json.RawMessage `json:"oembed"`
+}
+
+func (q *Queries) AddVideoByPlayerInGame(ctx context.Context, arg AddVideoByPlayerInGameParams) (Video, error) {
+	row := q.db.QueryRow(ctx, addVideoByPlayerInGame,
+		arg.GameID,
+		arg.PlayerID,
+		arg.VideoUrl,
+		arg.Oembed,
+	)
+	var i Video
+	err := row.Scan(
+		&i.ID,
+		&i.PlayerID,
+		&i.VideoUrl,
+		&i.Oembed,
+		&i.AddedAt,
+	)
+	return i, err
+}
+
 const createVideo = `-- name: CreateVideo :one
 INSERT INTO videos (player_id, video_url, oembed) VALUES ($1, $2, $3) RETURNING id, player_id, video_url, oembed, added_at
 `

@@ -16,3 +16,11 @@ JOIN game_players AS gp
 WHERE v.id         = $2
   AND v.player_id  = $3
 LIMIT 1;
+
+-- name: AddVideoByPlayerInGame :one
+INSERT INTO videos (player_id, video_url, oembed)
+SELECT gp.player_id, $3, $4
+FROM game_players gp
+WHERE gp.game_id  = $1
+  AND gp.player_id = $2
+RETURNING *;
