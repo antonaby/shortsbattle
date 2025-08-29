@@ -32,6 +32,7 @@ func (vs *VideosService) AddVideo(ctx context.Context, params models.AddVideoReq
 	})
 }
 
+// TODO: Check duplicate videos
 func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, params models.AddVideoRequest) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
 	if err != nil {

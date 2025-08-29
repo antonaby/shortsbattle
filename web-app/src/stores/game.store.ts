@@ -3,7 +3,6 @@ import type {
   ThemeDetails,
   GameUpdate,
   Video,
-  OkResponse,
 } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
@@ -159,6 +158,11 @@ export const useGameStore = defineStore("game", () => {
     });
   }
 
+  // TODO: send a request to backend to unselect the video
+  async function unselectVideo() {
+    selectedVideo.value = null;
+  }
+
   async function makeSubmitRequest(query: {
     player_id: number;
     video_url?: string;
@@ -187,5 +191,6 @@ export const useGameStore = defineStore("game", () => {
     reloadPlayerVideos,
     selectVideo,
     newVideo,
+    unselectVideo,
   };
 });
