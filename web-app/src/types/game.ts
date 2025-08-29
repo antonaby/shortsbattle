@@ -44,6 +44,15 @@ export interface OEmbed {
   [key: string]: unknown;
 }
 
+export type VoteValue = "like" | "dislike" | "skip";
+
+export interface Vote {
+  game_id: number;
+  player_id: number;
+  video_id: number;
+  voted_at: string;
+  value: VoteValue;
+}
 export interface ThemeVideoRequest {
   id: number;
   request: string;
@@ -65,5 +74,5 @@ export interface GameJoined {
 }
 
 export interface OkResponse {
-  message: string
+  message: string;
 }

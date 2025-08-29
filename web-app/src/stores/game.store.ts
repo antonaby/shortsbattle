@@ -1,5 +1,11 @@
 import { defineStore } from "pinia";
-import type { ThemeDetails, GameUpdate, Video } from "../types/game";
+import type {
+  ThemeDetails,
+  GameUpdate,
+  Video,
+  Vote,
+  VoteValue,
+} from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
@@ -226,14 +232,35 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  // TODO: show loading element
   async function likeVideo() {
-    let video = gameVideos.value[currentPlayingVideoIndex.value];
-    console.log(video);
+    await voteForVideo("like");
   }
 
+  // TODO: show loading element
   async function dislikeVideo() {
+    await voteForVideo("dislike");
+  }
+
+  async function voteForVideo(value: VoteValue) {
     let video = gameVideos.value[currentPlayingVideoIndex.value];
-    console.log(video);
+    try {
+      const response = await axios.put<Vote>(
+        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/vote`,
+        {
+          video_id: video.id,
+          value: value,
+        },
+        {
+          params: {
+            player_id: 1, // TODO: use user store
+          },
+        }
+      );
+    } catch (error) {
+      // TODO: handle with UI Store
+      throw new NetworkError("failed to join game", error);
+    }
   }
 
   return {
