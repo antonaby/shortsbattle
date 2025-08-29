@@ -42,22 +42,22 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function navigateToGameState(upd: GameUpdate) {
-    router.push({ name: "game-submit", params: { id: gameId } });
+    //router.push({ name: "game-submit", params: { id: gameId } });
 
-    // switch (upd.state) {
-    //   case "lobby":
-    //     router.push({ name: "game-lobby", params: { id: gameId } });
-    //     break;
-    //   case "submitting":
-    //     router.push({ name: "game-submit", params: { id: gameId } });
-    //     break;
-    //   case "watching":
-    //     router.push({ name: "game-watch", params: { id: gameId } });
-    //     break;
-    //   case "completed":
-    //     router.push({ name: "game-complete", params: { id: gameId } });
-    //     break;
-    // }
+    switch (upd.state) {
+      case "lobby":
+        router.push({ name: "game-lobby", params: { id: gameId } });
+        break;
+      case "submitting":
+        router.push({ name: "game-submit", params: { id: gameId } });
+        break;
+      case "watching":
+        router.push({ name: "game-watch", params: { id: gameId } });
+        break;
+      case "completed":
+        router.push({ name: "game-complete", params: { id: gameId } });
+        break;
+    }
   }
 
   function setLastUpdate(upd: GameUpdate) {

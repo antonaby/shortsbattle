@@ -44,6 +44,26 @@ func (q *Queries) AddVideoByPlayerInGame(ctx context.Context, arg AddVideoByPlay
 	return i, err
 }
 
+const addVideoToGame = `-- name: AddVideoToGame :exec
+INSERT INTO game_videos (game_id, player_id, video_id) 
+VALUES ($1, $2, $3) 
+ON CONFLICT (game_id, player_id)
+DO UPDATE
+SET video_id = EXCLUDED.video_id,
+    submitted_at = now()
+`
+
+type AddVideoToGameParams struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+	VideoID  int64 `json:"video_id"`
+}
+
+func (q *Queries) AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) error {
+	_, err := q.db.Exec(ctx, addVideoToGame, arg.GameID, arg.PlayerID, arg.VideoID)
+	return err
+}
+
 const createVideo = `-- name: CreateVideo :one
 INSERT INTO videos (player_id, video_url, oembed) VALUES ($1, $2, $3) RETURNING id, player_id, video_url, oembed, added_at
 `
@@ -128,6 +148,51 @@ type GetVideosByPlayerParams struct {
 
 func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) ([]Video, error) {
 	rows, err := q.db.Query(ctx, getVideosByPlayer, arg.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Video
+	for rows.Next() {
+		var i Video
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlayerID,
+			&i.VideoUrl,
+			&i.Oembed,
+			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getVideosToWatch = `-- name: GetVideosToWatch :many
+SELECT v.id, v.player_id, v.video_url, v.oembed, v.added_at
+FROM game_videos gv
+JOIN videos v ON v.id = gv.video_id
+WHERE gv.game_id = $1
+  AND EXISTS (
+    SELECT 1
+    FROM game_players gp
+    WHERE gp.game_id = $1
+      AND gp.player_id = $2
+  )
+ORDER BY gv.submitted_at
+`
+
+type GetVideosToWatchParams struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+}
+
+func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]Video, error) {
+	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.PlayerID)
 	if err != nil {
 		return nil, err
 	}

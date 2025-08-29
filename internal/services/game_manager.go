@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
@@ -78,7 +77,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, vi
 			}
 		}
 
-		err = gm.addVideoToGame(ctx, gameId, videoId, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, videoId, playerId)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +113,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 			}
 		}
 
-		err = gm.addVideoToGame(ctx, gameId, video.ID, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, video.ID, playerId)
 		if err != nil {
 			return nil, err
 		}
@@ -123,24 +122,46 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) addVideoToGame(ctx context.Context, gameId int64, videoId int64, playerId int64) error {
-	_, err := gm.redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
-		key := kGameVideos(gameId)
-		pipe.HSet(ctx, key, fmt.Sprint(playerId), videoId)
-		pipe.Expire(ctx, key, 24*time.Hour)
-
-		return nil
+func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId int64, videoId int64, playerId int64) error {
+	err := q.AddVideoToGame(ctx, qg.AddVideoToGameParams{
+		GameID:   gameId,
+		VideoID:  videoId,
+		PlayerID: playerId,
 	})
 
 	if err != nil {
 		return common.ServiceError{
-			Code:    common.ErrorRedis,
+			Code:    common.GetDbErrorCode(err),
 			Message: "failed to add video to game",
 			Cause:   err,
 		}
 	}
 
 	return nil
+}
+
+func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playerId int64) ([]qg.Video, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
+		q := gm.txm.Querier(tx)
+		videos, err := q.GetVideosToWatch(ctx, qg.GetVideosToWatchParams{
+			GameID:   gameId,
+			PlayerID: playerId,
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to get videos for game",
+				Cause:   err,
+			}
+		}
+
+		if len(videos) == 0 {
+			videos = []qg.Video{}
+		}
+
+		return videos, nil
+	})
 }
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameDetails, error) {

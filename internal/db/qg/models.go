@@ -72,6 +72,13 @@ type GamePlayer struct {
 	JoinedAt pgtype.Timestamptz `json:"joined_at"`
 }
 
+type GameVideo struct {
+	GameID      int64              `json:"game_id"`
+	PlayerID    int64              `json:"player_id"`
+	VideoID     int64              `json:"video_id"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+}
+
 type Player struct {
 	TgID           int64              `json:"tg_id"`
 	TgUsername     string             `json:"tg_username"`

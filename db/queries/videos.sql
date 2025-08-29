@@ -24,3 +24,24 @@ FROM game_players gp
 WHERE gp.game_id  = $1
   AND gp.player_id = $2
 RETURNING *;
+
+-- name: AddVideoToGame :exec
+INSERT INTO game_videos (game_id, player_id, video_id) 
+VALUES ($1, $2, $3) 
+ON CONFLICT (game_id, player_id)
+DO UPDATE
+SET video_id = EXCLUDED.video_id,
+    submitted_at = now();
+    
+-- name: GetVideosToWatch :many
+SELECT v.*
+FROM game_videos gv
+JOIN videos v ON v.id = gv.video_id
+WHERE gv.game_id = $1
+  AND EXISTS (
+    SELECT 1
+    FROM game_players gp
+    WHERE gp.game_id = $1
+      AND gp.player_id = $2
+  )
+ORDER BY gv.submitted_at;
