@@ -9,6 +9,47 @@ import (
 	"context"
 )
 
+const getTotalVotes = `-- name: GetTotalVotes :many
+SELECT
+  gv.video_id AS id,
+  COUNT(*) FILTER (WHERE gv.value = 'like'::vote_value)    AS likes,
+  COUNT(*) FILTER (WHERE gv.value = 'dislike'::vote_value) AS dislikes
+FROM game_votes AS gv
+WHERE gv.game_id = $1
+GROUP BY gv.video_id
+ORDER BY gv.video_id
+`
+
+type GetTotalVotesParams struct {
+	GameID int64 `json:"game_id"`
+}
+
+type GetTotalVotesRow struct {
+	ID       int64 `json:"id"`
+	Likes    int64 `json:"likes"`
+	Dislikes int64 `json:"dislikes"`
+}
+
+func (q *Queries) GetTotalVotes(ctx context.Context, arg GetTotalVotesParams) ([]GetTotalVotesRow, error) {
+	rows, err := q.db.Query(ctx, getTotalVotes, arg.GameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTotalVotesRow
+	for rows.Next() {
+		var i GetTotalVotesRow
+		if err := rows.Scan(&i.ID, &i.Likes, &i.Dislikes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const voteForVideo = `-- name: VoteForVideo :one
 INSERT INTO game_votes (game_id, player_id, video_id, value)
 SELECT $1, $2, $3, $4

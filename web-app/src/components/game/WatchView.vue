@@ -38,7 +38,7 @@ onMounted(async () => {
         </button>
         <button class="rounded-md bg-gray-100 p-2 font-medium" @click="closeControls"
           v-if="gameStore.currentVideoOEmbed">
-          <span>Close</span>
+          <span>Minimize</span>
         </button>
       </div>
     </div>

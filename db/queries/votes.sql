@@ -15,3 +15,13 @@ DO UPDATE
 SET value = EXCLUDED.value, 
     voted_at = now()
 RETURNING *;
+
+-- name: GetTotalVotes :many
+SELECT
+  gv.video_id AS id,
+  COUNT(*) FILTER (WHERE gv.value = 'like'::vote_value)    AS likes,
+  COUNT(*) FILTER (WHERE gv.value = 'dislike'::vote_value) AS dislikes
+FROM game_votes AS gv
+WHERE gv.game_id = $1
+GROUP BY gv.video_id
+ORDER BY gv.video_id;

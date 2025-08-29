@@ -16,8 +16,9 @@ type ThemeExt struct {
 type MessageType string
 
 const (
-	GameDetailsMsg MessageType = "details"
-	GameUpdateMsg  MessageType = "state_change"
+	GameDetailsMsg  MessageType = "details"
+	GameUpdateMsg   MessageType = "state_change"
+	GameCompleteMsg MessageType = "complete"
 )
 
 type GameUpdate struct {
@@ -27,6 +28,8 @@ type GameUpdate struct {
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 	RamaningTimeMs    int64              `json:"remaning_time_ms"`
+	Theme             *ThemeDetails      `json:"theme,omitempty"`
+	Result            *GameResult        `json:"result,omitempty"`
 }
 
 type ThemeDetails struct {
@@ -35,7 +38,6 @@ type ThemeDetails struct {
 	Description string `json:"description"`
 }
 
-type GameDetails struct {
-	GameUpdate
-	Theme ThemeDetails `json:"theme"`
+type GameResult struct {
+	Videos []qg.GetTotalVotesRow `json:"videos"`
 }

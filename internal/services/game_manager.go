@@ -181,8 +181,8 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoP
 	})
 }
 
-func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameDetails, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
+func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
 		q := gm.txm.Querier(tx)
 		game, err := q.GetGameForPlayer(ctx, qg.GetGameForPlayerParams{ID: gameId, PlayerID: playerId})
 		if err != nil {
@@ -202,16 +202,14 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 			}
 		}
 
-		return &models.GameDetails{
-			GameUpdate: models.GameUpdate{
-				GameID:            game.ID,
-				MsgType:           models.GameDetailsMsg,
-				State:             game.State,
-				StateChangedAt:    game.StateChangedAt,
-				NextStateChangeAt: game.NextStateChangeAt,
-				RamaningTimeMs:    game.RemainingMs,
-			},
-			Theme: models.ThemeDetails{
+		return &models.GameUpdate{
+			GameID:            game.ID,
+			MsgType:           models.GameDetailsMsg,
+			State:             game.State,
+			StateChangedAt:    game.StateChangedAt,
+			NextStateChangeAt: game.NextStateChangeAt,
+			RamaningTimeMs:    game.RemainingMs,
+			Theme: &models.ThemeDetails{
 				ID:          theme.ID,
 				Name:        theme.Name,
 				Description: theme.Description.String,
@@ -297,8 +295,29 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.
 		}
 	}
 
-	upd := gameToGameUpdate(completeGame)
-	return &upd, nil
+	votes, err := q.GetTotalVotes(ctx, qg.GetTotalVotesParams{GameID: game.ID})
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("wrong game state: %s", game.State),
+		}
+	}
+
+	if len(votes) == 0 {
+		votes = []qg.GetTotalVotesRow{}
+	}
+
+	return &models.GameUpdate{
+		MsgType:           models.GameCompleteMsg,
+		GameID:            completeGame.ID,
+		State:             completeGame.State,
+		StateChangedAt:    completeGame.StateChangedAt,
+		NextStateChangeAt: completeGame.NextStateChangeAt,
+		RamaningTimeMs:    0,
+		Result: &models.GameResult{
+			Videos: votes,
+		},
+	}, nil
 }
 
 func statusRowToGameUpdate(row qg.UpdateGameStatusRow) models.GameUpdate {
@@ -309,16 +328,5 @@ func statusRowToGameUpdate(row qg.UpdateGameStatusRow) models.GameUpdate {
 		StateChangedAt:    row.StateChangedAt,
 		NextStateChangeAt: row.NextStateChangeAt,
 		RamaningTimeMs:    row.RemainingMs,
-	}
-}
-
-func gameToGameUpdate(game qg.Game) models.GameUpdate {
-	return models.GameUpdate{
-		GameID:            game.ID,
-		MsgType:           models.GameUpdateMsg,
-		State:             game.State,
-		StateChangedAt:    game.StateChangedAt,
-		NextStateChangeAt: game.NextStateChangeAt,
-		RamaningTimeMs:    0,
 	}
 }
