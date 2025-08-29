@@ -17,7 +17,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col justify-start items-stretch min-h-screen">
+  <div class="flex flex-col justify-start items-stretch space-y-2">
     <router-view />
   </div>
 </template>

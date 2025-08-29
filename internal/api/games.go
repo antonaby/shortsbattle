@@ -154,21 +154,15 @@ func (api *GamesApi) getVideosForGame(c echo.Context) error {
 		})
 	}
 
-	request := new(m.GetVideosRequest)
-	if err := c.Bind(request); err != nil {
+	playerId, err := parseInt64(c.QueryParam("player_id"))
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
+			Error: InvalidIdFormatMsg,
 		})
 	}
-
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
-	}
-
+	
 	ctx := c.Request().Context()
-	videos, err := api.gm.GetVideosToWatch(ctx, gameId, request.PlayerID)
+	videos, err := api.gm.GetVideosToWatch(ctx, gameId, playerId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{

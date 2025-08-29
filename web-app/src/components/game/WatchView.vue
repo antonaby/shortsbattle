@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
+import { useGameStore } from '../../stores/game.store';
 
+const gameStore = useGameStore();
+onMounted(async () => {
+  await gameStore.loadVideosToWatch();
+});
 </script>
 
 <template>

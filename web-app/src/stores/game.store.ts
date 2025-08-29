@@ -26,6 +26,7 @@ export const useGameStore = defineStore("game", () => {
   const theme = ref<ThemeDetails | null>(null);
   const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
+  const gameVideos = ref<Video[]>([]);
 
   let gameId: number | null = null;
   let intervalId: number | null = null;
@@ -42,7 +43,7 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function navigateToGameState(upd: GameUpdate) {
-    //router.push({ name: "game-submit", params: { id: gameId } });
+    //router.push({ name: "game-watch", params: { id: gameId } });
 
     switch (upd.state) {
       case "lobby":
@@ -142,8 +143,14 @@ export const useGameStore = defineStore("game", () => {
 
     gameId = null;
     lastGameUpdate.value = null;
+    remainingTimeMs.value = 0;
+    theme.value = null;
+    playerVideos.value = [];
+    selectedVideo.value = null;
+    gameVideos.value = [];
   }
 
+  // TODO: show loading element
   async function selectVideo(videoId: number) {
     await makeSubmitRequest({
       video_id: videoId,
@@ -151,6 +158,7 @@ export const useGameStore = defineStore("game", () => {
     });
   }
 
+  // TODO: show loading element
   async function newVideo(url: string) {
     await makeSubmitRequest({
       video_url: url,
@@ -158,8 +166,7 @@ export const useGameStore = defineStore("game", () => {
     });
   }
 
-  // TODO: send a request to backend to unselect the video
-  async function unselectVideo() {
+  function unselectVideo() {
     selectedVideo.value = null;
   }
 
@@ -180,17 +187,37 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  // TODO: show loading element 
+  async function loadVideosToWatch() {
+    try {
+      const response = await axios.get<Video[]>(
+        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/videos`,
+        {
+          params: {
+            player_id: 1 // TODO: use user store
+          }, 
+        }
+      );
+      gameVideos.value = response.data;
+    } catch (error) {
+      // TODO: handle with UI Store
+      throw new NetworkError("failed to join game", error);
+    }
+  }
+
   return {
     theme,
     lastGameUpdate,
     formattedTime,
     playerVideos,
     selectedVideo,
+    gameVideos,
     joinGame,
     leaveGame,
     reloadPlayerVideos,
     selectVideo,
     newVideo,
     unselectVideo,
+    loadVideosToWatch,
   };
 });

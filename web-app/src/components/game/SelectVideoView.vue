@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useGameStore } from '../../stores/game.store';
 import NewVideoView from './NewVideoView.vue';
 import ExistingVideoView from './ExistingVideoView.vue';
 import type { Tab } from '../../types/components';
@@ -19,7 +18,6 @@ const tabs: Tab[] = [
   }
 ];
 
-const gameStore = useGameStore();
 const activeTab = ref<Tab>(tabs[0]);
 
 function onTabSelect(tab: Tab) {
@@ -29,8 +27,6 @@ function onTabSelect(tab: Tab) {
 
 <template>
   <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
-  <div class="pt-2" v-if="!gameStore.selectedVideo">
-    <ExistingVideoView v-if="activeTab.key == 'library'" />
-    <NewVideoView v-if="activeTab.key == 'new'" />
-  </div>
+  <ExistingVideoView v-if="activeTab.key == 'library'" />
+  <NewVideoView v-if="activeTab.key == 'new'" />
 </template>

@@ -33,10 +33,6 @@ type SubmitVideoRequest struct {
 	PlayerID int64   `json:"player_id" validate:"required"`
 }
 
-type GetVideosRequest struct {
-	PlayerID int64 `json:"player_id" validate:"required"`
-}
-
 type JoinGameRequest struct {
 	ThemeID  int64 `json:"theme_id" validate:"required"`
 	PlayerID int64 `json:"player_id" validate:"required"`

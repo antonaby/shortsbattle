@@ -9,9 +9,7 @@ const gameStore = useGameStore();
 </script>
 <template>
   <HeaderView />
-  <div class="w-full space-y-2">
-    <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
-    <SelectVideoView v-if="!gameStore.selectedVideo" />
-    <SelectedVideoView v-else />
-  </div>
+  <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
+  <SelectVideoView v-if="!gameStore.selectedVideo" />
+  <SelectedVideoView v-else />
 </template>

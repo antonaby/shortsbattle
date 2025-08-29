@@ -8,7 +8,7 @@ const url: Ref<string> = ref("")
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="gameStore.newVideo(url)">
+  <form class="space-y-2" @submit.prevent="gameStore.newVideo(url)">
     <label class="block">
       <span class="block mb-1">Video URL</span>
       <input v-model="url" type="url" name="url" placeholder="https://www.youtube.com/shorts/Xyz" required class="w-full border rounded p-2" />
