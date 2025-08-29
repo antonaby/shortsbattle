@@ -214,6 +214,28 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  function nextVideo() {
+    if (currentPlayingVideoIndex.value + 1 <= gameVideos.value.length) {
+      currentPlayingVideoIndex.value += 1;
+    }
+  }
+
+  function previousVideo() {
+    if (currentPlayingVideoIndex.value - 1 >= 0) {
+      currentPlayingVideoIndex.value -= 1;
+    }
+  }
+
+  async function likeVideo() {
+    let video = gameVideos.value[currentPlayingVideoIndex.value];
+    console.log(video);
+  }
+
+  async function dislikeVideo() {
+    let video = gameVideos.value[currentPlayingVideoIndex.value];
+    console.log(video);
+  }
+
   return {
     theme,
     lastGameUpdate,
@@ -230,5 +252,9 @@ export const useGameStore = defineStore("game", () => {
     newVideo,
     unselectVideo,
     loadVideosToWatch,
+    nextVideo,
+    previousVideo,
+    likeVideo,
+    dislikeVideo,
   };
 });
