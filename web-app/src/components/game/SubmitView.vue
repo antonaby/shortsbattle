@@ -8,8 +8,10 @@ import SelectedVideoView from './SelectedVideoView.vue';
 const gameStore = useGameStore();
 </script>
 <template>
-  <HeaderView />
-  <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
-  <SelectVideoView v-if="!gameStore.selectedVideo" />
-  <SelectedVideoView v-else />
+  <div class="page-container">
+    <HeaderView />
+    <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
+    <SelectVideoView v-if="!gameStore.selectedVideo" />
+    <SelectedVideoView v-else />
+  </div>
 </template>

@@ -2,6 +2,8 @@
 import { onMounted } from 'vue';
 import { useGameStore } from '../../stores/game.store';
 
+// TODO: ensure it's connected and subscribed with composables
+
 const gameStore = useGameStore();
 onMounted(async () => {
   await gameStore.loadVideosToWatch();
@@ -9,7 +11,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex-1 flex items-center justify-center text-2xl font-medium">
-    <span>Watch videos from other players</span>
+  <div class="w-screen h-screen bg-gray-200">
+    <div class="fixed top-0 left-0 z-50 text-center">
+      Total Videos: {{ gameStore.gameVideos.length }}
+    </div>
+    <div v-html="gameStore.currentVideoOEmbed" v-if="gameStore.currentVideoOEmbed" class="video-wrapper">
+    </div>
+    <div v-else>
+      No video
+    </div>
   </div>
 </template>

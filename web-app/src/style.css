@@ -1,2 +1,20 @@
 @import "tailwindcss";
 
+.page-container {
+  @apply flex flex-col justify-start items-stretch space-y-2 p-4;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+}
+
+.video-wrapper iframe {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+}

@@ -7,6 +7,8 @@ const gameStore = useGameStore();
 </script>
 
 <template>
-  <HeaderView />
-  <TimerView caption="Waiting for other players" :remaning-time="gameStore.formattedTime" />
+  <div class="page-container">
+    <HeaderView />
+    <TimerView caption="Waiting for other players" :remaning-time="gameStore.formattedTime" />
+  </div>
 </template>

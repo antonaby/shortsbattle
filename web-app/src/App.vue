@@ -15,12 +15,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="p-3">
-    <FullscreenLoaderView v-if="!uiStore.isReady" />
-    <main v-else>
-      <router-view />
-    </main>
-  </div>
+  <FullscreenLoaderView v-if="!uiStore.isReady" />
+  <main v-else>
+    <router-view />
+  </main>
 </template>
 
 <style scoped></style>

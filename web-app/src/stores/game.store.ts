@@ -1,9 +1,5 @@
 import { defineStore } from "pinia";
-import type {
-  ThemeDetails,
-  GameUpdate,
-  Video,
-} from "../types/game";
+import type { ThemeDetails, GameUpdate, Video } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
@@ -27,6 +23,7 @@ export const useGameStore = defineStore("game", () => {
   const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
   const gameVideos = ref<Video[]>([]);
+  const currentPlayingVideoIndex = ref<number>(0);
 
   let gameId: number | null = null;
   let intervalId: number | null = null;
@@ -36,6 +33,17 @@ export const useGameStore = defineStore("game", () => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  });
+
+  const currentVideoOEmbed = computed((): string | null => {
+    if (currentPlayingVideoIndex.value < gameVideos.value.length) {
+      const video = gameVideos.value[currentPlayingVideoIndex.value];
+      if (video.oembed.html) {
+        return video.oembed.html;
+      }
+    }
+
+    return null;
   });
 
   function updateRemainingTime(upd: GameUpdate) {
@@ -148,6 +156,7 @@ export const useGameStore = defineStore("game", () => {
     playerVideos.value = [];
     selectedVideo.value = null;
     gameVideos.value = [];
+    currentPlayingVideoIndex.value = 0;
   }
 
   // TODO: show loading element
@@ -187,15 +196,15 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
-  // TODO: show loading element 
+  // TODO: show loading element
   async function loadVideosToWatch() {
     try {
       const response = await axios.get<Video[]>(
         `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/videos`,
         {
           params: {
-            player_id: 1 // TODO: use user store
-          }, 
+            player_id: 1, // TODO: use user store
+          },
         }
       );
       gameVideos.value = response.data;
@@ -212,6 +221,8 @@ export const useGameStore = defineStore("game", () => {
     playerVideos,
     selectedVideo,
     gameVideos,
+    currentPlayingVideoIndex,
+    currentVideoOEmbed,
     joinGame,
     leaveGame,
     reloadPlayerVideos,

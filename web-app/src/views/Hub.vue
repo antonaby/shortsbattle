@@ -7,8 +7,6 @@ const hubStore = useGameHubStore();
 </script>
 
 <template>
-  <div>
-    <FullscreenLoaderView v-if="hubStore.loadingGame" />
-    <ThemeList />
-  </div>
+  <FullscreenLoaderView v-if="hubStore.loadingGame" />
+  <ThemeList />
 </template>

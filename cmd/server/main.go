@@ -96,10 +96,10 @@ func main() {
 
 	gameConfig := services.GameConfig{
 		MaxPlayers:        5,
-		LobbyState:        30 * time.Second,
+		LobbyState:        10 * time.Second,
 		LobbyClosedBefore: 5 * time.Second,
-		SubmittingState:   30 * time.Second,
-		WatchingState:     30 * time.Second,
+		SubmittingState:   10 * time.Second,
+		WatchingState:     360 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
