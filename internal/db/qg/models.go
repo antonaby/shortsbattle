@@ -56,6 +56,49 @@ func (ns NullGameState) Value() (driver.Value, error) {
 	return string(ns.GameState), nil
 }
 
+type VoteValue string
+
+const (
+	VoteValueLike    VoteValue = "like"
+	VoteValueDislike VoteValue = "dislike"
+	VoteValueSkip    VoteValue = "skip"
+)
+
+func (e *VoteValue) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VoteValue(s)
+	case string:
+		*e = VoteValue(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VoteValue: %T", src)
+	}
+	return nil
+}
+
+type NullVoteValue struct {
+	VoteValue VoteValue `json:"vote_value"`
+	Valid     bool      `json:"valid"` // Valid is true if VoteValue is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVoteValue) Scan(value interface{}) error {
+	if value == nil {
+		ns.VoteValue, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VoteValue.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVoteValue) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VoteValue), nil
+}
+
 type Game struct {
 	ID                int64              `json:"id"`
 	ThemeID           int64              `json:"theme_id"`
@@ -77,6 +120,14 @@ type GameVideo struct {
 	PlayerID    int64              `json:"player_id"`
 	VideoID     int64              `json:"video_id"`
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+}
+
+type GameVote struct {
+	GameID   int64              `json:"game_id"`
+	PlayerID int64              `json:"player_id"`
+	VideoID  int64              `json:"video_id"`
+	VotedAt  pgtype.Timestamptz `json:"voted_at"`
+	Value    VoteValue          `json:"value"`
 }
 
 type Player struct {

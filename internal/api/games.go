@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
@@ -29,8 +30,9 @@ func (api *GamesApi) register(g *echo.Group) {
 	v1group := g.Group("/v1")
 
 	v1group.PUT("/games/join", api.joinGame)
-	v1group.PUT("/games/:id/submit", api.submitVideo) 
+	v1group.PUT("/games/:id/submit", api.submitVideo)
 	v1group.GET("/games/:id/videos", api.getVideosForGame) // TODO: return DTOs intead of DB Models
+	v1group.PUT("/games/:id/vote", api.voteForVideo)       // TODO: return DTOs intead of DB Models
 }
 
 func (api *GamesApi) joinGame(c echo.Context) error {
@@ -160,7 +162,7 @@ func (api *GamesApi) getVideosForGame(c echo.Context) error {
 			Error: InvalidIdFormatMsg,
 		})
 	}
-	
+
 	ctx := c.Request().Context()
 	videos, err := api.gm.GetVideosToWatch(ctx, gameId, playerId)
 	if err != nil {
@@ -171,4 +173,65 @@ func (api *GamesApi) getVideosForGame(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, videos)
+}
+
+// TODO: get user id from auth data
+func (api *GamesApi) voteForVideo(c echo.Context) error {
+	gameId, err := parseInt64(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	playerId, err := parseInt64(c.QueryParam("player_id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	request := new(m.VoteForVideoRequest)
+	if err := c.Bind(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidRequestFormatMsg,
+		})
+	}
+
+	if err := c.Validate(request); err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: RequestValidationErrorMsg,
+		})
+	}
+
+	ctx := c.Request().Context()
+	vote, err := api.gm.VoteForVideo(ctx, qg.VoteForVideoParams{
+		GameID:   gameId,
+		PlayerID: playerId,
+		VideoID:  request.VideoID,
+		Value:    request.Value,
+	})
+
+	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorDbNotFound {
+				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+					Error: "player not in the game, or game, player or video not found",
+				})
+			}
+			if sErr.Code == common.ErrorDbData {
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "invalid vote value",
+				})
+			}
+		}
+
+		c.Echo().Logger.Errorf("failed to vote for video: %v", err)
+		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+			Error: "Something went wrong",
+		})
+	}
+
+	return c.JSON(http.StatusOK, vote)
 }

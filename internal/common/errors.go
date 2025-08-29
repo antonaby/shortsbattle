@@ -11,6 +11,7 @@ type ErrorCode int
 const (
 	ErrorDbUnknown = iota
 	ErrorDbNotFound
+	ErrorDbData
 	ErrorWrongGameState
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
@@ -42,6 +43,9 @@ func GetDbErrorCode(err error) ErrorCode {
 	}
 	if db.IsNoRows(err) {
 		return ErrorDbNotFound
+	}
+	if db.IsClass22(err) {
+		return ErrorDbData
 	}
 
 	return ErrorDbUnknown

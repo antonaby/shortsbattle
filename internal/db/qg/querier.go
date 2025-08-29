@@ -30,6 +30,7 @@ type Querier interface {
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
+	VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error)
 }
 
 var _ Querier = (*Queries)(nil)

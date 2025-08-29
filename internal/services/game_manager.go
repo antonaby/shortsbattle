@@ -164,6 +164,23 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playe
 	})
 }
 
+func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoParams) (*qg.GameVote, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GameVote, error) {
+		q := gm.txm.Querier(tx)
+
+		vote, err := q.VoteForVideo(ctx, params)
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to get videos for game",
+				Cause:   err,
+			}
+		}
+
+		return &vote, nil
+	})
+}
+
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameDetails, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameDetails, error) {
 		q := gm.txm.Querier(tx)
