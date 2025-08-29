@@ -5,6 +5,7 @@ import type {
   Video,
   Vote,
   VoteValue,
+  GameResult,
 } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
@@ -30,6 +31,7 @@ export const useGameStore = defineStore("game", () => {
   const playerVideos = ref<Video[]>([]);
   const gameVideos = ref<Video[]>([]);
   const currentPlayingVideoIndex = ref<number>(0);
+  const finalResult = ref<GameResult | null>(null);
 
   let gameId: number | null = null;
   let intervalId: number | null = null;
@@ -76,10 +78,14 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function setLastUpdate(upd: GameUpdate) {
+    lastGameUpdate.value = upd;
+
     if (upd.theme && upd.msg_type == "details") {
       theme.value = upd.theme;
     }
-    lastGameUpdate.value = upd;
+    if (upd.result && upd.msg_type == "complete") {
+      finalResult.value = upd.result;
+    }
   }
 
   function handleSubscribed(ctx: SubscribedContext) {
@@ -143,26 +149,6 @@ export const useGameStore = defineStore("game", () => {
       // TODO: handle with UI Store
       throw new NetworkError("failed to join game", error);
     }
-  }
-
-  function leaveGame() {
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
-
-    if (gameId) {
-      wsStore.unsubscribe(`game_${gameId}`);
-    }
-
-    gameId = null;
-    lastGameUpdate.value = null;
-    remainingTimeMs.value = 0;
-    theme.value = null;
-    playerVideos.value = [];
-    selectedVideo.value = null;
-    gameVideos.value = [];
-    currentPlayingVideoIndex.value = 0;
   }
 
   // TODO: show loading element
@@ -263,6 +249,27 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  function leaveGame() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+
+    if (gameId) {
+      wsStore.unsubscribe(`game_${gameId}`);
+    }
+
+    gameId = null;
+    lastGameUpdate.value = null;
+    remainingTimeMs.value = 0;
+    theme.value = null;
+    playerVideos.value = [];
+    selectedVideo.value = null;
+    gameVideos.value = [];
+    currentPlayingVideoIndex.value = 0;
+    finalResult.value = null;
+  }
+
   return {
     theme,
     lastGameUpdate,
@@ -272,6 +279,7 @@ export const useGameStore = defineStore("game", () => {
     gameVideos,
     currentPlayingVideoIndex,
     currentVideoOEmbed,
+    finalResult,
     joinGame,
     leaveGame,
     reloadPlayerVideos,
