@@ -44,16 +44,18 @@ func NewEchoServer() *echo.Echo {
 }
 
 type HttpApi struct {
-	gm *services.GameManager
-	ts *services.ThemeService
-	vs *services.VideosService
+	auth *services.AuthService
+	gm   *services.GameManager
+	ts   *services.ThemeService
+	vs   *services.VideosService
 }
 
-func NewHttpApi(gm *services.GameManager, ts *services.ThemeService, vs *services.VideosService, g *echo.Group) *HttpApi {
+func NewHttpApi(auth *services.AuthService, gm *services.GameManager, ts *services.ThemeService, vs *services.VideosService, g *echo.Group) *HttpApi {
 	api := &HttpApi{
-		gm: gm,
-		ts: ts,
-		vs: vs,
+		auth: auth,
+		gm:   gm,
+		ts:   ts,
+		vs:   vs,
 	}
 
 	api.register(g)
@@ -63,6 +65,8 @@ func NewHttpApi(gm *services.GameManager, ts *services.ThemeService, vs *service
 
 func (api *HttpApi) register(g *echo.Group) {
 	v1group := g.Group("/v1")
+
+	v1group.POST("/auth", api.getTokenForTgUser)
 
 	v1group.PUT("/games/join", api.joinGame)
 	v1group.PUT("/games/:id/submit", api.submitVideo)

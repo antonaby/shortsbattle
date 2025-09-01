@@ -44,3 +44,11 @@ type VoteForVideoRequest struct {
 	VideoID int64        `json:"video_id" validate:"required"`
 	Value   qg.VoteValue `json:"value" validate:"required"`
 }
+
+type TgUserAuthRequest struct {
+	InitData string `json:"init_data" validate:"required"`
+}
+
+type OkTgUserTokenResponse struct {
+	Token string `json:"token"`
+}

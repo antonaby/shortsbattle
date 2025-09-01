@@ -38,6 +38,19 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	authConfig := services.AuthConfig{
+		TokenExpTime: 5 * time.Minute,
+		Issuer:       "shortsbattle",
+		Audience:     "tg-mini-app",
+	}
+
+	keyManager, err := services.NewKeyManager()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't load JWK")
+	}
+
+	authService := services.NewAuthService(keyManager, authConfig)
+
 	gameConfig := services.GameConfig{
 		MaxPlayers:        5,
 		LobbyState:        10 * time.Second,
@@ -80,7 +93,7 @@ func main() {
 
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 	apiGroup := e.Group("/api")
-	_ = api.NewHttpApi(gameManager, themeService, videoService, apiGroup)
+	_ = api.NewHttpApi(authService, gameManager, themeService, videoService, apiGroup)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
