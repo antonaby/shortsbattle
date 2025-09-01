@@ -7,35 +7,11 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
 
 	"github.com/labstack/echo/v4"
 )
 
-type GamesApi struct {
-	gm *services.GameManager
-}
-
-func NewGamesApi(gm *services.GameManager, g *echo.Group) *GamesApi {
-	api := &GamesApi{
-		gm: gm,
-	}
-
-	api.register(g)
-
-	return api
-}
-
-func (api *GamesApi) register(g *echo.Group) {
-	v1group := g.Group("/v1")
-
-	v1group.PUT("/games/join", api.joinGame)
-	v1group.PUT("/games/:id/submit", api.submitVideo)
-	v1group.GET("/games/:id/videos", api.getVideosForGame) // TODO: return DTOs intead of DB Models
-	v1group.PUT("/games/:id/vote", api.voteForVideo)       // TODO: return DTOs intead of DB Models
-}
-
-func (api *GamesApi) joinGame(c echo.Context) error {
+func (api *HttpApi) joinGame(c echo.Context) error {
 	request := new(m.JoinGameRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -75,7 +51,7 @@ func (api *GamesApi) joinGame(c echo.Context) error {
 }
 
 // TODO: get user id from auth data
-func (api *GamesApi) submitVideo(c echo.Context) error {
+func (api *HttpApi) submitVideo(c echo.Context) error {
 	gameId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -148,7 +124,7 @@ func (api *GamesApi) submitVideo(c echo.Context) error {
 }
 
 // TODO: get user id from auth data
-func (api *GamesApi) getVideosForGame(c echo.Context) error {
+func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	gameId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -176,7 +152,7 @@ func (api *GamesApi) getVideosForGame(c echo.Context) error {
 }
 
 // TODO: get user id from auth data
-func (api *GamesApi) voteForVideo(c echo.Context) error {
+func (api *HttpApi) voteForVideo(c echo.Context) error {
 	gameId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{

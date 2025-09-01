@@ -6,34 +6,10 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/labstack/echo/v4"
 )
 
-type VideosApi struct {
-	vs *services.VideosService
-}
-
-func NewVideosApi(vs *services.VideosService, g *echo.Group) *VideosApi {
-	api := &VideosApi{
-		vs: vs,
-	}
-
-	api.register(g)
-
-	return api
-}
-
-func (api *VideosApi) register(g *echo.Group) {
-	v1group := g.Group("/v1")
-
-	v1group.POST("/videos", api.addVideo)
-	v1group.GET("/videos/:id", api.getVideo)
-
-	v1group.GET("/players/:id/videos", api.getVideosForPlayer)
-}
-
-func (api *VideosApi) addVideo(c echo.Context) error {
+func (api *HttpApi) addVideo(c echo.Context) error {
 	request := new(m.AddVideoRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -69,7 +45,7 @@ func (api *VideosApi) addVideo(c echo.Context) error {
 	return c.JSON(http.StatusOK, video)
 }
 
-func (api *VideosApi) getVideo(c echo.Context) error {
+func (api *HttpApi) getVideo(c echo.Context) error {
 	videoId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -98,7 +74,7 @@ func (api *VideosApi) getVideo(c echo.Context) error {
 	return c.JSON(http.StatusOK, video)
 }
 
-func (api *VideosApi) getVideosForPlayer(c echo.Context) error {
+func (api *HttpApi) getVideosForPlayer(c echo.Context) error {
 	playerId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
