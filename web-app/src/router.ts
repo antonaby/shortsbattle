@@ -11,7 +11,7 @@ import OpenView from "./components/game/OpenView.vue";
 import WatchView from "./components/game/WatchView.vue";
 import CompleteView from "./components/game/CompleteView.vue";
 
-const routes: RouteRecordRaw[] = [
+let routes: RouteRecordRaw[] = [
   {
     path: "/",
     name: "hub",
@@ -30,6 +30,12 @@ const routes: RouteRecordRaw[] = [
     ],
   },
 ];
+
+if (import.meta.env.DEV) {
+  routes = routes.concat([
+    
+  ]);
+}
 
 const router = createRouter({
   history: createWebHistory(),

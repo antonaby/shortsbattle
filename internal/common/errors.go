@@ -18,6 +18,9 @@ const (
 	ErrorRedisStream
 	ErrorRedis
 	ErrorParse
+	ErrorTgInitData
+	ErrorJWTData
+	ErrorJWK
 )
 
 type ServiceError struct {
