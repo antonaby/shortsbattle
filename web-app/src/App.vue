@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { useWSStore } from './stores/ws.store';
-import { useUIStore } from './stores/ui.store';
 import FullscreenLoaderView from './components/common/FullscreenLoaderView.vue';
-import { onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
+import { useUserStore } from './stores/user.store';
 
-const uiStore = useUIStore();
-
+const userStore = useUserStore();
 const wsStore = useWSStore();
-wsStore.connect();
+
+const isReady = computed<boolean>(() => {
+  return wsStore.connected
+})
+
+onMounted(async () => {
+  let token = await userStore.getToken();
+  wsStore.connect(token);
+})
 
 onUnmounted(() => {
   wsStore.disconnect();
@@ -15,7 +22,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <FullscreenLoaderView v-if="!uiStore.isReady" />
+  <FullscreenLoaderView v-if="!isReady" />
   <main v-else>
     <router-view />
   </main>

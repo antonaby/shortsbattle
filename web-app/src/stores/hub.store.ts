@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
-import type { GameJoined, Theme } from "../types/game";
-import axios from "axios";
+import type { Theme } from "../types/game";
 import { ref } from "vue";
 import { NetworkError } from "../types/errors";
 import { useUIStore } from "./ui.store";
+import { GamesAPI } from "../api/games";
 
 export const useGameHubStore = defineStore("gamehub", () => {
   const themes = ref<Theme[]>([]);
@@ -12,10 +12,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
 
   async function fetchThemes() {
     try {
-      const response = await axios.get<Theme[]>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/themes`
-      );
-      themes.value = response.data;
+      themes.value = await GamesAPI.fetchThemes();
     } catch (error) {
       // TODO: handle with UI Store
       throw new NetworkError("failed to fetch game themes", error);
@@ -25,14 +22,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
   async function joinGame(themeId: number): Promise<void> {
     loadingGame.value = true;
     try {
-      const response = await axios.put<GameJoined>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/games/join`,
-        {
-          theme_id: themeId,
-          player_id: 1, // TODO: use user store
-        }
-      );
-      const game = response.data;
+      const game = await GamesAPI.joinGame(themeId);
       uiStore.openGame(game.game_id);
     } catch (error) {
       // TODO: handle with UI Store

@@ -1,8 +1,10 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/labstack/echo/v4"
 )
@@ -23,6 +25,15 @@ func (api *HttpApi) getTokenForTgUser(c echo.Context) error {
 
 	token, err := api.auth.NewTokenFromTgInitData(request.InitData)
 	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorTgInitData {
+				return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+					Error: "invalid init data",
+				})
+			}
+		}
+
 		c.Echo().Logger.Errorf("failed to create game: %v", err)
 		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error: "something went wrong",

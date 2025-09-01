@@ -8,7 +8,6 @@ import {
   type UnsubscribedContext,
 } from "centrifuge";
 import { ref } from "vue";
-import { useUIStore } from "./ui.store";
 
 interface SubMap {
   [channel: string]: Subscription;
@@ -21,15 +20,13 @@ export const useWSStore = defineStore("ws", () => {
 
   function updateConnected(value: boolean) {
     connected.value = value;
-    const uiStore = useUIStore();
-    uiStore.setWsConnected(value);
   }
 
-  function connect() {
+  function connect(token: string) {
     client = new Centrifuge(
       `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`,
       {
-        token: "test",
+        token: token,
       }
     );
 
