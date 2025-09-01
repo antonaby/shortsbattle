@@ -100,7 +100,7 @@ func (api *HttpApi) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		h := c.Request().Header.Get("Authorization")
 		if !strings.HasPrefix(h, "Bearer ") {
 			return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error: "missing JWT",
+				Error: "missing authorization token",
 			})
 		}
 		tokenStr := strings.TrimPrefix(h, "Bearer")
@@ -109,7 +109,7 @@ func (api *HttpApi) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		token, err := api.auth.ParseAndValidateJwt([]byte(tokenStr))
 		if err != nil {
 			return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error: "invalid JWT",
+				Error: "invalid authorization token",
 			})
 		}
 

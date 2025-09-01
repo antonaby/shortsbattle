@@ -12,6 +12,13 @@ import (
 )
 
 func (api *HttpApi) joinGame(c echo.Context) error {
+	tgId, err := getTgUserIdFromToken(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
+			Error: UnathorizedErrorMsg,
+		})
+	}
+
 	request := new(m.JoinGameRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -26,7 +33,7 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	gameId, err := api.gm.JoinGame(ctx, request.ThemeID, request.PlayerID)
+	gameId, err := api.gm.JoinGame(ctx, request.ThemeID, tgId)
 
 	if err != nil {
 		var sErr common.ServiceError

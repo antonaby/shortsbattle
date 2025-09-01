@@ -37,7 +37,6 @@ type SubmitVideoRequest struct {
 
 type JoinGameRequest struct {
 	ThemeID  int64 `json:"theme_id" validate:"required"`
-	PlayerID int64 `json:"player_id" validate:"required"`
 }
 
 type VoteForVideoRequest struct {

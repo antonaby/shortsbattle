@@ -93,7 +93,7 @@ func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 
 	token, err := jwt.NewBuilder().
 		JwtID(uuid.NewString()).
-		Subject(parsedData["userId"]).
+		Subject(parsedData["userId"]). // TODO: validate actual init data from TG
 		Audience([]string{as.config.Audience}).
 		Issuer(as.config.Issuer).
 		IssuedAt(currentTime).
@@ -102,7 +102,7 @@ func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorJWTData,
+			Code:    common.ErrorJWT,
 			Message: "failed to create JWT",
 			Cause:   err,
 		}
@@ -137,7 +137,7 @@ func (as *AuthService) ParseAndValidateJwt(rawToken []byte) (jwt.Token, error) {
 
 	if err != nil {
 		return nil, common.ServiceError{
-			Code:    common.ErrorJWTData,
+			Code:    common.ErrorJWT,
 			Message: "failed to parse JWT",
 			Cause:   err,
 		}

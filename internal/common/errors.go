@@ -19,7 +19,7 @@ const (
 	ErrorRedis
 	ErrorParse
 	ErrorTgInitData
-	ErrorJWTData
+	ErrorJWT
 	ErrorJWK
 )
 
