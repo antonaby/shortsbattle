@@ -81,6 +81,8 @@ func NewAuthService(km *KeyManager, config AuthConfig) *AuthService {
 	}
 }
 
+// TODO: get tg user from db or create
+// TODO: validate init data with bot token
 func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 	parsedData, err := initDataToMap(initData)
 	if err != nil {

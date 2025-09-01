@@ -2,14 +2,34 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
 )
 
-func NewEchoServer() *echo.Echo {
+var JWTContextKey = "jwt"
+
+type HttpApi struct {
+	auth *services.AuthService
+	gm   *services.GameManager
+	ts   *services.ThemeService
+	vs   *services.VideosService
+}
+
+func NewHttpApi(auth *services.AuthService, gm *services.GameManager, ts *services.ThemeService, vs *services.VideosService) *HttpApi {
+	return &HttpApi{
+		auth: auth,
+		gm:   gm,
+		ts:   ts,
+		vs:   vs,
+	}
+}
+
+func (api *HttpApi) NewEchoServer() *echo.Echo {
 	e := echo.New()
 	e.Validator = NewCustomValidator()
 
@@ -40,33 +60,23 @@ func NewEchoServer() *echo.Echo {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
+	unsecuredApiGroup := e.Group("/api")
+	api.addUnsecuredEndpoints(unsecuredApiGroup)
+
+	securedApiGroup := e.Group("/api", api.authMiddleware)
+	api.addSecuredEndpoints(securedApiGroup)
+
 	return e
 }
 
-type HttpApi struct {
-	auth *services.AuthService
-	gm   *services.GameManager
-	ts   *services.ThemeService
-	vs   *services.VideosService
-}
-
-func NewHttpApi(auth *services.AuthService, gm *services.GameManager, ts *services.ThemeService, vs *services.VideosService, g *echo.Group) *HttpApi {
-	api := &HttpApi{
-		auth: auth,
-		gm:   gm,
-		ts:   ts,
-		vs:   vs,
-	}
-
-	api.register(g)
-
-	return api
-}
-
-func (api *HttpApi) register(g *echo.Group) {
+func (api *HttpApi) addUnsecuredEndpoints(g *echo.Group) {
 	v1group := g.Group("/v1")
 
 	v1group.POST("/auth", api.getTokenForTgUser)
+}
+
+func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
+	v1group := g.Group("/v1")
 
 	v1group.PUT("/games/join", api.joinGame)
 	v1group.PUT("/games/:id/submit", api.submitVideo)
@@ -83,4 +93,27 @@ func (api *HttpApi) register(g *echo.Group) {
 	v1group.GET("/videos/:id", api.getVideo)
 
 	v1group.GET("/players/:id/videos", api.getVideosForPlayer)
+}
+
+func (api *HttpApi) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		h := c.Request().Header.Get("Authorization")
+		if !strings.HasPrefix(h, "Bearer ") {
+			return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+				Error: "missing JWT",
+			})
+		}
+		tokenStr := strings.TrimPrefix(h, "Bearer")
+		tokenStr = strings.TrimSpace(tokenStr)
+
+		token, err := api.auth.ParseAndValidateJwt([]byte(tokenStr))
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+				Error: "invalid JWT",
+			})
+		}
+
+		c.Set(JWTContextKey, token)
+		return next(c)
+	}
 }
