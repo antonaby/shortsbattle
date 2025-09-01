@@ -83,16 +83,16 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	v1group.GET("/games/:id/videos", api.getVideosForGame) // TODO: return DTOs intead of DB Models
 	v1group.PUT("/games/:id/vote", api.voteForVideo)       // TODO: return DTOs intead of DB Models
 
+	// TODO: add player id as the owner of the theme
 	v1group.POST("/themes", api.createTheme)
 	v1group.GET("/themes", api.listAllThemes)
 	v1group.GET("/themes/:id", api.getTheme)
-
-	v1group.POST("/themes/:id/videos", api.createVideoRequest)
+	v1group.POST("/themes/:id/requests", api.createVideoRequest)
 
 	v1group.POST("/videos", api.addVideo)
 	v1group.GET("/videos/:id", api.getVideo)
 
-	v1group.GET("/players/:id/videos", api.getVideosForPlayer)
+	v1group.GET("/me/videos", api.getVideosForPlayer)
 }
 
 func (api *HttpApi) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {

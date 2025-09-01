@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	tg "github.com/go-telegram/bot"
 	tgm "github.com/go-telegram/bot/models"
@@ -146,10 +145,7 @@ func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, upd
 
 	player, ok := ctx.Value(PlayerDataKey).(*qg.Player)
 	if ok {
-		video, err := m.vs.AddVideo(ctx, models.AddVideoRequest{
-			PlayerID: player.TgID,
-			VideoUrl: url,
-		})
+		video, err := m.vs.AddVideo(ctx, player.TgID, url)
 
 		if err != nil {
 			b.EditMessageText(ctx, &tg.EditMessageTextParams{

@@ -11,7 +11,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -25,16 +24,16 @@ func NewVideosService(txm db.TxManager) *VideosService {
 	}
 }
 
-func (vs *VideosService) AddVideo(ctx context.Context, params models.AddVideoRequest) (*qg.Video, error) {
+func (vs *VideosService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := vs.txm.Querier(tx)
-		return vs.createVideo(ctx, q, params)
+		return vs.createVideo(ctx, q, playerId, videoUrl)
 	})
 }
 
 // TODO: Check duplicate videos (upsert)
-func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, params models.AddVideoRequest) (*qg.Video, error) {
-	oembed, err := fetchOEmbed(ctx, params.VideoUrl, "") // TODO: add Instagram Access Token
+func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string) (*qg.Video, error) {
+	oembed, err := fetchOEmbed(ctx, videoUrl, "") // TODO: add Instagram Access Token
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.ErrorOEmbedFailed,
@@ -44,8 +43,8 @@ func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, params m
 	}
 
 	video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
-		PlayerID: params.PlayerID,
-		VideoUrl: params.VideoUrl,
+		PlayerID: playerId,
+		VideoUrl: videoUrl,
 		Oembed:   oembed,
 	})
 	if err != nil {

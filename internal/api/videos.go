@@ -10,6 +10,13 @@ import (
 )
 
 func (api *HttpApi) addVideo(c echo.Context) error {
+	tgId, err := getTgUserIdFromToken(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
+			Error: UnathorizedErrorMsg,
+		})
+	}
+
 	request := new(m.AddVideoRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -24,7 +31,7 @@ func (api *HttpApi) addVideo(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	video, err := api.vs.AddVideo(ctx, *request)
+	video, err := api.vs.AddVideo(ctx, tgId, request.VideoUrl)
 
 	if err != nil {
 		var sErr common.ServiceError
@@ -75,15 +82,15 @@ func (api *HttpApi) getVideo(c echo.Context) error {
 }
 
 func (api *HttpApi) getVideosForPlayer(c echo.Context) error {
-	playerId, err := parseInt64(c.Param("id"))
+	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
+		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
+			Error: UnathorizedErrorMsg,
 		})
 	}
 
 	ctx := c.Request().Context()
-	videos, err := api.vs.GetVideosByPlayer(ctx, playerId)
+	videos, err := api.vs.GetVideosByPlayer(ctx, tgId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
