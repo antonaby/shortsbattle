@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import {
   Centrifuge,
   Subscription,
+  type ConnectionTokenContext,
   type PublicationContext,
   type SubscribedContext,
   type SubscriptionErrorContext,
@@ -22,11 +23,13 @@ export const useWSStore = defineStore("ws", () => {
     connected.value = value;
   }
 
-  function connect(token: string) {
+  function connect(
+    tokenProvider: (ctx: ConnectionTokenContext) => Promise<string>
+  ) {
     client = new Centrifuge(
       `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`,
       {
-        token: token,
+        getToken: tokenProvider, // TODO: check token provider errors
       }
     );
 

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { useRouter } from "vue-router";
+import { NetworkError } from "../types/errors";
 
 export const useUIStore = defineStore("ui", () => {
   const router = useRouter();
@@ -12,5 +13,14 @@ export const useUIStore = defineStore("ui", () => {
     router.replace({ name: "hub" });
   }
 
-  return { openGame, returnToHub };
+  // TODO: show error modal
+  function handleNetworkError(error: any) {
+    if (error instanceof NetworkError) {
+      console.log(error.message);
+    } else {
+      console.log(error);
+    }
+  }
+
+  return { openGame, returnToHub, handleNetworkError };
 });

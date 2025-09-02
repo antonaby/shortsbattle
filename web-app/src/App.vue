@@ -12,8 +12,12 @@ const isReady = computed<boolean>(() => {
 })
 
 onMounted(async () => {
-  let token = await userStore.getToken();
-  wsStore.connect(token);
+  await userStore.getToken();
+
+  wsStore.connect(async () => {
+    let token = await userStore.getToken();
+    return token;
+  });
 })
 
 onUnmounted(() => {

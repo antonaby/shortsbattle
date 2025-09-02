@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 import type { Theme } from "../types/game";
 import { ref } from "vue";
-import { NetworkError } from "../types/errors";
 import { useUIStore } from "./ui.store";
 import { GamesAPI } from "../api/games";
 
@@ -14,8 +13,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
     try {
       themes.value = await GamesAPI.fetchThemes();
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to fetch game themes", error);
+      uiStore.handleNetworkError(error);
     }
   }
 
@@ -25,8 +23,7 @@ export const useGameHubStore = defineStore("gamehub", () => {
       const game = await GamesAPI.joinGame(themeId);
       uiStore.openGame(game.game_id);
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to join game", error);
+      uiStore.handleNetworkError(error);
     } finally {
       loadingGame.value = false;
     }

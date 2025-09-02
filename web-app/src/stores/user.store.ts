@@ -1,40 +1,40 @@
 import { defineStore } from "pinia";
-import type { AuthResult } from "../types/common";
-import axios from "axios";
 import { ref } from "vue";
-import { NetworkError } from "../types/errors";
+import { useUIStore } from "./ui.store";
+import { AuthAPI } from "../api/auth";
+import { jwtDecode, type JwtPayload } from "jwt-decode";
 
 export const useUserStore = defineStore("auth", () => {
   const token = ref<string | null>(null);
+  const uiStore = useUIStore();
 
-  // TODO: handle http statuses
+  let decodedToken: JwtPayload | null = null;
+
   async function getToken(): Promise<string> {
-    if (token.value) {
+    if (token.value && !maybeRefreshToken()) {
       return token.value;
     }
 
     try {
-      const response = await axios.post<AuthResult>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/auth`,
-        {
-          "init_data": "userId=1" // TODO: get user from TG
-        }
-      );
-
-      if (response.data.token) {
-        token.value = response.data.token;
-        return token.value;
-      }
-
-      if (response.data.error) {
-        throw new NetworkError("authorization failed");
-      }
+      let newToken = await AuthAPI.getToken();
+      decodedToken = jwtDecode<JwtPayload>(newToken);
+      token.value = newToken;
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("authorization failed", error);
+      uiStore.handleNetworkError(error);
     }
 
-    return "";
+    return token.value || "";
+  }
+
+  function maybeRefreshToken(cooldown = 5): boolean {
+    if (!decodedToken || !decodedToken.exp) {
+      return true;
+    }
+
+    const exp = decodedToken.exp;
+    const now = Math.floor(Date.now() / 1000);
+
+    return exp <= now + cooldown
   }
 
   return { token, getToken };
