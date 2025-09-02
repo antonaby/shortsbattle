@@ -1,35 +1,18 @@
-<template>
-  <div class="flex flex-col gap-3">
-    <!-- 9:16 viewport container -->
-    <div class="video-wrapper">
-      <div id="yt-shorts-vue" class="absolute inset-0"></div>
-    </div>
-
-    <div v-if="showUi" class="flex flex-wrap gap-2 items-center">
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="play">Play</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="pause">Pause</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => seek(-5)">⏪ 5s</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => seek(5)">⏩ 5s</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="toggleMute">Mute/Unmute</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(1)">1×</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(1.5)">1.5×</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(2)">2×</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="prev">Prev</button>
-      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="next">Next</button>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch, computed, defineExpose, withDefaults } from 'vue'
+import { useYouTubeIframeApi } from '@/composables/yt'
+import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 
-declare global {
-  interface Window {
-    onYouTubeIframeAPIReady?: () => void
-  }
+export type ExposedMethods = {
+  play: () => void
+  pause: () => void
+  seek: (delta: number) => void
+  toggleMute: () => void
+  setRate: (r: number) => void
+  next: () => void
+  prev: () => void
 }
 
-export interface Props {
+const props = withDefaults(defineProps<{
   /** Array of Shorts/YouTube IDs or URLs */
   ids: string[]
   /** Player width in px (height computed to 9:16) */
@@ -48,19 +31,7 @@ export interface Props {
   playsInline?: 0 | 1
   /** Origin (set to your site in production for security) */
   origin?: string
-}
-
-export type ExposedMethods = {
-  play: () => void
-  pause: () => void
-  seek: (delta: number) => void
-  toggleMute: () => void
-  setRate: (r: number) => void
-  next: () => void
-  prev: () => void
-}
-
-const p = withDefaults(defineProps<Props>(), {
+}>(), {
   width: 360,
   showUi: true,
   autoplayMuted: false,
@@ -71,15 +42,13 @@ const p = withDefaults(defineProps<Props>(), {
   origin: ''
 })
 
-const width = p.width
-const showUi = p.showUi
-
-const normalizedIds = computed(() => p.ids.map(extractId).filter(Boolean))
+const normalizedIds = computed(() => props.ids.map(extractId).filter(Boolean))
 const index = ref(0)
+
 let player: YT.Player | null = null
 
 onMounted(async () => {
-  await ensureYouTubeIframeAPI()
+  await useYouTubeIframeApi();
   createPlayer()
   window.addEventListener('keydown', onKey)
 })
@@ -106,22 +75,24 @@ function createPlayer() {
   // Guard for SSR/no IDs
   if (!videoId || typeof window === 'undefined') return
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  player = new (window as any).YT.Player('yt-shorts-vue', {
+  player = new window.YT.Player('yt-shorts-vue', {
+    width: '100%',
+    height: '100%',
     videoId,
     playerVars: {
-      autoplay: p.autoplayMuted ? 1 : 0,
-      controls: p.controlsBar,
-      playsinline: p.playsInline,
-      modestbranding: p.modestBranding,
+      autoplay: props.autoplayMuted ? 1 : 0,
+      controls: props.controlsBar,
+      playsinline: props.playsInline,
+      modestbranding: props.modestBranding,
       rel: 0,
-      loop: p.loopSingle ? 1 : 0,
-      playlist: p.loopSingle ? videoId : undefined,
-      origin: p.origin || undefined,
+      loop: props.loopSingle ? 1 : 0,
+      playlist: props.loopSingle ? videoId : undefined,
+      origin: props.origin || undefined,
       enablejsapi: 1
     },
     events: {
       onReady: (e: { target: YT.Player }) => {
-        if (p.autoplayMuted) {
+        if (props.autoplayMuted) {
           try { e.target.mute() } catch { }
           try { e.target.playVideo() } catch { }
         }
@@ -131,12 +102,8 @@ function createPlayer() {
 }
 
 function ensureYouTubeIframeAPI(): Promise<void> {
-  if (typeof window === 'undefined') { 
-    return Promise.resolve(); 
-  }
-
-  if (window.YT?.Player) { 
-    return Promise.resolve() 
+  if (window.YT?.Player) {
+    return Promise.resolve()
   }
 
   return new Promise((resolve) => {
@@ -207,18 +174,26 @@ const exposed: ExposedMethods = { play, pause, seek, toggleMute, setRate, next, 
 defineExpose(exposed)
 </script>
 
-<style scoped>
-/* Make the iframe "cover" the 9:16 area */
-#yt-shorts-vue iframe {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100vh;
-  /* oversize to ensure cover */
-  height: 100vw;
-  min-width: 100%;
-  min-height: 100%;
-  pointer-events: auto;
-}
-</style>
+<template>
+  <div class="flex flex-col gap-3">
+    <!-- 9:16 viewport container -->
+    <div class="video-wrapper">
+      <div id="yt-shorts-vue" class="absolute inset-0"></div>
+    </div>
+
+    <div v-if="showUi" class="flex flex-wrap gap-2 items-center">
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="play">Play</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="pause">Pause</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => seek(-5)">⏪ 5s</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => seek(5)">⏩ 5s</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="toggleMute">Mute/Unmute</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(1)">1×</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(1.5)">1.5×</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="() => setRate(2)">2×</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="prev">Prev</button>
+      <button class="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" @click="next">Next</button>
+    </div>
+  </div>
+</template>
+
+<style scoped></style>
