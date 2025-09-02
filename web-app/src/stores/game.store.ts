@@ -3,7 +3,6 @@ import type {
   ThemeDetails,
   GameUpdate,
   Video,
-  Vote,
   VoteValue,
   GameResult,
 } from "../types/game";
@@ -16,8 +15,7 @@ import type {
   SubscribedContext,
   UnsubscribedContext,
 } from "centrifuge";
-import axios from "axios";
-import { NetworkError } from "../types/errors";
+import { GamesAPI } from "../api/games";
 
 export const useGameStore = defineStore("game", () => {
   const wsStore = useWSStore();
@@ -129,7 +127,8 @@ export const useGameStore = defineStore("game", () => {
   function joinGame(openGameId: number) {
     gameId = openGameId;
 
-    let sub = wsStore.subscribe(`game_${gameId}`, {
+    // TODO: handle sub
+    wsStore.subscribe(`game_${gameId}`, {
       subscribed: handleSubscribed,
       publication: handlePublication,
       unsubscribed: handleUnsubscribed,
@@ -140,69 +139,55 @@ export const useGameStore = defineStore("game", () => {
     playerVideos.value = [];
 
     try {
-      // TODO: set proper player id
-      const response = await axios.get<Video[]>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/players/1/videos`
-      );
-      playerVideos.value = response.data;
+      playerVideos.value = await GamesAPI.getMyVideos();
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to join game", error);
+      uiStore.handleNetworkError(error);
     }
   }
 
   // TODO: show loading element
   async function selectVideo(videoId: number) {
-    await makeSubmitRequest({
-      video_id: videoId,
-      player_id: 1, // TODO: get game id from user store
-    });
+    if (!gameId) {
+      return;
+    }
+
+    try {
+      const video = await GamesAPI.submitExistingVideo(gameId, videoId);
+      selectedVideo.value = video;
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
   }
 
   // TODO: show loading element
   async function newVideo(url: string) {
-    await makeSubmitRequest({
-      video_url: url,
-      player_id: 1, // TODO: get game id from user store
-    });
+    if (!gameId) {
+      return;
+    }
+
+    try {
+      const video = await GamesAPI.submitNewVideo(gameId, url);
+      selectedVideo.value = video;
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
   }
 
   function unselectVideo() {
     selectedVideo.value = null;
   }
 
-  async function makeSubmitRequest(query: {
-    player_id: number;
-    video_url?: string;
-    video_id?: number;
-  }) {
-    try {
-      const response = await axios.put<Video>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/submit`,
-        query
-      );
-      selectedVideo.value = response.data;
-    } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to join game", error);
-    }
-  }
-
   // TODO: show loading element
   async function loadVideosToWatch() {
+    if (!gameId) {
+      return;
+    }
+
     try {
-      const response = await axios.get<Video[]>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/videos`,
-        {
-          params: {
-            player_id: 1, // TODO: use user store
-          },
-        }
-      );
-      gameVideos.value = response.data;
+      const videos = await GamesAPI.fetchVideosToWatch(gameId);
+      gameVideos.value = videos;
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to join game", error);
+      uiStore.handleNetworkError(error);
     }
   }
 
@@ -219,33 +204,27 @@ export const useGameStore = defineStore("game", () => {
   }
 
   // TODO: show loading element
+  // TODO: move to the next video
   async function likeVideo() {
     await voteForVideo("like");
   }
 
   // TODO: show loading element
+  // TODO: move to the next video
   async function dislikeVideo() {
     await voteForVideo("dislike");
   }
 
   async function voteForVideo(value: VoteValue) {
+    if (!gameId) {
+      return;
+    }
+
     let video = gameVideos.value[currentPlayingVideoIndex.value];
     try {
-      const response = await axios.put<Vote>(
-        `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/vote`,
-        {
-          video_id: video.id,
-          value: value,
-        },
-        {
-          params: {
-            player_id: 1, // TODO: use user store
-          },
-        }
-      );
+      await GamesAPI.voteForVideo(gameId, video.id, value);
     } catch (error) {
-      // TODO: handle with UI Store
-      throw new NetworkError("failed to join game", error);
+      uiStore.handleNetworkError(error);
     }
   }
 

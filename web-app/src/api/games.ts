@@ -1,17 +1,51 @@
-import type { GameJoined, Theme } from "../types/game";
-import { api, checkStatusCode } from "./http";
+import type { GameJoined, Theme, Video, Vote, VoteValue } from "../types/game";
+import { api } from "./http";
 
 export const GamesAPI = {
   async fetchThemes(): Promise<Theme[]> {
     const response = await api.get<Theme[]>("/api/v1/themes");
-    checkStatusCode(response, 200);
     return response.data;
   },
   async joinGame(themeId: number): Promise<GameJoined> {
     const response = await api.put<GameJoined>("/api/v1/games/join", {
       theme_id: themeId,
     });
-    checkStatusCode(response, 200);
+    return response.data;
+  },
+  async getMyVideos(): Promise<Video[]> {
+    const response = await api.get<Video[]>("/api/v1/me/videos");
+    return response.data;
+  },
+  async submitExistingVideo(gameId: number, videoId: number): Promise<Video> {
+    const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
+      video_id: videoId,
+    });
+    return response.data;
+  },
+  async submitNewVideo(gameId: number, videoUrl: string): Promise<Video> {
+    const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
+      video_url: videoUrl,
+    });
+    return response.data;
+  },
+  async fetchVideosToWatch(gameId: number): Promise<Video[]> {
+    const response = await api.get<Video[]>(
+      `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/videos`
+    );
+    return response.data;
+  },
+  async voteForVideo(
+    gameId: number,
+    videoId: number,
+    value: VoteValue
+  ): Promise<Vote> {
+    const response = await api.put<Vote>(
+      `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/vote`,
+      {
+        video_id: videoId,
+        value: value,
+      }
+    );
     return response.data;
   },
 };

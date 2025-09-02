@@ -1,4 +1,4 @@
-import axios, { type AxiosResponse } from "axios";
+import axios, { AxiosError } from "axios";
 import { useUserStore } from "../stores/user.store";
 import { NetworkError } from "../types/errors";
 
@@ -22,16 +22,18 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-export function checkStatusCode(
-  response: AxiosResponse,
-  expectedStatusCode: number
-) {
-  if (response.status != expectedStatusCode) {
-    throw new NetworkError(
-      `request failed, status: ${response.status}, response: ${JSON.stringify(
-        response.data
-      )}`,
-      response.status
+api.interceptors.response.use(
+  (res) => res,
+  (error: AxiosError) => {
+    let data = error.response?.data || {};
+    let status = error.response?.status || 0;
+
+    let wrapper = new NetworkError(
+      `request failed, status: ${status}, response: ${JSON.stringify(data)}`,
+      status,
+      error
     );
+
+    return Promise.reject(wrapper);
   }
-}
+);
