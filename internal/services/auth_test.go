@@ -14,7 +14,10 @@ func TestCreatingAndValidatingJwt(t *testing.T) {
 		t.Fatalf("key manager not created %v", err)
 	}
 
-	authService := NewAuthService(keyManager, AuthConfig{
+	playerService := PlayersService{}
+
+	// TODO: use interface instead
+	authService := NewAuthService(keyManager, &playerService, AuthConfig{
 		TokenExpTime: 5 * time.Minute,
 		Issuer:       "shortsbattle",
 		Audience:     "tg-mini-app",

@@ -38,19 +38,6 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	authConfig := services.AuthConfig{
-		TokenExpTime: 1 * time.Minute,
-		Issuer:       "shortsbattle",
-		Audience:     "tg-mini-app",
-	}
-
-	keyManager, err := services.NewKeyManager()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't load JWK")
-	}
-
-	authService := services.NewAuthService(keyManager, authConfig)
-
 	gameConfig := services.GameConfig{
 		MaxPlayers:        5,
 		LobbyState:        10 * time.Second,
@@ -63,6 +50,19 @@ func main() {
 	videoService := services.NewVideosService(dbManager)
 	playerService := services.NewPlayersService(dbManager, redisClient)
 	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
+
+	authConfig := services.AuthConfig{
+		TokenExpTime: 1 * time.Minute,
+		Issuer:       "shortsbattle",
+		Audience:     "tg-mini-app",
+	}
+
+	keyManager, err := services.NewKeyManager()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can't load JWK")
+	}
+
+	authService := services.NewAuthService(keyManager, playerService, authConfig)
 
 	wsConfig := ws.WsConnectionConfig{
 		ConnectionExpTime: 1 * time.Minute,

@@ -11,6 +11,7 @@ import { useWSStore } from "./ws.store";
 import { useRouter } from "vue-router";
 import { useUIStore } from "./ui.store";
 import type {
+  ErrorContext,
   PublicationContext,
   SubscribedContext,
   UnsubscribedContext,
@@ -124,6 +125,10 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  function hanldeError(ctx: ErrorContext) {
+    uiStore.handleWsError(ctx.type, ctx.error);
+  }
+
   function joinGame(openGameId: number) {
     gameId = openGameId;
 
@@ -132,6 +137,7 @@ export const useGameStore = defineStore("game", () => {
       subscribed: handleSubscribed,
       publication: handlePublication,
       unsubscribed: handleUnsubscribed,
+      error: hanldeError,
     });
   }
 

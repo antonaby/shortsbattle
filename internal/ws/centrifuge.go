@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strconv"
+
 	"time"
 
 	"net/http"
@@ -107,7 +107,7 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 			return
 		}
 
-		userId, err := parseUserId(client.UserID())
+		userId, err := common.ParseTgId(client.UserID())
 		if err != nil {
 			log.Error().Err(err).Msgf("can't parse user id: %s", client.UserID())
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
@@ -164,13 +164,4 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
 
 	})
-}
-
-func parseUserId(str string) (int64, error) {
-	value, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return value, nil
 }

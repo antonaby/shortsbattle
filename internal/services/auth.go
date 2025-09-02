@@ -1,12 +1,15 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -71,20 +74,43 @@ type AuthConfig struct {
 
 type AuthService struct {
 	km     *KeyManager
+	ps     *PlayersService
 	config AuthConfig
 }
 
-func NewAuthService(km *KeyManager, config AuthConfig) *AuthService {
+func NewAuthService(km *KeyManager, ps *PlayersService, config AuthConfig) *AuthService {
 	return &AuthService{
 		km:     km,
+		ps:     ps,
 		config: config,
 	}
 }
 
-// TODO: get tg user from db or create
 // TODO: validate init data with bot token
 func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 	parsedData, err := initDataToMap(initData)
+	if err != nil {
+		return nil, err
+	}
+
+	tgId, err := common.ParseTgId(parsedData["userId"])
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.ErrorTgInitData,
+			Message: "failed to parse tg id",
+			Cause:   err,
+		}
+	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancelFunc()
+
+	player, err := as.ps.CheckPlayerExistsOrCreate(ctx, qg.CreatePlayerParams{
+		TgID: tgId,
+		TgUsername: parsedData["username"],
+		TgLanguageCode: parsedData["languageCode"],
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +119,7 @@ func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 
 	token, err := jwt.NewBuilder().
 		JwtID(uuid.NewString()).
-		Subject(parsedData["userId"]). // TODO: validate actual init data from TG
+		Subject(strconv.FormatInt(player.TgID, 10)). 
 		Audience([]string{as.config.Audience}).
 		Issuer(as.config.Issuer).
 		IssuedAt(currentTime).

@@ -16,7 +16,7 @@ export const useUserStore = defineStore("auth", () => {
     }
 
     try {
-      let newToken = await AuthAPI.getToken("userId=1"); // TODO: get user from TG
+      let newToken = await AuthAPI.getToken("userId=1&username=test&languageCode=ru"); // TODO: get user from TG
       decodedToken = jwtDecode<JwtPayload>(newToken);
       token.value = newToken;
     } catch (error) {
