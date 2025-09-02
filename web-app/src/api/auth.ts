@@ -3,11 +3,11 @@ import { NetworkError } from "../types/errors";
 import { api } from "./http";
 
 export const AuthAPI = {
-  async getToken(): Promise<string> {
+  async getToken(initData: string): Promise<string> {
     const response = await api.post<AuthResult>(
-      `${import.meta.env.VITE_BASE_URL}/api/v1/auth`,
+      '/api/v1/auth',
       {
-        init_data: "userId=1", // TODO: get user from TG
+        init_data: initData, 
       }
     );
 

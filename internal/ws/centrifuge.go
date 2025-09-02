@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 
 	"net/http"
@@ -16,12 +17,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type WsConnectionConfig struct {
+	ConnectionExpTime time.Duration
+}
+
 type CentrifugeServer struct {
 	node    *centrifuge.Node
 	manager *services.GameManager
+	auth    *services.AuthService
+	config  WsConnectionConfig
 }
 
-func NewCentrifugeServer(manager *services.GameManager) (*CentrifugeServer, error) {
+func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, config WsConnectionConfig) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		return nil, err
@@ -30,6 +37,8 @@ func NewCentrifugeServer(manager *services.GameManager) (*CentrifugeServer, erro
 	r := &CentrifugeServer{
 		node:    node,
 		manager: manager,
+		auth:    auth,
+		config:  config,
 	}
 
 	node.OnConnecting(r.handleConnecting)
@@ -67,10 +76,21 @@ func (cf *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpd
 }
 
 func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {
+	token, err := cf.auth.ParseAndValidateJwt([]byte(e.Token))
+	if err != nil {
+		return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
+	}
+
+	sub, ok := token.Subject()
+	if !ok {
+		return centrifuge.ConnectReply{}, centrifuge.ErrorUnauthorized
+	}
+
 	return centrifuge.ConnectReply{
 		ClientSideRefresh: true,
 		Credentials: &centrifuge.Credentials{
-			UserID: "test_1",
+			UserID:   sub,
+			ExpireAt: time.Now().Add(cf.config.ConnectionExpTime).Unix(),
 		},
 	}, nil
 }
@@ -87,8 +107,14 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 			return
 		}
 
-		// TODO: add proper player id
-		details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, 1)
+		userId, err := parseUserId(client.UserID())
+		if err != nil {
+			log.Error().Err(err).Msgf("can't parse user id: %s", client.UserID())
+			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+			return
+		}
+
+		details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, userId)
 		if err != nil {
 			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
 
@@ -118,6 +144,19 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		}, nil)
 	})
 
+	client.OnRefresh(func(e centrifuge.RefreshEvent, cb centrifuge.RefreshCallback) {
+		_, err := cf.auth.ParseAndValidateJwt([]byte(e.Token))
+		if err != nil {
+			cb(centrifuge.RefreshReply{}, centrifuge.ErrorUnauthorized)
+			return
+		}
+
+		cb(centrifuge.RefreshReply{
+			Expired:  false,
+			ExpireAt: time.Now().Add(cf.config.ConnectionExpTime).Unix(),
+		}, nil)
+	})
+
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
 
 	})
@@ -125,4 +164,13 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
 
 	})
+}
+
+func parseUserId(str string) (int64, error) {
+	value, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
 }

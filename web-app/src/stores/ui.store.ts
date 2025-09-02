@@ -22,5 +22,10 @@ export const useUIStore = defineStore("ui", () => {
     }
   }
 
-  return { openGame, returnToHub, handleNetworkError };
+  // TODO: show error modal
+  function handleWsError(type: string, error: any) {
+    console.log(error);
+  }
+
+  return { openGame, returnToHub, handleNetworkError, handleWsError };
 });

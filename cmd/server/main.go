@@ -39,7 +39,7 @@ func main() {
 	defer redisClient.Close()
 
 	authConfig := services.AuthConfig{
-		TokenExpTime: 5 * time.Minute,
+		TokenExpTime: 1 * time.Minute,
 		Issuer:       "shortsbattle",
 		Audience:     "tg-mini-app",
 	}
@@ -64,7 +64,11 @@ func main() {
 	playerService := services.NewPlayersService(dbManager, redisClient)
 	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
 
-	centrifugeServer, err := ws.NewCentrifugeServer(gameManager)
+	wsConfig := ws.WsConnectionConfig{
+		ConnectionExpTime: 1 * time.Minute,
+	}
+
+	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, wsConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't create Centriguge server")
 	}
@@ -92,7 +96,7 @@ func main() {
 	httpApi := api.NewHttpApi(authService, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
-	
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 

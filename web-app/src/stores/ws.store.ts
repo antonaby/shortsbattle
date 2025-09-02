@@ -9,12 +9,15 @@ import {
   type UnsubscribedContext,
 } from "centrifuge";
 import { ref } from "vue";
+import { useUIStore } from "./ui.store";
 
 interface SubMap {
   [channel: string]: Subscription;
 }
 
 export const useWSStore = defineStore("ws", () => {
+  const uiStore = useUIStore();
+
   const connected = ref<boolean>(false);
   const subs = {} as SubMap;
   let client: Centrifuge | null = null;
@@ -38,8 +41,8 @@ export const useWSStore = defineStore("ws", () => {
     client.on("disconnected", () => updateConnected(false));
 
     client.on("error", (ctx) => {
-      // TODO: handle with UI Store
-      console.log(ctx);
+      updateConnected(false);
+      uiStore.handleWsError(ctx.type, ctx.error);
     });
 
     client.connect();
