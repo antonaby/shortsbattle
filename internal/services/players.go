@@ -15,19 +15,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type PlayersService struct {
+type PlayerService interface {
+	CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error)
+}
+
+type CachedPlayerService struct {
 	txm db.TxManager
 	rc  *redis.Client
 }
 
-func NewPlayersService(txm db.TxManager, rc *redis.Client) *PlayersService {
-	return &PlayersService{
+func NewCachedPlayerService(txm db.TxManager, rc *redis.Client) *CachedPlayerService {
+	return &CachedPlayerService{
 		txm: txm,
 		rc:  rc,
 	}
 }
 
-func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {
+func (ps *CachedPlayerService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {
 	playerKey := fmt.Sprintf("player:%d", params.TgID)
 
 	playerFromRedis, err := ps.rc.HGetAll(ctx, playerKey).Result()
@@ -60,7 +64,7 @@ func (ps *PlayersService) CheckPlayerExistsOrCreate(ctx context.Context, params 
 	return player, nil
 }
 
-func (ps *PlayersService) getPlayerFromDb(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
+func (ps *CachedPlayerService) getPlayerFromDb(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
 	player, err := q.GetPlayerByTgId(ctx, qg.GetPlayerByTgIdParams{TgID: params.TgID})
 	if err != nil {
 		if db.IsNoRows(err) {
@@ -77,7 +81,7 @@ func (ps *PlayersService) getPlayerFromDb(ctx context.Context, q qg.Querier, par
 	return &player, nil
 }
 
-func (ps *PlayersService) createPlayer(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
+func (ps *CachedPlayerService) createPlayer(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
 	player, err := q.CreatePlayer(ctx, params)
 	if err != nil {
 		return nil, common.ServiceError{

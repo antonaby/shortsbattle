@@ -74,11 +74,11 @@ type AuthConfig struct {
 
 type AuthService struct {
 	km     *KeyManager
-	ps     *PlayersService
+	ps     PlayerService
 	config AuthConfig
 }
 
-func NewAuthService(km *KeyManager, ps *PlayersService, config AuthConfig) *AuthService {
+func NewAuthService(km *KeyManager, ps PlayerService, config AuthConfig) *AuthService {
 	return &AuthService{
 		km:     km,
 		ps:     ps,
@@ -87,7 +87,7 @@ func NewAuthService(km *KeyManager, ps *PlayersService, config AuthConfig) *Auth
 }
 
 // TODO: validate init data with bot token
-func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
+func (as *AuthService) NewTokenFromTgInitData(ctx context.Context, initData string) ([]byte, error) {
 	parsedData, err := initDataToMap(initData)
 	if err != nil {
 		return nil, err
@@ -102,12 +102,9 @@ func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 		}
 	}
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 10 * time.Second)
-	defer cancelFunc()
-
 	player, err := as.ps.CheckPlayerExistsOrCreate(ctx, qg.CreatePlayerParams{
-		TgID: tgId,
-		TgUsername: parsedData["username"],
+		TgID:           tgId,
+		TgUsername:     parsedData["username"],
 		TgLanguageCode: parsedData["languageCode"],
 	})
 
@@ -119,7 +116,7 @@ func (as *AuthService) NewTokenFromTgInitData(initData string) ([]byte, error) {
 
 	token, err := jwt.NewBuilder().
 		JwtID(uuid.NewString()).
-		Subject(strconv.FormatInt(player.TgID, 10)). 
+		Subject(strconv.FormatInt(player.TgID, 10)).
 		Audience([]string{as.config.Audience}).
 		Issuer(as.config.Issuer).
 		IssuedAt(currentTime).

@@ -48,7 +48,7 @@ func main() {
 
 	themeService := services.NewThemeService(dbManager)
 	videoService := services.NewVideosService(dbManager)
-	playerService := services.NewPlayersService(dbManager, redisClient)
+	playerService := services.NewCachedPlayerService(dbManager, redisClient)
 	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
 
 	authConfig := services.AuthConfig{

@@ -23,7 +23,8 @@ func (api *HttpApi) getTokenForTgUser(c echo.Context) error {
 		})
 	}
 
-	token, err := api.auth.NewTokenFromTgInitData(request.InitData)
+	ctx := c.Request().Context()
+	token, err := api.auth.NewTokenFromTgInitData(ctx, request.InitData)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
