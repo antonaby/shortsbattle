@@ -43,7 +43,7 @@ func main() {
 		LobbyState:        10 * time.Second,
 		LobbyClosedBefore: 5 * time.Second,
 		SubmittingState:   10 * time.Second,
-		WatchingState:     20 * time.Second,
+		WatchingState:     600 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)

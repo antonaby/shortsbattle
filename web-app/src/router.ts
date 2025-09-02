@@ -3,8 +3,8 @@ import {
   createWebHistory,
   type RouteRecordRaw,
 } from "vue-router";
-import Hub from "@/views/Hub.vue";
-import Game from "@/views/Game.vue";
+import Hub from "@/pages/Hub.vue";
+import Game from "@/pages/Game.vue";
 import LobbyView from "@/components/game/subpages/LobbyView.vue";
 import SubmitView from "@/components/game/subpages/SubmitView.vue";
 import OpenView from "@/components/game/subpages/OpenView.vue";

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useGameStore } from '../../../stores/game.store';
+import YTPlayer from '../players/YTPlayer.vue';
 
 const showControls = ref<boolean>(false);
 function openControls() {
@@ -47,7 +48,7 @@ onMounted(async () => {
         <span>Open</span>
       </button>
     </div>
-    <div v-html="gameStore.currentVideoOEmbed" v-if="gameStore.currentVideoOEmbed" class="video-wrapper"></div>
+    <YTPlayer :oembed-html="gameStore.currentVideoOEmbed" v-if="gameStore.currentVideoOEmbed" />
     <div v-else class="flex flex-col min-h-full min-w-full justify-center items-center text-2xl font-medium">
       <span>You have watched all videos!</span>
     </div>
