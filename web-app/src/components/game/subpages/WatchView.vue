@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { useGameStore } from '../../stores/game.store';
+import { useGameStore } from '../../../stores/game.store';
 
 const showControls = ref<boolean>(false);
 function openControls() {

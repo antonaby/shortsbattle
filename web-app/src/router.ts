@@ -3,13 +3,13 @@ import {
   createWebHistory,
   type RouteRecordRaw,
 } from "vue-router";
-import Hub from "./views/Hub.vue";
-import Game from "./views/Game.vue";
-import LobbyView from "./components/game/LobbyView.vue";
-import SubmitView from "./components/game/SubmitView.vue";
-import OpenView from "./components/game/OpenView.vue";
-import WatchView from "./components/game/WatchView.vue";
-import CompleteView from "./components/game/CompleteView.vue";
+import Hub from "@/views/Hub.vue";
+import Game from "@/views/Game.vue";
+import LobbyView from "@/components/game/subpages/LobbyView.vue";
+import SubmitView from "@/components/game/subpages/SubmitView.vue";
+import OpenView from "@/components/game/subpages/OpenView.vue";
+import WatchView from "@/components/game/subpages/WatchView.vue";
+import CompleteView from "@/components/game/subpages/CompleteView.vue";
 
 let routes: RouteRecordRaw[] = [
   {

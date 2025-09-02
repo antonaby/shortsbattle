@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useGameStore } from '../../stores/game.store';
-import { useUIStore } from '../../stores/ui.store';
+import { useGameStore } from '@/stores/game.store';
+import { useUIStore } from '@/stores/ui.store';
 
 const uiStore = useUIStore();
 const gameStore = useGameStore();
