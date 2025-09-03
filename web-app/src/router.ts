@@ -10,7 +10,7 @@ import SubmitView from "@/components/game/subpages/SubmitView.vue";
 import OpenView from "@/components/game/subpages/OpenView.vue";
 import WatchView from "@/components/game/subpages/WatchView.vue";
 import CompleteView from "@/components/game/subpages/CompleteView.vue";
-import YTPlayerWrapper from "@/components/game/players/YTPlayerWrapper.vue";
+import VideoPayerWrapper from "@/components/game/players/VideoPayerWrapper.vue";
 
 let routes: RouteRecordRaw[] = [
   {
@@ -35,8 +35,8 @@ let routes: RouteRecordRaw[] = [
 if (import.meta.env.DEV) {
   routes = routes.concat([
     {
-      path: "/yt-player-test",
-      component: YTPlayerWrapper
+      path: "/player-test",
+      component: VideoPayerWrapper
     }
   ]);
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useYouTubeIframeApi } from '@/composables/yt';
 import { extractVideoId } from '@/utils/yt';
-import { nextTick, onMounted, onUnmounted } from 'vue';
+import { nextTick, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps<{
   videoId: string
@@ -13,6 +13,12 @@ const emits = defineEmits<{
 }>();
 
 let player: YT.Player | null = null;
+
+watch(() => props.videoId, (newVal, oldVal) => {
+  if (player) {
+    player.loadVideoById(extractVideoId(newVal));
+  }
+});
 
 onMounted(async () => {
   const YT = await useYouTubeIframeApi();
