@@ -34,6 +34,7 @@ onMounted(async () => {
     },
     events: {
       onReady: (e: YT.PlayerEvent) => {
+        e.target.mute();
         e.target.playVideo();
       },
       onStateChange: (e: YT.OnStateChangeEvent) => {

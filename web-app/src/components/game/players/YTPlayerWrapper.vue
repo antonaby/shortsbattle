@@ -43,17 +43,14 @@ function stateChange(state: YT.PlayerState) {
       leave-to-class="opacity-0 translate-y-2">
       <div v-if="showMenu" class="bg-white rounded-xl p-2 flex justify-center items-center space-x-2">
         <button class="w-16 rounded-md  p-2 font-medium">
-        <span>⏮️</span>
-      </button>
-      <button class="w-16 rounded-md  p-2 font-medium">
-        <span>⏭️</span>
-      </button>
-      <button class="w-16 rounded-md  p-2 font-medium">
-        <span>👍</span>
-      </button>
-      <button class="w-16 rounded-md  p-2 font-medium">
-        <span>👎</span>
-      </button>
+          <span>🙈</span>
+        </button>
+        <button class="w-16 rounded-md  p-2 font-medium">
+          <span>👍</span>
+        </button>
+        <button class="w-16 rounded-md  p-2 font-medium">
+          <span>👎</span>
+        </button>
       </div>
     </Transition>
   </div>
