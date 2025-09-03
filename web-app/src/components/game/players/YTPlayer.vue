@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useYouTubeIframeApi } from '@/composables/yt';
-import { extractVideoId } from '@/utils/yt';
+import { extractYTVideoId } from '@/utils/players';
 import { nextTick, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps<{
@@ -9,14 +9,14 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'stateChange', state: YT.PlayerState): void
-  (e: 'error', state: YT.PlayerError): void
+  (e: 'error', code: YT.PlayerError): void
 }>();
 
 let player: YT.Player | null = null;
 
-watch(() => props.videoId, (newVal, oldVal) => {
+watch(() => props.videoId, (newVal) => {
   if (player) {
-    player.loadVideoById(extractVideoId(newVal));
+    player.loadVideoById(extractYTVideoId(newVal));
   }
 });
 
@@ -25,7 +25,7 @@ onMounted(async () => {
   await nextTick();
 
   player = new YT.Player('yt-shorts', {
-    videoId: extractVideoId(props.videoId),
+    videoId: extractYTVideoId(props.videoId),
     width: '100%',
     height: '100%',
     playerVars: {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import YTPlayer from './YTPlayer.vue'
+import TikTokPlayer from './TikTokPlayer.vue';
+import { detectVideoPlatform } from '@/utils/players';
 
 const showMenu = ref<boolean>(false);
 const pinMenu = ref<boolean>(false);
@@ -8,11 +10,17 @@ const currentVideoIndex = ref<number>(0);
 
 let videos = [
   "https://www.youtube.com/shorts/wve9udh3qM4",
+  "https://www.tiktok.com/@br0pics/video/7540986521684380960",
   "https://www.youtube.com/shorts/Z5Jlxowr4IM",
+  "https://www.tiktok.com/@br0pics/video/7540625283531967776",
   "https://www.youtube.com/shorts/XUretomgAAA"
 ];
 
-function stateChange(state: YT.PlayerState) {
+let platform = computed(() => {
+  return detectVideoPlatform(videos[currentVideoIndex.value])
+})
+
+function stateChangeYT(state: YT.PlayerState) {
   if (state == 0 || state == 2) {
     showMenu.value = true;
   } else if (!pinMenu.value) {
@@ -20,7 +28,20 @@ function stateChange(state: YT.PlayerState) {
   }
 }
 
-function handleError(error: YT.PlayerError) {
+function stateChangeTT(state: number) {
+  if (state == 0 || state == 2) {
+    showMenu.value = true;
+  } else if (!pinMenu.value) {
+    showMenu.value = false;
+  }
+}
+
+function handleErrorYT(error: YT.PlayerError) {
+  // TODO: handle error when a vido can't be played as embedded
+  console.log(error);
+}
+
+function handleErrorTT(error: number) {
   // TODO: handle error when a vido can't be played as embedded
   console.log(error);
 }
@@ -39,7 +60,14 @@ function nextVideo() {
     <div 
       class="transition-[width] duration-500 ease-in-out" 
       :class="[showMenu ? 'w-7/8' : 'w-full']">
-      <YTPlayer :video-id="videos[currentVideoIndex]" @state-change="stateChange" @error="handleError" />
+      <YTPlayer v-if="platform == 'youtube'"
+        :video-id="videos[currentVideoIndex]" 
+        @state-change="stateChangeYT" 
+        @error="handleErrorYT" />
+      <TikTokPlayer v-if="platform == 'tiktok'"
+        :video-url="videos[currentVideoIndex]" 
+        @state-change="stateChangeTT" 
+        @error="handleErrorTT" />
     </div>
     <Transition 
       enter-active-class="transition duration-300 ease-out" 
