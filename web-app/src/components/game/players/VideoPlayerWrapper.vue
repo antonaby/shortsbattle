@@ -49,7 +49,7 @@ function nextVideo() {
     >
     <div v-if="currentVideoIndex >= 0"
       class="transition-[width] duration-500 ease-in-out" 
-      :class="[showMenu ? 'w-10/11' : 'w-full']">
+      :class="[showMenu || pinMenu ? 'w-10/11' : 'w-full']">
       <YTPlayer v-if="platform == 'youtube'"
         :video-url="props.videoUrls[currentVideoIndex]" 
         @state-change="handleStateChange" 
