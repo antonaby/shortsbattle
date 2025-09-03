@@ -36,8 +36,17 @@ if (import.meta.env.DEV) {
   routes = routes.concat([
     {
       path: "/player-test",
-      component: VideoPlayerWrapper
-    }
+      component: VideoPlayerWrapper,
+      props: {
+        videoUrls: [
+          "https://www.youtube.com/shorts/wve9udh3qM4",
+          "https://www.tiktok.com/@br0pics/video/7540986521684380960",
+          "https://www.youtube.com/shorts/Z5Jlxowr4IM",
+          "https://www.tiktok.com/@br0pics/video/7540625283531967776",
+          "https://www.youtube.com/shorts/XUretomgAAA",
+        ],
+      },
+    },
   ]);
 }
 

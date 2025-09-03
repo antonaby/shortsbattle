@@ -4,20 +4,16 @@ import YTPlayer from './YTPlayer.vue'
 import TikTokPlayer from './TikTokPlayer.vue';
 import { detectVideoPlatform } from '@/utils/players';
 
+const props = defineProps<{
+  videoUrls: string[]
+}>();
+
 const showMenu = ref<boolean>(false);
 const pinMenu = ref<boolean>(false);
 const currentVideoIndex = ref<number>(0);
 
-let videos = [
-  "https://www.youtube.com/shorts/wve9udh3qM4",
-  "https://www.tiktok.com/@br0pics/video/7540986521684380960",
-  "https://www.youtube.com/shorts/Z5Jlxowr4IM",
-  "https://www.tiktok.com/@br0pics/video/7540625283531967776",
-  "https://www.youtube.com/shorts/XUretomgAAA"
-];
-
 let platform = computed(() => {
-  return detectVideoPlatform(videos[currentVideoIndex.value])
+  return detectVideoPlatform(props.videoUrls[currentVideoIndex.value])
 })
 
 function stateChangeYT(state: YT.PlayerState) {
@@ -47,7 +43,7 @@ function handleErrorTT(error: number) {
 }
 
 function nextVideo() {
-  if (currentVideoIndex.value < videos.length - 1) {
+  if (currentVideoIndex.value < props.videoUrls.length - 1) {
     currentVideoIndex.value += 1;
   } else {
     currentVideoIndex.value = 0;
@@ -61,11 +57,11 @@ function nextVideo() {
       class="transition-[width] duration-500 ease-in-out" 
       :class="[showMenu ? 'w-7/8' : 'w-full']">
       <YTPlayer v-if="platform == 'youtube'"
-        :video-id="videos[currentVideoIndex]" 
+        :video-id="props.videoUrls[currentVideoIndex]" 
         @state-change="stateChangeYT" 
         @error="handleErrorYT" />
       <TikTokPlayer v-if="platform == 'tiktok'"
-        :video-url="videos[currentVideoIndex]" 
+        :video-url="props.videoUrls[currentVideoIndex]" 
         @state-change="stateChangeTT" 
         @error="handleErrorTT" />
     </div>
