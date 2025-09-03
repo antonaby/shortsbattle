@@ -96,6 +96,8 @@ func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.C
 }
 
 func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
+	// TODO: add online/ofline player statuses
+	// TODO: add private channel	
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
