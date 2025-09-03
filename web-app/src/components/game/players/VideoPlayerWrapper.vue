@@ -16,18 +16,10 @@ let platform = computed(() => {
   return detectVideoPlatform(props.videoUrls[currentVideoIndex.value])
 })
 
-function stateChangeYT(state: YT.PlayerState) {
+function handleStateChange(state: YT.PlayerState) {
   if (state == 0 || state == 2) {
     showMenu.value = true;
-  } else if (!pinMenu.value) {
-    showMenu.value = false;
-  }
-}
-
-function stateChangeTT(state: number) {
-  if (state == 0 || state == 2) {
-    showMenu.value = true;
-  } else if (!pinMenu.value) {
+  } else {
     showMenu.value = false;
   }
 }
@@ -52,17 +44,19 @@ function nextVideo() {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center bg-gray-200 w-screen h-screen space-y-2">
+  <div class="flex flex-col items-center bg-gray-800 w-screen h-screen space-y-2"
+    :class="[currentVideoIndex >= 0 ? 'justify-start' : 'justify-center']"
+    >
     <div v-if="currentVideoIndex >= 0"
       class="transition-[width] duration-500 ease-in-out" 
-      :class="[showMenu ? 'w-7/8' : 'w-full']">
+      :class="[showMenu ? 'w-10/11' : 'w-full']">
       <YTPlayer v-if="platform == 'youtube'"
-        :video-id="props.videoUrls[currentVideoIndex]" 
-        @state-change="stateChangeYT" 
+        :video-url="props.videoUrls[currentVideoIndex]" 
+        @state-change="handleStateChange" 
         @error="handleErrorYT" />
       <TikTokPlayer v-if="platform == 'tiktok'"
         :video-url="props.videoUrls[currentVideoIndex]" 
-        @state-change="stateChangeTT" 
+        @state-change="handleStateChange" 
         @error="handleErrorTT" />
     </div>
     <Transition v-if="currentVideoIndex >= 0"
@@ -72,10 +66,10 @@ function nextVideo() {
       leave-active-class="transition duration-200 ease-in"
       leave-from-class="opacity-100 translate-y-0" 
       leave-to-class="opacity-0 translate-y-2">
-      <div v-if="showMenu" class="bg-white rounded-xl p-2 flex justify-center items-center space-x-2 shadow">
+      <div v-if="showMenu || pinMenu" class="bg-white/90 rounded-xl p-2 flex justify-center items-center space-x-2 shadow">
         <button class="w-16 rounded-md p-2 font-medium" @click="pinMenu = !pinMenu">
-          <span v-if="!pinMenu">📌</span>
-          <span v-else>📍</span>
+          <span v-if="pinMenu">📍</span>
+          <span v-else>📌</span>
         </button>
         <button class="w-16 rounded-md p-2" @click="nextVideo">
           <span>🙈</span>
@@ -88,7 +82,7 @@ function nextVideo() {
         </button>
       </div>
     </Transition>
-    <div v-else class="bg-white rounded-xl p-4 shadow flex flex-col items-center">
+    <div v-else class="bg-white/90 rounded-xl p-4 shadow flex flex-col items-center">
       <span class="text-2xl font-medium">
         You have watched all videos 🥳
       </span>

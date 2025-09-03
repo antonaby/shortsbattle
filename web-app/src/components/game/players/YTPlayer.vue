@@ -4,7 +4,7 @@ import { extractYTVideoId } from '@/utils/players';
 import { nextTick, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps<{
-  videoId: string
+  videoUrl: string
 }>();
 
 const emits = defineEmits<{
@@ -14,7 +14,7 @@ const emits = defineEmits<{
 
 let player: YT.Player | null = null;
 
-watch(() => props.videoId, (newVal) => {
+watch(() => props.videoUrl, (newVal) => {
   if (player) {
     player.loadVideoById(extractYTVideoId(newVal));
   }
@@ -25,7 +25,7 @@ onMounted(async () => {
   await nextTick();
 
   player = new YT.Player('yt-shorts', {
-    videoId: extractYTVideoId(props.videoId),
+    videoId: extractYTVideoId(props.videoUrl),
     width: '100%',
     height: '100%',
     playerVars: {
