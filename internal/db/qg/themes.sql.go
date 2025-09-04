@@ -54,21 +54,51 @@ func (q *Queries) CreateVideoRequest(ctx context.Context, arg CreateVideoRequest
 }
 
 const getTheme = `-- name: GetTheme :one
-SELECT id, name, description, created_at FROM themes WHERE id = $1
+SELECT
+  t.id          AS theme_id,
+  t.name,
+  t.description,
+  t.created_at,
+  COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', vr.id,
+        'request', vr.request,
+        'created_at', vr.created_at
+      )
+      ORDER BY vr.created_at
+    ) FILTER (WHERE vr.id IS NOT NULL),
+    '[]'::jsonb
+  ) AS requests
+FROM themes t
+LEFT JOIN video_requests vr
+  ON vr.theme_id = t.id
+WHERE t.id = $1
+GROUP BY t.id, t.name, t.description, t.created_at
+ORDER BY t.created_at
 `
 
 type GetThemeParams struct {
 	ID int64 `json:"id"`
 }
 
-func (q *Queries) GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error) {
+type GetThemeRow struct {
+	ThemeID     int64              `json:"theme_id"`
+	Name        string             `json:"name"`
+	Description pgtype.Text        `json:"description"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Requests    interface{}        `json:"requests"`
+}
+
+func (q *Queries) GetTheme(ctx context.Context, arg GetThemeParams) (GetThemeRow, error) {
 	row := q.db.QueryRow(ctx, getTheme, arg.ID)
-	var i Theme
+	var i GetThemeRow
 	err := row.Scan(
-		&i.ID,
+		&i.ThemeID,
 		&i.Name,
 		&i.Description,
 		&i.CreatedAt,
+		&i.Requests,
 	)
 	return i, err
 }

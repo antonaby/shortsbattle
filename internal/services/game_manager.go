@@ -248,11 +248,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 			StateChangedAt:    game.StateChangedAt,
 			NextStateChangeAt: game.NextStateChangeAt,
 			RamaningTimeMs:    game.RemainingMs,
-			Theme: &models.ThemeDetails{
-				ID:          theme.ID,
-				Name:        theme.Name,
-				Description: theme.Description.String,
-			},
+			Theme:             &theme,
 		}, nil
 	})
 }

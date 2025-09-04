@@ -17,7 +17,7 @@ type Querier interface {
 	GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error)
 	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (GetGameForPlayerRow, error)
 	GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams) (Player, error)
-	GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error)
+	GetTheme(ctx context.Context, arg GetThemeParams) (GetThemeRow, error)
 	GetTotalVotes(ctx context.Context, arg GetTotalVotesParams) ([]GetTotalVotesRow, error)
 	GetVideo(ctx context.Context, arg GetVideoParams) (Video, error)
 	GetVideoRequests(ctx context.Context, arg GetVideoRequestsParams) ([]VideoRequest, error)

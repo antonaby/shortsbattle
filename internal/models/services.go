@@ -5,14 +5,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type ThemeExt struct {
-	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	Description pgtype.Text        `json:"description"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	Requests    []qg.VideoRequest  `json:"requests"`
-}
-
 type MessageType string
 
 const (
@@ -28,7 +20,7 @@ type GameUpdate struct {
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 	RamaningTimeMs    int64              `json:"remaning_time_ms"`
-	Theme             *ThemeDetails      `json:"theme,omitempty"`
+	Theme             *qg.GetThemeRow    `json:"theme,omitempty"`
 	Result            *GameResult        `json:"result,omitempty"`
 }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -56,26 +55,19 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
 	})
 }
 
-func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*models.ThemeExt, error) {
-	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*models.ThemeExt, error) {
+func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*qg.GetThemeRow, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GetThemeRow, error) {
 		q := ts.txm.Querier(tx)
-		theme, err := ts.getTheme(ctx, q, qg.GetThemeParams{ID: themeId})
+		theme, err := q.GetTheme(ctx, qg.GetThemeParams{ID: themeId})
 		if err != nil {
-			return nil, err
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to get theme",
+				Cause:   err,
+			}
 		}
 
-		requests, err := ts.getVideoRequests(ctx, q, qg.GetVideoRequestsParams{ThemeID: themeId})
-		if err != nil {
-			return nil, err
-		}
-
-		return &models.ThemeExt{
-			ID:          theme.ID,
-			Name:        theme.Name,
-			Description: theme.Description,
-			CreatedAt:   theme.CreatedAt,
-			Requests:    requests,
-		}, nil
+		return &theme, nil
 	})
 }
 
@@ -93,42 +85,4 @@ func (ts *ThemeService) CreateVideoRequest(ctx context.Context, params qg.Create
 
 		return &request, nil
 	})
-}
-
-func (ts *ThemeService) getTheme(ctx context.Context, q qg.Querier, params qg.GetThemeParams) (*qg.Theme, error) {
-	theme, err := q.GetTheme(ctx, params)
-	if err != nil {
-		if db.IsNoRows(err) {
-			return nil, common.ServiceError{
-				Code:    common.ErrorDbNotFound,
-				Message: "failed to get theme",
-				Cause:   err,
-			}
-		}
-
-		return nil, common.ServiceError{
-			Code:    common.ErrorDbUnknown,
-			Message: "failed to get theme",
-			Cause:   err,
-		}
-	}
-
-	return &theme, nil
-}
-
-func (ts *ThemeService) getVideoRequests(ctx context.Context, q qg.Querier, params qg.GetVideoRequestsParams) ([]qg.VideoRequest, error) {
-	requests, err := q.GetVideoRequests(ctx, params)
-	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.ErrorDbUnknown,
-			Message: "failed to list video requests",
-			Cause:   err,
-		}
-	}
-
-	if len(requests) == 0 {
-		requests = []qg.VideoRequest{}
-	}
-
-	return requests, nil
 }
