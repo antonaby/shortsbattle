@@ -137,6 +137,12 @@ type Player struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type PlayerVideo struct {
+	PlayerID int64              `json:"player_id"`
+	VideoID  int64              `json:"video_id"`
+	AddedAt  pgtype.Timestamptz `json:"added_at"`
+}
+
 type Theme struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`
@@ -145,11 +151,11 @@ type Theme struct {
 }
 
 type Video struct {
-	ID       int64              `json:"id"`
-	PlayerID int64              `json:"player_id"`
-	VideoUrl string             `json:"video_url"`
-	Oembed   json.RawMessage    `json:"oembed"`
-	AddedAt  pgtype.Timestamptz `json:"added_at"`
+	ID        int64              `json:"id"`
+	VideoUrl  string             `json:"video_url"`
+	Oembed    json.RawMessage    `json:"oembed"`
+	AddedAt   pgtype.Timestamptz `json:"added_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type VideoRequest struct {

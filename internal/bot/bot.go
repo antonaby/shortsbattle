@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
@@ -145,7 +146,9 @@ func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, upd
 
 	player, ok := ctx.Value(PlayerDataKey).(*qg.Player)
 	if ok {
-		video, err := m.vs.AddVideo(ctx, player.TgID, url)
+		timeoutCtx, cancelFunc := context.WithTimeout(ctx, 20*time.Second)
+		defer cancelFunc()
+		video, err := m.vs.AddVideo(timeoutCtx, player.TgID, url)
 
 		if err != nil {
 			b.EditMessageText(ctx, &tg.EditMessageTextParams{

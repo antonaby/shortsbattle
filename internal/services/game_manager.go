@@ -87,7 +87,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, vi
 }
 
 func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64) (*qg.Video, error) {
-	oembed, err := fetchOEmbed(ctx, videoUrl, "") // TODO: add Instagram Access Token
+	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.ErrorOEmbedFailed,
@@ -98,9 +98,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		video, err := q.AddVideoByPlayerInGame(ctx, qg.AddVideoByPlayerInGameParams{
-			GameID:   gameId,
-			PlayerID: playerId,
+		video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
 			VideoUrl: videoUrl,
 			Oembed:   oembed,
 		})
@@ -108,7 +106,19 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
-				Message: "failed to fetch game",
+				Message: "failed to create video",
+				Cause:   err,
+			}
+		}
+
+		_, err = q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
+			PlayerID: playerId,
+			VideoID:  video.ID,
+		})
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to add video to player",
 				Cause:   err,
 			}
 		}

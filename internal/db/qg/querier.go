@@ -9,8 +9,8 @@ import (
 )
 
 type Querier interface {
-	AddVideoByPlayerInGame(ctx context.Context, arg AddVideoByPlayerInGameParams) (Video, error)
 	AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) error
+	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (PlayerVideo, error)
 	AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]AdvanceGamesRow, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)

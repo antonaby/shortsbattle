@@ -10,46 +10,15 @@ import (
 	"encoding/json"
 )
 
-const addVideoByPlayerInGame = `-- name: AddVideoByPlayerInGame :one
-INSERT INTO videos (player_id, video_url, oembed)
-SELECT gp.player_id, $3, $4
-FROM game_players gp
-WHERE gp.game_id  = $1
-  AND gp.player_id = $2
-RETURNING id, player_id, video_url, oembed, added_at
-`
-
-type AddVideoByPlayerInGameParams struct {
-	GameID   int64           `json:"game_id"`
-	PlayerID int64           `json:"player_id"`
-	VideoUrl string          `json:"video_url"`
-	Oembed   json.RawMessage `json:"oembed"`
-}
-
-func (q *Queries) AddVideoByPlayerInGame(ctx context.Context, arg AddVideoByPlayerInGameParams) (Video, error) {
-	row := q.db.QueryRow(ctx, addVideoByPlayerInGame,
-		arg.GameID,
-		arg.PlayerID,
-		arg.VideoUrl,
-		arg.Oembed,
-	)
-	var i Video
-	err := row.Scan(
-		&i.ID,
-		&i.PlayerID,
-		&i.VideoUrl,
-		&i.Oembed,
-		&i.AddedAt,
-	)
-	return i, err
-}
-
 const addVideoToGame = `-- name: AddVideoToGame :exec
-INSERT INTO game_videos (game_id, player_id, video_id) 
-VALUES ($1, $2, $3) 
+INSERT INTO game_videos (game_id, player_id, video_id)
+SELECT $1, $2, $3
+FROM player_videos pv
+WHERE pv.player_id = $2
+  AND pv.video_id  = $3
 ON CONFLICT (game_id, player_id)
 DO UPDATE
-SET video_id = EXCLUDED.video_id,
+SET video_id     = EXCLUDED.video_id,
     submitted_at = now()
 `
 
@@ -64,31 +33,54 @@ func (q *Queries) AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) 
 	return err
 }
 
+const addVideoToPlayer = `-- name: AddVideoToPlayer :one
+INSERT INTO player_videos (player_id, video_id) 
+VALUES ($1, $2) 
+ON CONFLICT (player_id, video_id) DO NOTHING
+RETURNING player_id, video_id, added_at
+`
+
+type AddVideoToPlayerParams struct {
+	PlayerID int64 `json:"player_id"`
+	VideoID  int64 `json:"video_id"`
+}
+
+func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (PlayerVideo, error) {
+	row := q.db.QueryRow(ctx, addVideoToPlayer, arg.PlayerID, arg.VideoID)
+	var i PlayerVideo
+	err := row.Scan(&i.PlayerID, &i.VideoID, &i.AddedAt)
+	return i, err
+}
+
 const createVideo = `-- name: CreateVideo :one
-INSERT INTO videos (player_id, video_url, oembed) VALUES ($1, $2, $3) RETURNING id, player_id, video_url, oembed, added_at
+INSERT INTO videos (video_url, oembed) 
+VALUES ($1, $2) 
+ON CONFLICT (video_url) DO UPDATE
+  SET video_url  = EXCLUDED.video_url,
+      updated_at = now()
+RETURNING id, video_url, oembed, added_at, updated_at
 `
 
 type CreateVideoParams struct {
-	PlayerID int64           `json:"player_id"`
 	VideoUrl string          `json:"video_url"`
 	Oembed   json.RawMessage `json:"oembed"`
 }
 
 func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo, arg.PlayerID, arg.VideoUrl, arg.Oembed)
+	row := q.db.QueryRow(ctx, createVideo, arg.VideoUrl, arg.Oembed)
 	var i Video
 	err := row.Scan(
 		&i.ID,
-		&i.PlayerID,
 		&i.VideoUrl,
 		&i.Oembed,
 		&i.AddedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getVideo = `-- name: GetVideo :one
-SELECT id, player_id, video_url, oembed, added_at FROM videos WHERE id = $1
+SELECT id, video_url, oembed, added_at, updated_at FROM videos WHERE id = $1
 `
 
 type GetVideoParams struct {
@@ -100,22 +92,24 @@ func (q *Queries) GetVideo(ctx context.Context, arg GetVideoParams) (Video, erro
 	var i Video
 	err := row.Scan(
 		&i.ID,
-		&i.PlayerID,
 		&i.VideoUrl,
 		&i.Oembed,
 		&i.AddedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getVideoByPlayerInGame = `-- name: GetVideoByPlayerInGame :one
-SELECT v.id, v.player_id, v.video_url, v.oembed, v.added_at
+SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
 FROM videos AS v
+JOIN player_videos AS pv
+  ON pv.video_id = v.id
 JOIN game_players AS gp
-  ON gp.player_id = v.player_id 
- AND gp.game_id   = $1 
+  ON gp.player_id = pv.player_id
+ AND gp.game_id   = $1
 WHERE v.id         = $2
-  AND v.player_id  = $3
+  AND pv.player_id = $3
 LIMIT 1
 `
 
@@ -130,16 +124,18 @@ func (q *Queries) GetVideoByPlayerInGame(ctx context.Context, arg GetVideoByPlay
 	var i Video
 	err := row.Scan(
 		&i.ID,
-		&i.PlayerID,
 		&i.VideoUrl,
 		&i.Oembed,
 		&i.AddedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
-SELECT id, player_id, video_url, oembed, added_at FROM videos WHERE player_id = $1
+SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at FROM videos AS v
+JOIN player_videos AS pv ON pv.video_id = v.id
+WHERE pv.player_id = $1
 `
 
 type GetVideosByPlayerParams struct {
@@ -157,10 +153,10 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 		var i Video
 		if err := rows.Scan(
 			&i.ID,
-			&i.PlayerID,
 			&i.VideoUrl,
 			&i.Oembed,
 			&i.AddedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -173,14 +169,18 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 }
 
 const getVideosToWatch = `-- name: GetVideosToWatch :many
-SELECT v.id, v.player_id, v.video_url, v.oembed, v.added_at
+SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
 FROM game_videos gv
-JOIN videos v ON v.id = gv.video_id
+JOIN player_videos pv
+  ON pv.player_id = gv.player_id
+ AND pv.video_id  = gv.video_id
+JOIN videos v
+  ON v.id = gv.video_id
 WHERE gv.game_id = $1
   AND EXISTS (
     SELECT 1
     FROM game_players gp
-    WHERE gp.game_id = $1
+    WHERE gp.game_id  = $1
       AND gp.player_id = $2
   )
 ORDER BY gv.submitted_at
@@ -202,10 +202,10 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 		var i Video
 		if err := rows.Scan(
 			&i.ID,
-			&i.PlayerID,
 			&i.VideoUrl,
 			&i.Oembed,
 			&i.AddedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

@@ -33,7 +33,7 @@ func (vs *VideosService) AddVideo(ctx context.Context, playerId int64, videoUrl 
 
 // TODO: Check duplicate videos (upsert)
 func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string) (*qg.Video, error) {
-	oembed, err := fetchOEmbed(ctx, videoUrl, "") // TODO: add Instagram Access Token
+	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.ErrorOEmbedFailed,
@@ -43,14 +43,25 @@ func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId
 	}
 
 	video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
-		PlayerID: playerId,
 		VideoUrl: videoUrl,
 		Oembed:   oembed,
 	})
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.GetDbErrorCode(err),
-			Message: "failed to submit video",
+			Message: "failed to create video",
+			Cause:   err,
+		}
+	}
+
+	_, err = q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
+		PlayerID: playerId,
+		VideoID:  video.ID,
+	})
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: "failed to add video to player",
 			Cause:   err,
 		}
 	}
