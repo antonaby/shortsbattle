@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Tab } from '../../types/components';
+import type { Tab } from '@/types/components';
 
 const props = defineProps<{
   selectedKey: string

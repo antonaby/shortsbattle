@@ -28,6 +28,7 @@ export const useGameStore = defineStore("game", () => {
   const theme = ref<ThemeDetails | null>(null);
   const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
+  const loadingPlayerVideos = ref<boolean>(false);
   const gameVideos = ref<Video[]>([]);
   const finalResult = ref<GameResult | null>(null);
 
@@ -128,12 +129,13 @@ export const useGameStore = defineStore("game", () => {
   }
 
   async function reloadPlayerVideos() {
-    playerVideos.value = [];
-
+    loadingPlayerVideos.value = true;
     try {
       playerVideos.value = await GamesAPI.getMyVideos();
     } catch (error) {
       uiStore.handleNetworkError(error);
+    } finally {
+      loadingPlayerVideos.value = false;
     }
   }
 
@@ -232,6 +234,7 @@ export const useGameStore = defineStore("game", () => {
     selectedVideo,
     gameVideos,
     finalResult,
+    loadingPlayerVideos,
     joinGame,
     leaveGame,
     reloadPlayerVideos,

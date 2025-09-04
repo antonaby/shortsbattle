@@ -27,6 +27,6 @@ function onTabSelect(tab: Tab) {
 
 <template>
   <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
-  <ExistingVideoView v-if="activeTab.key == 'library'" />
+  <ExistingVideoView v-if="activeTab.key == 'library'" @new-video="onTabSelect(tabs[1])" />
   <NewVideoView v-if="activeTab.key == 'new'" />
 </template>
