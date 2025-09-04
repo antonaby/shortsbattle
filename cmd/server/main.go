@@ -40,9 +40,9 @@ func main() {
 
 	gameConfig := services.GameConfig{
 		MaxPlayers:        5,
-		LobbyState:        10 * time.Second,
+		LobbyState:        30 * time.Second,
 		LobbyClosedBefore: 5 * time.Second,
-		SubmittingState:   10 * time.Second,
+		SubmittingState:   60 * time.Second,
 		WatchingState:     600 * time.Second,
 	}
 
@@ -52,7 +52,7 @@ func main() {
 	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
 
 	authConfig := services.AuthConfig{
-		TokenExpTime: 1 * time.Minute,
+		TokenExpTime: 10 * time.Minute,
 		Issuer:       "shortsbattle",
 		Audience:     "tg-mini-app",
 	}

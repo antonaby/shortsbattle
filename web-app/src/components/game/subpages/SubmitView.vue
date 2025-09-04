@@ -12,8 +12,8 @@ const uiStore = useUIStore();
 <template>
   <div class="page-container">
     <HeaderView :theme="gameStore.theme" @return="uiStore.returnToHub()" />
-    <TimerView caption="Submit your video" :remaning-time="gameStore.formattedTime" />
+    <TimerView :caption="gameStore.selectedVideo ? 'Awaiting other players' : 'Submit your video'" :remaning-time="gameStore.formattedTime" />
     <SelectVideoView v-if="!gameStore.selectedVideo" />
-    <SelectedVideoView v-else />
+    <SelectedVideoView :video="gameStore.selectedVideo" @unselect="gameStore.unselectVideo" v-else />
   </div>
 </template>

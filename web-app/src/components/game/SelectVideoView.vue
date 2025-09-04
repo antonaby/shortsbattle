@@ -8,12 +8,12 @@ import TabView from '../common/TabView.vue';
 const tabs: Tab[] = [
   {
     position: 0,
-    label: "Your videos",
+    label: "Your Videos",
     key: "library"
   },
   {
     position: 1,
-    label: "Use New Video",
+    label: "New Video",
     key: "new"
   }
 ];

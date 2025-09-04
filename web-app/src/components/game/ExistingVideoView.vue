@@ -17,6 +17,7 @@ onMounted(() => {
 })
 </script>
 <template>
+  <button class="w-full py-2 bg-black text-white rounded" @click="gameStore.reloadPlayerVideos()">Reload</button>
   <ul class="space-y-2">
     <li v-for="video in gameStore.playerVideos" v-if="gameStore.playerVideos.length > 0">
       <VideoButton :video="video" @submit="onSubmitVideo" />

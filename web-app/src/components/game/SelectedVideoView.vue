@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import VideoButton from './VideoButton.vue';
-import { useGameStore } from '../../stores/game.store';
+import type { Video } from '@/types/game';
 
-const gameStore = useGameStore();
+defineProps<{
+  video: Video
+}>();
+
+const emits = defineEmits<{
+  (e: 'unselect'): void
+}>();
 </script>
 
 <template>
-  <span class="text-xl font-medium">Selected</span>
-  <VideoButton :video="gameStore.selectedVideo" />
-  <button @click="gameStore.unselectVideo()">
+  <VideoButton :video="video" />
+  <button @click="emits('unselect')">
     <div class="text-sm text-blue-500">Pick another video</div>
   </button>
 </template>

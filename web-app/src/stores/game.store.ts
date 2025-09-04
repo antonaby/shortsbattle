@@ -196,12 +196,12 @@ export const useGameStore = defineStore("game", () => {
 
   // TODO: handle error
   function handleVideoError(error: any) {
-
+    console.log(`Video error: ${error}`)
   }
 
   // TODO: handle finished
   function handleFinished() {
-
+    console.log("Player finished")
   }
 
   function leaveGame() {

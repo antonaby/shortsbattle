@@ -40,6 +40,7 @@ function nextVideo() {
     currentVideoIndex.value += 1;
   } else {
     currentVideoIndex.value = -1;
+    emits('finished');
   }
 }
 
@@ -113,9 +114,6 @@ function handleError(error: any) {
       <span class="text-2xl font-medium">
         You have watched all videos 🥳
       </span>
-      <button class="w-16 rounded-md p-2 text-2xl" @click="emits('finished')">
-        <span>👍</span>
-      </button>
     </div>
   </div>
 </template>
