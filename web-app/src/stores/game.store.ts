@@ -29,7 +29,6 @@ export const useGameStore = defineStore("game", () => {
   const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
   const gameVideos = ref<Video[]>([]);
-  const currentPlayingVideoIndex = ref<number>(0);
   const finalResult = ref<GameResult | null>(null);
 
   let gameId: number | null = null;
@@ -42,24 +41,11 @@ export const useGameStore = defineStore("game", () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   });
 
-  const currentVideoOEmbed = computed((): string | null => {
-    if (currentPlayingVideoIndex.value < gameVideos.value.length) {
-      const video = gameVideos.value[currentPlayingVideoIndex.value];
-      if (video.oembed.html) {
-        return video.oembed.html;
-      }
-    }
-
-    return null;
-  });
-
   function updateRemainingTime(upd: GameUpdate) {
     remainingTimeMs.value = upd.remaning_time_ms;
   }
 
   function navigateToGameState(upd: GameUpdate) {
-    //router.push({ name: "game-watch", params: { id: gameId } });
-
     switch (upd.state) {
       case "lobby":
         router.push({ name: "game-lobby", params: { id: gameId } });
@@ -183,7 +169,6 @@ export const useGameStore = defineStore("game", () => {
     selectedVideo.value = null;
   }
 
-  // TODO: show loading element
   async function loadVideosToWatch() {
     if (!gameId) {
       return;
@@ -197,41 +182,26 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
-  function nextVideo() {
-    if (currentPlayingVideoIndex.value + 1 <= gameVideos.value.length) {
-      currentPlayingVideoIndex.value += 1;
-    }
-  }
-
-  function previousVideo() {
-    if (currentPlayingVideoIndex.value - 1 >= 0) {
-      currentPlayingVideoIndex.value -= 1;
-    }
-  }
-
-  // TODO: show loading element
-  // TODO: move to the next video
-  async function likeVideo() {
-    await voteForVideo("like");
-  }
-
-  // TODO: show loading element
-  // TODO: move to the next video
-  async function dislikeVideo() {
-    await voteForVideo("dislike");
-  }
-
-  async function voteForVideo(value: VoteValue) {
+  async function voteForVideo(video: Video, value: VoteValue) {
     if (!gameId) {
       return;
     }
 
-    let video = gameVideos.value[currentPlayingVideoIndex.value];
     try {
       await GamesAPI.voteForVideo(gameId, video.id, value);
     } catch (error) {
       uiStore.handleNetworkError(error);
     }
+  }
+
+  // TODO: handle error
+  function handleVideoError(error: any) {
+
+  }
+
+  // TODO: handle finished
+  function handleFinished() {
+
   }
 
   function leaveGame() {
@@ -251,7 +221,6 @@ export const useGameStore = defineStore("game", () => {
     playerVideos.value = [];
     selectedVideo.value = null;
     gameVideos.value = [];
-    currentPlayingVideoIndex.value = 0;
     finalResult.value = null;
   }
 
@@ -262,8 +231,6 @@ export const useGameStore = defineStore("game", () => {
     playerVideos,
     selectedVideo,
     gameVideos,
-    currentPlayingVideoIndex,
-    currentVideoOEmbed,
     finalResult,
     joinGame,
     leaveGame,
@@ -272,9 +239,8 @@ export const useGameStore = defineStore("game", () => {
     newVideo,
     unselectVideo,
     loadVideosToWatch,
-    nextVideo,
-    previousVideo,
-    likeVideo,
-    dislikeVideo,
+    voteForVideo,
+    handleVideoError,
+    handleFinished
   };
 });
