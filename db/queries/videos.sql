@@ -1,17 +1,5 @@
--- name: CreateVideo :one
-INSERT INTO videos (video_url, oembed) 
-VALUES ($1, $2) 
-ON CONFLICT (video_url) DO UPDATE
-  SET video_url  = EXCLUDED.video_url,
-      updated_at = now()
-RETURNING *;
-
 -- name: AddVideoToPlayer :one  
-INSERT INTO player_videos (player_id, video_id) 
-VALUES ($1, $2) 
-ON CONFLICT (player_id, video_id) DO UPDATE
-  SET added_at = now()
-RETURNING *;
+SELECT * FROM add_video_for_player($1, $2, $3);
 
 -- name: GetVideo :one
 SELECT * FROM videos WHERE id = $1;
@@ -47,9 +35,6 @@ SET video_id     = EXCLUDED.video_id,
 -- name: GetVideosToWatch :many
 SELECT v.*
 FROM game_videos gv
-JOIN player_videos pv
-  ON pv.player_id = gv.player_id
- AND pv.video_id  = gv.video_id
 JOIN videos v
   ON v.id = gv.video_id
 WHERE gv.game_id = $1

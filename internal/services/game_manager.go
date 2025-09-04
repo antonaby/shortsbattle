@@ -98,24 +98,12 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
-			VideoUrl: videoUrl,
-			Oembed:   oembed,
+		video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
+			PPlayerID: playerId,
+			PVideoUrl: videoUrl,
+			POembed:   oembed,
 		})
 
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to create video",
-				Cause:   err,
-			}
-		}
-
-		_, err = q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
-			PlayerID: playerId,
-			VideoID:  video.ID,
-		})
-		
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),

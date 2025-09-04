@@ -25,43 +25,31 @@ func NewVideosService(txm db.TxManager) *VideosService {
 }
 
 func (vs *VideosService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
-	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
-		q := vs.txm.Querier(tx)
-		return vs.createVideo(ctx, q, playerId, videoUrl)
-	})
-}
-
-// TODO: Check duplicate videos (upsert)
-func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.ErrorOEmbedFailed,
-			Message: "failed to submit video",
+			Message: "failed to get oembed data",
 			Cause:   err,
 		}
 	}
 
-	video, err := q.CreateVideo(ctx, qg.CreateVideoParams{
-		VideoUrl: videoUrl,
-		Oembed:   oembed,
+	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
+		q := vs.txm.Querier(tx)
+		return vs.createVideo(ctx, q, playerId, videoUrl, oembed)
+	})
+}
+
+func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string, oembed []byte) (*qg.Video, error) {
+	video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
+		PPlayerID: playerId,
+		PVideoUrl: videoUrl,
+		POembed:   oembed,
 	})
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.GetDbErrorCode(err),
 			Message: "failed to create video",
-			Cause:   err,
-		}
-	}
-
-	_, err = q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
-		PlayerID: playerId,
-		VideoID:  video.ID,
-	})
-	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: "failed to add video to player",
 			Cause:   err,
 		}
 	}

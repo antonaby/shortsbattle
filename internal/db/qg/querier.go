@@ -10,11 +10,10 @@ import (
 
 type Querier interface {
 	AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) error
-	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (PlayerVideo, error)
+	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error)
 	AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]AdvanceGamesRow, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
-	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVideoRequest(ctx context.Context, arg CreateVideoRequestParams) (VideoRequest, error)
 	GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error)
 	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (GetGameForPlayerRow, error)

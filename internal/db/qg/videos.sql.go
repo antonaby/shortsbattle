@@ -34,41 +34,17 @@ func (q *Queries) AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) 
 }
 
 const addVideoToPlayer = `-- name: AddVideoToPlayer :one
-INSERT INTO player_videos (player_id, video_id) 
-VALUES ($1, $2) 
-ON CONFLICT (player_id, video_id) DO UPDATE
-  SET added_at = now()
-RETURNING player_id, video_id, added_at
+SELECT id, video_url, oembed, added_at, updated_at FROM add_video_for_player($1, $2, $3)
 `
 
 type AddVideoToPlayerParams struct {
-	PlayerID int64 `json:"player_id"`
-	VideoID  int64 `json:"video_id"`
+	PPlayerID int64           `json:"p_player_id"`
+	PVideoUrl string          `json:"p_video_url"`
+	POembed   json.RawMessage `json:"p_oembed"`
 }
 
-func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (PlayerVideo, error) {
-	row := q.db.QueryRow(ctx, addVideoToPlayer, arg.PlayerID, arg.VideoID)
-	var i PlayerVideo
-	err := row.Scan(&i.PlayerID, &i.VideoID, &i.AddedAt)
-	return i, err
-}
-
-const createVideo = `-- name: CreateVideo :one
-INSERT INTO videos (video_url, oembed) 
-VALUES ($1, $2) 
-ON CONFLICT (video_url) DO UPDATE
-  SET video_url  = EXCLUDED.video_url,
-      updated_at = now()
-RETURNING id, video_url, oembed, added_at, updated_at
-`
-
-type CreateVideoParams struct {
-	VideoUrl string          `json:"video_url"`
-	Oembed   json.RawMessage `json:"oembed"`
-}
-
-func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo, arg.VideoUrl, arg.Oembed)
+func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error) {
+	row := q.db.QueryRow(ctx, addVideoToPlayer, arg.PPlayerID, arg.PVideoUrl, arg.POembed)
 	var i Video
 	err := row.Scan(
 		&i.ID,
@@ -172,9 +148,6 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 const getVideosToWatch = `-- name: GetVideosToWatch :many
 SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
 FROM game_videos gv
-JOIN player_videos pv
-  ON pv.player_id = gv.player_id
- AND pv.video_id  = gv.video_id
 JOIN videos v
   ON v.id = gv.video_id
 WHERE gv.game_id = $1
