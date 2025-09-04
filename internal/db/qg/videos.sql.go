@@ -10,29 +10,6 @@ import (
 	"encoding/json"
 )
 
-const addVideoToGame = `-- name: AddVideoToGame :exec
-INSERT INTO game_videos (game_id, player_id, video_id)
-SELECT $1, $2, $3
-FROM player_videos pv
-WHERE pv.player_id = $2
-  AND pv.video_id  = $3
-ON CONFLICT (game_id, player_id)
-DO UPDATE
-SET video_id     = EXCLUDED.video_id,
-    submitted_at = now()
-`
-
-type AddVideoToGameParams struct {
-	GameID   int64 `json:"game_id"`
-	PlayerID int64 `json:"player_id"`
-	VideoID  int64 `json:"video_id"`
-}
-
-func (q *Queries) AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) error {
-	_, err := q.db.Exec(ctx, addVideoToGame, arg.GameID, arg.PlayerID, arg.VideoID)
-	return err
-}
-
 const addVideoToPlayer = `-- name: AddVideoToPlayer :one
 SELECT id, video_url, oembed, added_at, updated_at FROM add_video_for_player($1, $2, $3)
 `
@@ -77,40 +54,9 @@ func (q *Queries) GetVideo(ctx context.Context, arg GetVideoParams) (Video, erro
 	return i, err
 }
 
-const getVideoByPlayerInGame = `-- name: GetVideoByPlayerInGame :one
-SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
-FROM videos AS v
-JOIN player_videos AS pv
-  ON pv.video_id = v.id
-JOIN game_players AS gp
-  ON gp.player_id = pv.player_id
- AND gp.game_id   = $1
-WHERE v.id         = $2
-  AND pv.player_id = $3
-LIMIT 1
-`
-
-type GetVideoByPlayerInGameParams struct {
-	GameID   int64 `json:"game_id"`
-	ID       int64 `json:"id"`
-	PlayerID int64 `json:"player_id"`
-}
-
-func (q *Queries) GetVideoByPlayerInGame(ctx context.Context, arg GetVideoByPlayerInGameParams) (Video, error) {
-	row := q.db.QueryRow(ctx, getVideoByPlayerInGame, arg.GameID, arg.ID, arg.PlayerID)
-	var i Video
-	err := row.Scan(
-		&i.ID,
-		&i.VideoUrl,
-		&i.Oembed,
-		&i.AddedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
-SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at FROM videos AS v
+SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at 
+FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1
 `
@@ -189,4 +135,38 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertGameVideoIfOwned = `-- name: UpsertGameVideoIfOwned :one
+INSERT INTO game_videos (game_id, player_id, video_id)
+SELECT $1, $2, $3
+WHERE EXISTS (
+  SELECT 1
+  FROM player_videos pv
+  WHERE pv.player_id = $2
+    AND pv.video_id  = $3
+)
+ON CONFLICT ON CONSTRAINT unique_player_game
+DO UPDATE
+SET video_id     = EXCLUDED.video_id,
+    submitted_at = now()
+RETURNING game_id, player_id, video_id, submitted_at
+`
+
+type UpsertGameVideoIfOwnedParams struct {
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+	VideoID  int64 `json:"video_id"`
+}
+
+func (q *Queries) UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error) {
+	row := q.db.QueryRow(ctx, upsertGameVideoIfOwned, arg.GameID, arg.PlayerID, arg.VideoID)
+	var i GameVideo
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.VideoID,
+		&i.SubmittedAt,
+	)
+	return i, err
 }

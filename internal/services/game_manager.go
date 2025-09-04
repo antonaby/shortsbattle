@@ -63,23 +63,26 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, videoId int64, playerId int64) (*qg.Video, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		video, err := q.GetVideoByPlayerInGame(ctx, qg.GetVideoByPlayerInGameParams{
-			GameID:   gameId,
-			ID:       videoId,
-			PlayerID: playerId,
-		})
-
+		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
 		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to fetch game",
-				Cause:   err,
-			}
+			return nil, err
 		}
 
 		err = gm.addVideoToGame(ctx, q, gameId, videoId, playerId)
 		if err != nil {
 			return nil, err
+		}
+
+		video, err := q.GetVideo(ctx, qg.GetVideoParams{
+			ID: videoId,
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to add video to player",
+				Cause:   err,
+			}
 		}
 
 		return &video, nil
@@ -98,6 +101,11 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
+		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
+		if err != nil {
+			return nil, err
+		}
+
 		video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
 			PPlayerID: playerId,
 			PVideoUrl: videoUrl,
@@ -121,11 +129,37 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId int64, videoId int64, playerId int64) error {
-	err := q.AddVideoToGame(ctx, qg.AddVideoToGameParams{
-		GameID:   gameId,
-		VideoID:  videoId,
+func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Querier, gameId int64, playerId int64, states []string) error {
+	ok, err := q.PlayerInGameWithStates(ctx, qg.PlayerInGameWithStatesParams{
 		PlayerID: playerId,
+		GameID:   gameId,
+		States:   states,
+	})
+
+	if err != nil {
+		return common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: "failed to fetch game",
+			Cause:   err,
+		}
+	}
+
+	if !ok {
+		return common.ServiceError{
+			Code:    common.ErrorDbNotFound,
+			Message: "player not in the game",
+			Cause:   err,
+		}
+	}
+
+	return nil
+}
+
+func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId int64, videoId int64, playerId int64) error {
+	_, err := q.UpsertGameVideoIfOwned(ctx, qg.UpsertGameVideoIfOwnedParams{
+		GameID:   gameId,
+		PlayerID: playerId,
+		VideoID:  videoId,
 	})
 
 	if err != nil {

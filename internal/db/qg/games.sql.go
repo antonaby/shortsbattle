@@ -165,6 +165,30 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 	return game_id, err
 }
 
+const playerInGameWithStates = `-- name: PlayerInGameWithStates :one
+SELECT EXISTS (
+  SELECT 1
+  FROM game_players gp
+  JOIN games g ON g.id = gp.game_id
+  WHERE gp.game_id  = $1
+    AND gp.player_id = $2
+    AND g.state::text = ANY($3::text[])
+) AS in_game_and_in_states
+`
+
+type PlayerInGameWithStatesParams struct {
+	GameID   int64    `json:"game_id"`
+	PlayerID int64    `json:"player_id"`
+	States   []string `json:"states"`
+}
+
+func (q *Queries) PlayerInGameWithStates(ctx context.Context, arg PlayerInGameWithStatesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, playerInGameWithStates, arg.GameID, arg.PlayerID, arg.States)
+	var in_game_and_in_states bool
+	err := row.Scan(&in_game_and_in_states)
+	return in_game_and_in_states, err
+}
+
 const setCompletedStatus = `-- name: SetCompletedStatus :one
 UPDATE games SET 
   state = $1,

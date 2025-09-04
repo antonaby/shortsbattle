@@ -9,7 +9,6 @@ import (
 )
 
 type Querier interface {
-	AddVideoToGame(ctx context.Context, arg AddVideoToGameParams) error
 	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error)
 	AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]AdvanceGamesRow, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
@@ -21,15 +20,16 @@ type Querier interface {
 	GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error)
 	GetTotalVotes(ctx context.Context, arg GetTotalVotesParams) ([]GetTotalVotesRow, error)
 	GetVideo(ctx context.Context, arg GetVideoParams) (Video, error)
-	GetVideoByPlayerInGame(ctx context.Context, arg GetVideoByPlayerInGameParams) (Video, error)
 	GetVideoRequests(ctx context.Context, arg GetVideoRequestsParams) ([]VideoRequest, error)
 	GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) ([]Video, error)
 	GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]Video, error)
 	JoinGameForTheme(ctx context.Context, arg JoinGameForThemeParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
+	PlayerInGameWithStates(ctx context.Context, arg PlayerInGameWithStatesParams) (bool, error)
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
+	UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error)
 	VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error)
 }
 

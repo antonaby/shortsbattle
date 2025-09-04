@@ -5,32 +5,25 @@ SELECT * FROM add_video_for_player($1, $2, $3);
 SELECT * FROM videos WHERE id = $1;
 
 -- name: GetVideosByPlayer :many
-SELECT v.* FROM videos AS v
+SELECT v.* 
+FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1;
 
--- name: GetVideoByPlayerInGame :one
-SELECT v.*
-FROM videos AS v
-JOIN player_videos AS pv
-  ON pv.video_id = v.id
-JOIN game_players AS gp
-  ON gp.player_id = pv.player_id
- AND gp.game_id   = $1
-WHERE v.id         = $2
-  AND pv.player_id = $3
-LIMIT 1;
-
--- name: AddVideoToGame :exec
+-- name: UpsertGameVideoIfOwned :one
 INSERT INTO game_videos (game_id, player_id, video_id)
 SELECT $1, $2, $3
-FROM player_videos pv
-WHERE pv.player_id = $2
-  AND pv.video_id  = $3
-ON CONFLICT (game_id, player_id)
+WHERE EXISTS (
+  SELECT 1
+  FROM player_videos pv
+  WHERE pv.player_id = $2
+    AND pv.video_id  = $3
+)
+ON CONFLICT ON CONSTRAINT unique_player_game
 DO UPDATE
 SET video_id     = EXCLUDED.video_id,
-    submitted_at = now();
+    submitted_at = now()
+RETURNING *;
     
 -- name: GetVideosToWatch :many
 SELECT v.*
