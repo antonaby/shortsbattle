@@ -151,6 +151,7 @@ func (m *TgBotManager) handleUrl(ctx context.Context, url string, b *tg.Bot, upd
 		video, err := m.vs.AddVideo(timeoutCtx, player.TgID, url)
 
 		if err != nil {
+			// TODO: add better message depends on the error
 			b.EditMessageText(ctx, &tg.EditMessageTextParams{
 				ChatID:    msg.Chat.ID,
 				MessageID: msg.ID,

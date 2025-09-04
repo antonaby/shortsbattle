@@ -60,7 +60,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, videoId int64, playerId int64) (*qg.Video, error) {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoRequestId, videoId, playerId int64) (*qg.Video, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
 		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
@@ -68,7 +68,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, vi
 			return nil, err
 		}
 
-		err = gm.addVideoToGame(ctx, q, gameId, videoId, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, videoRequestId, videoId, playerId)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId int64, vi
 	})
 }
 
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64) (*qg.Video, error) {
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId, videoRequestId int64, videoUrl string, playerId int64) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
@@ -120,7 +120,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 			}
 		}
 
-		err = gm.addVideoToGame(ctx, q, gameId, video.ID, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, videoRequestId, video.ID, playerId)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +146,7 @@ func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Quer
 
 	if !ok {
 		return common.ServiceError{
-			Code:    common.ErrorDbNotFound,
+			Code:    common.ErrorWrongGameState,
 			Message: "player not in the game",
 			Cause:   err,
 		}
@@ -155,9 +155,10 @@ func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Quer
 	return nil
 }
 
-func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId int64, videoId int64, playerId int64) error {
+func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoRequestId, videoId, playerId int64) error {
 	_, err := q.UpsertGameVideoIfOwned(ctx, qg.UpsertGameVideoIfOwnedParams{
 		GameID:   gameId,
+		RequestID: videoRequestId,
 		PlayerID: playerId,
 		VideoID:  videoId,
 	})

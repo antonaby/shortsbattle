@@ -17,9 +17,10 @@ CREATE TABLE
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
     player_id BIGINT NOT NULL REFERENCES players (tg_id) ON DELETE CASCADE,
     video_id BIGINT NOT NULL REFERENCES videos (id) ON DELETE CASCADE,
+    request_id BIGINT NOT NULL REFERENCES video_requests (id) ON DELETE CASCADE,
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    PRIMARY KEY (game_id, player_id, video_id),
-    CONSTRAINT unique_player_game UNIQUE (game_id, player_id)
+    PRIMARY KEY (game_id, player_id, video_id, request_id),
+    CONSTRAINT unique_player_game_request UNIQUE (game_id, player_id, request_id)
   );
 
 -- +goose StatementEnd

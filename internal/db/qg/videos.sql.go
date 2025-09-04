@@ -138,34 +138,52 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 }
 
 const upsertGameVideoIfOwned = `-- name: UpsertGameVideoIfOwned :one
-INSERT INTO game_videos (game_id, player_id, video_id)
-SELECT $1, $2, $3
-WHERE EXISTS (
-  SELECT 1
-  FROM player_videos pv
-  WHERE pv.player_id = $2
-    AND pv.video_id  = $3
-)
-ON CONFLICT ON CONSTRAINT unique_player_game
+INSERT INTO game_videos (game_id, player_id, video_id, request_id)
+SELECT $1, $2, $3, $4
+WHERE
+  -- player owns the video
+  EXISTS (
+    SELECT 1
+    FROM player_videos pv
+    WHERE pv.player_id = $2
+      AND pv.video_id  = $3
+  )
+  -- request and game share the same theme
+  AND EXISTS (
+    SELECT 1
+    FROM games g
+    JOIN video_requests vr
+      ON vr.id = $4
+    AND vr.theme_id = g.theme_id
+    WHERE g.id = $1
+  )
+ON CONFLICT ON CONSTRAINT unique_player_game_request
 DO UPDATE
 SET video_id     = EXCLUDED.video_id,
     submitted_at = now()
-RETURNING game_id, player_id, video_id, submitted_at
+RETURNING game_id, player_id, video_id, request_id, submitted_at
 `
 
 type UpsertGameVideoIfOwnedParams struct {
-	GameID   int64 `json:"game_id"`
-	PlayerID int64 `json:"player_id"`
-	VideoID  int64 `json:"video_id"`
+	GameID    int64 `json:"game_id"`
+	PlayerID  int64 `json:"player_id"`
+	VideoID   int64 `json:"video_id"`
+	RequestID int64 `json:"request_id"`
 }
 
 func (q *Queries) UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error) {
-	row := q.db.QueryRow(ctx, upsertGameVideoIfOwned, arg.GameID, arg.PlayerID, arg.VideoID)
+	row := q.db.QueryRow(ctx, upsertGameVideoIfOwned,
+		arg.GameID,
+		arg.PlayerID,
+		arg.VideoID,
+		arg.RequestID,
+	)
 	var i GameVideo
 	err := row.Scan(
 		&i.GameID,
 		&i.PlayerID,
 		&i.VideoID,
+		&i.RequestID,
 		&i.SubmittedAt,
 	)
 	return i, err

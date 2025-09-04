@@ -57,7 +57,6 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 	})
 }
 
-// TODO: get user id from auth data
 func (api *HttpApi) submitVideo(c echo.Context) error {
 	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {
@@ -88,13 +87,18 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if request.VideoID != nil {
-		video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, tgId)
+		video, err := api.gm.SubmitExistingVideo(ctx, gameId, request.VideoRequestId, *request.VideoID, tgId)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {
 				if sErr.Code == common.ErrorDbNotFound {
 					return c.JSON(http.StatusNotFound, m.ErrorResponse{
 						Error: "player not in the game, or game, player or video not found",
+					})
+				}
+				if sErr.Code == common.ErrorWrongGameState {
+					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+						Error: "game closed",
 					})
 				}
 			}
@@ -107,7 +111,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 		return c.JSON(http.StatusOK, video)
 	} else if request.VideoUrl != nil {
-		video, err := api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, tgId)
+		video, err := api.gm.SubmitNewVideo(ctx, gameId, request.VideoRequestId, *request.VideoUrl, tgId)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {
@@ -119,6 +123,11 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 				if sErr.Code == common.ErrorOEmbedFailed {
 					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 						Error: "wrong video url",
+					})
+				}
+				if sErr.Code == common.ErrorWrongGameState {
+					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+						Error: "game closed",
 					})
 				}
 			}
@@ -164,7 +173,6 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	return c.JSON(http.StatusOK, videos)
 }
 
-// TODO: get user id from auth data
 func (api *HttpApi) voteForVideo(c echo.Context) error {
 	gameId, err := parseInt64(c.Param("id"))
 	if err != nil {

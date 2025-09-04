@@ -29,12 +29,13 @@ type AddVideoRequest struct {
 }
 
 type SubmitVideoRequest struct {
-	VideoID  *int64  `json:"video_id"`
-	VideoUrl *string `json:"video_url" validate:"omitempty,url"`
+	VideoRequestId int64   `json:"video_request_id" validate:"required"`
+	VideoID        *int64  `json:"video_id"`
+	VideoUrl       *string `json:"video_url" validate:"omitempty,url"`
 }
 
 type JoinGameRequest struct {
-	ThemeID  int64 `json:"theme_id" validate:"required"`
+	ThemeID int64 `json:"theme_id" validate:"required"`
 }
 
 type VoteForVideoRequest struct {

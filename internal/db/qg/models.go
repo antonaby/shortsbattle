@@ -119,6 +119,7 @@ type GameVideo struct {
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
 	VideoID     int64              `json:"video_id"`
+	RequestID   int64              `json:"request_id"`
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 }
 
