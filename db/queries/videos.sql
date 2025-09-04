@@ -9,7 +9,8 @@ RETURNING *;
 -- name: AddVideoToPlayer :one  
 INSERT INTO player_videos (player_id, video_id) 
 VALUES ($1, $2) 
-ON CONFLICT (player_id, video_id) DO NOTHING
+ON CONFLICT (player_id, video_id) DO UPDATE
+  SET added_at = now()
 RETURNING *;
 
 -- name: GetVideo :one

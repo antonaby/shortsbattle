@@ -115,6 +115,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 			PlayerID: playerId,
 			VideoID:  video.ID,
 		})
+		
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
