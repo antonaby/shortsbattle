@@ -22,13 +22,13 @@ onMounted(() => {
 </script>
 <template>
   <button 
-  v-if="!gameStore.loadingPlayerVideos && gameStore.playerVideos.length > 0"
-    class="w-full py-2 bg-black text-white rounded" 
+  v-if="!gameStore.loadingData && gameStore.playerVideos.length > 0"
+    class="text-sm text-blue-500" 
     @click="gameStore.reloadPlayerVideos()">
     Reload
   </button>
   <div 
-  v-if="!gameStore.loadingPlayerVideos && gameStore.playerVideos.length == 0" 
+  v-if="!gameStore.loadingData && gameStore.playerVideos.length == 0" 
     class="flex flex-col items-center justify-start space-y-2">
     <p class="text-2xl font-medium text-center">
       You have no videos.
@@ -41,7 +41,7 @@ onMounted(() => {
   </div>
 
   <ul class="space-y-2">
-    <li v-for="video in gameStore.playerVideos" v-if="!gameStore.loadingPlayerVideos">
+    <li v-for="video in gameStore.playerVideos" v-if="!gameStore.loadingData">
       <VideoButton :video="video" @submit="onSubmitVideo" />
     </li>
     <li v-for="n in 3" :key="n" v-else>

@@ -2,12 +2,6 @@ export type GameState = "lobby" | "submitting" | "watching" | "completed";
 
 export type MsgType = "details" | "state_change" | "complete";
 
-export interface ThemeDetails {
-  id: number;
-  name: string;
-  description: string;
-}
-
 export interface VideoResult {
   id: number;
   likes: number;
@@ -25,7 +19,7 @@ export interface GameUpdate {
   state_changed_at: string;
   next_state_change_at: string;
   remaning_time_ms: number;
-  theme?: ThemeDetails;
+  theme?: Theme;
   result?: GameResult;
 }
 
@@ -64,10 +58,10 @@ export interface Vote {
   voted_at: string;
   value: VoteValue;
 }
+
 export interface ThemeVideoRequest {
   id: number;
   request: string;
-  theme_id: number;
   created_at: string;
 }
 

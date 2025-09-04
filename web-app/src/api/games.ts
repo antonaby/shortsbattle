@@ -16,15 +16,17 @@ export const GamesAPI = {
     const response = await api.get<Video[]>("/api/v1/me/videos");
     return response.data;
   },
-  async submitExistingVideo(gameId: number, videoId: number): Promise<Video> {
+  async submitExistingVideo(gameId: number, videoId: number, requestId: number): Promise<Video> {
     const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
       video_id: videoId,
+      video_request_id: requestId
     });
     return response.data;
   },
-  async submitNewVideo(gameId: number, videoUrl: string): Promise<Video> {
+  async submitNewVideo(gameId: number, videoUrl: string, requestId: number): Promise<Video> {
     const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
       video_url: videoUrl,
+      video_request_id: requestId
     });
     return response.data;
   },

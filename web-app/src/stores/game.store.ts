@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import type {
-  ThemeDetails,
+  Theme,
   GameUpdate,
   Video,
   VoteValue,
@@ -25,10 +25,11 @@ export const useGameStore = defineStore("game", () => {
 
   const lastGameUpdate = ref<GameUpdate | null>(null);
   const remainingTimeMs = ref<number>(0);
-  const theme = ref<ThemeDetails | null>(null);
+  const theme = ref<Theme | null>(null);
   const selectedVideo = ref<Video | null>(null);
   const playerVideos = ref<Video[]>([]);
-  const loadingPlayerVideos = ref<boolean>(false);
+  const loadingData = ref<boolean>(false);
+  const sendingRequest = ref<boolean>(false);
   const gameVideos = ref<Video[]>([]);
   const finalResult = ref<GameResult | null>(null);
 
@@ -129,13 +130,13 @@ export const useGameStore = defineStore("game", () => {
   }
 
   async function reloadPlayerVideos() {
-    loadingPlayerVideos.value = true;
+    loadingData.value = true;
     try {
       playerVideos.value = await GamesAPI.getMyVideos();
     } catch (error) {
       uiStore.handleNetworkError(error);
     } finally {
-      loadingPlayerVideos.value = false;
+      loadingData.value = false;
     }
   }
 
@@ -145,11 +146,14 @@ export const useGameStore = defineStore("game", () => {
       return;
     }
 
+    sendingRequest.value = true;
     try {
-      const video = await GamesAPI.submitExistingVideo(gameId, videoId);
+      const video = await GamesAPI.submitExistingVideo(gameId, videoId, 1);
       selectedVideo.value = video;
     } catch (error) {
       uiStore.handleNetworkError(error);
+    } finally {
+      sendingRequest.value = false;
     }
   }
 
@@ -159,11 +163,14 @@ export const useGameStore = defineStore("game", () => {
       return;
     }
 
+    sendingRequest.value = true;
     try {
-      const video = await GamesAPI.submitNewVideo(gameId, url);
+      const video = await GamesAPI.submitNewVideo(gameId, url, 1);
       selectedVideo.value = video;
     } catch (error) {
       uiStore.handleNetworkError(error);
+    } finally {
+      sendingRequest.value = false;
     }
   }
 
@@ -234,7 +241,8 @@ export const useGameStore = defineStore("game", () => {
     selectedVideo,
     gameVideos,
     finalResult,
-    loadingPlayerVideos,
+    loadingData,
+    sendingRequest,
     joinGame,
     leaveGame,
     reloadPlayerVideos,
