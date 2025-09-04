@@ -38,12 +38,27 @@ if (import.meta.env.DEV) {
       path: "/player-test",
       component: VideoPlayerWrapper,
       props: {
-        videoUrls: [
-          "https://www.youtube.com/shorts/wve9udh3qM4",
-          "https://www.tiktok.com/@br0pics/video/7540986521684380960",
-          "https://www.youtube.com/shorts/Z5Jlxowr4IM",
-          "https://www.tiktok.com/@br0pics/video/7540625283531967776",
-          "https://www.youtube.com/shorts/XUretomgAAA",
+        videos: [
+          {
+            id: 0,
+            video_url: "https://www.youtube.com/shorts/wve9udh3qM4",
+          },
+          {
+            id: 1,
+            video_url: "https://www.tiktok.com/@br0pics/video/7540986521684380960",
+          },
+          {
+            id: 2,
+            video_url: "https://www.youtube.com/shorts/Z5Jlxowr4IM",
+          },
+          {
+            id: 3,
+            video_url: "https://www.tiktok.com/@br0pics/video/7540625283531967776",
+          },
+          {
+            id: 4,
+            video_url: "https://www.youtube.com/shorts/XUretomgAAA",
+          },
         ],
       },
     },
