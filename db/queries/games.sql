@@ -8,7 +8,7 @@ SELECT EXISTS (
   JOIN games g ON g.id = gp.game_id
   WHERE gp.game_id  = sqlc.arg(game_id)
     AND gp.player_id = sqlc.arg(player_id)
-    AND g.state::text = ANY(sqlc.arg(states)::text[])
+    AND g.state = ANY(sqlc.arg(states)::text[]::game_state[])
 ) AS in_game_and_in_states;
 
 -- name: AdvanceGames :many

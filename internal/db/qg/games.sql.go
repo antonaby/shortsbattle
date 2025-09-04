@@ -172,7 +172,7 @@ SELECT EXISTS (
   JOIN games g ON g.id = gp.game_id
   WHERE gp.game_id  = $1
     AND gp.player_id = $2
-    AND g.state::text = ANY($3::text[])
+    AND g.state = ANY($3::text[]::game_state[])
 ) AS in_game_and_in_states
 `
 
