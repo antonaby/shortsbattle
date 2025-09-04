@@ -26,8 +26,7 @@ WHERE
     SELECT 1
     FROM games g
     JOIN video_requests vr
-      ON vr.id = $4
-    AND vr.theme_id = g.theme_id
+      ON vr.id = $4 AND vr.theme_id = g.theme_id
     WHERE g.id = $1
   )
 ON CONFLICT ON CONSTRAINT unique_player_game_request
@@ -37,10 +36,24 @@ SET video_id     = EXCLUDED.video_id,
 RETURNING *;
     
 -- name: GetVideosToWatch :many
-SELECT v.*
+SELECT 
+    vr.id         AS request_id,
+    vr.request    AS request_text,
+    json_agg(
+      json_build_object(
+        'id', v.id,
+        'video_url', v.video_url,
+        'oembed', v.oembed,
+        'added_at', v.added_at,
+        'updated_at', v.updated_at,
+        'submitted_at', gv.submitted_at
+      ) ORDER BY gv.submitted_at
+    ) AS videos
 FROM game_videos gv
-JOIN videos v
+JOIN videos v 
   ON v.id = gv.video_id
+JOIN video_requests vr
+  ON vr.id = gv.request_id
 WHERE gv.game_id = $1
   AND EXISTS (
     SELECT 1
@@ -48,4 +61,5 @@ WHERE gv.game_id = $1
     WHERE gp.game_id  = $1
       AND gp.player_id = $2
   )
-ORDER BY gv.submitted_at;
+GROUP BY vr.id, vr.request
+ORDER BY MIN(gv.submitted_at);

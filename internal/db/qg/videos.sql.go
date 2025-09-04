@@ -92,10 +92,24 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 }
 
 const getVideosToWatch = `-- name: GetVideosToWatch :many
-SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
+SELECT 
+    vr.id         AS request_id,
+    vr.request    AS request_text,
+    json_agg(
+      json_build_object(
+        'id', v.id,
+        'video_url', v.video_url,
+        'oembed', v.oembed,
+        'added_at', v.added_at,
+        'updated_at', v.updated_at,
+        'submitted_at', gv.submitted_at
+      ) ORDER BY gv.submitted_at
+    ) AS videos
 FROM game_videos gv
-JOIN videos v
+JOIN videos v 
   ON v.id = gv.video_id
+JOIN video_requests vr
+  ON vr.id = gv.request_id
 WHERE gv.game_id = $1
   AND EXISTS (
     SELECT 1
@@ -103,7 +117,8 @@ WHERE gv.game_id = $1
     WHERE gp.game_id  = $1
       AND gp.player_id = $2
   )
-ORDER BY gv.submitted_at
+GROUP BY vr.id, vr.request
+ORDER BY MIN(gv.submitted_at)
 `
 
 type GetVideosToWatchParams struct {
@@ -111,22 +126,22 @@ type GetVideosToWatchParams struct {
 	PlayerID int64 `json:"player_id"`
 }
 
-func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]Video, error) {
+type GetVideosToWatchRow struct {
+	RequestID   int64           `json:"request_id"`
+	RequestText string          `json:"request_text"`
+	Videos      json.RawMessage `json:"videos"`
+}
+
+func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error) {
 	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.PlayerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Video
+	var items []GetVideosToWatchRow
 	for rows.Next() {
-		var i Video
-		if err := rows.Scan(
-			&i.ID,
-			&i.VideoUrl,
-			&i.Oembed,
-			&i.AddedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i GetVideosToWatchRow
+		if err := rows.Scan(&i.RequestID, &i.RequestText, &i.Videos); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -153,8 +168,7 @@ WHERE
     SELECT 1
     FROM games g
     JOIN video_requests vr
-      ON vr.id = $4
-    AND vr.theme_id = g.theme_id
+      ON vr.id = $4 AND vr.theme_id = g.theme_id
     WHERE g.id = $1
   )
 ON CONFLICT ON CONSTRAINT unique_player_game_request

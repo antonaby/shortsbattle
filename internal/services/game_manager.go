@@ -157,10 +157,10 @@ func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Quer
 
 func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoRequestId, videoId, playerId int64) error {
 	_, err := q.UpsertGameVideoIfOwned(ctx, qg.UpsertGameVideoIfOwnedParams{
-		GameID:   gameId,
+		GameID:    gameId,
 		RequestID: videoRequestId,
-		PlayerID: playerId,
-		VideoID:  videoId,
+		PlayerID:  playerId,
+		VideoID:   videoId,
 	})
 
 	if err != nil {
@@ -174,9 +174,14 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 	return nil
 }
 
-func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playerId int64) ([]qg.Video, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
+func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playerId int64) ([]qg.GetVideosToWatchRow, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
 		q := gm.txm.Querier(tx)
+		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
+		if err != nil {
+			return nil, err
+		}
+
 		videos, err := q.GetVideosToWatch(ctx, qg.GetVideosToWatchParams{
 			GameID:   gameId,
 			PlayerID: playerId,
@@ -191,7 +196,7 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playe
 		}
 
 		if len(videos) == 0 {
-			videos = []qg.Video{}
+			videos = []qg.GetVideosToWatchRow{}
 		}
 
 		return videos, nil

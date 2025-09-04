@@ -98,7 +98,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 				}
 				if sErr.Code == common.ErrorWrongGameState {
 					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "game closed",
+						Error: "wrong game state",
 					})
 				}
 			}
@@ -164,6 +164,15 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	ctx := c.Request().Context()
 	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId)
 	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorWrongGameState {
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "wrong game state",
+				})
+			}
+		}
+
 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: "Something went wrong",
