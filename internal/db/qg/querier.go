@@ -16,6 +16,7 @@ type Querier interface {
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	FetchGameAndLock(ctx context.Context, arg FetchGameAndLockParams) (FetchGameAndLockRow, error)
+	FetchSubmittedVideosByPlayers(ctx context.Context, arg FetchSubmittedVideosByPlayersParams) ([]FetchSubmittedVideosByPlayersRow, error)
 	FindGameWithPlayer(ctx context.Context, arg FindGameWithPlayerParams) (Game, error)
 	GetGameForPlayer(ctx context.Context, arg GetGameForPlayerParams) (GetGameForPlayerRow, error)
 	GetGameRounds(ctx context.Context, arg GetGameRoundsParams) ([]Round, error)

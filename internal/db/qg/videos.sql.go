@@ -35,6 +35,57 @@ func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerPara
 	return i, err
 }
 
+const fetchSubmittedVideosByPlayers = `-- name: FetchSubmittedVideosByPlayers :many
+SELECT gp.game_id, gp.player_id, gv.id as game_video_id, gv.video_id, gv.round_n, gv.submitted_at
+FROM game_players gp
+LEFT JOIN game_videos gv
+  ON gv.game_id = gp.game_id
+  AND gv.player_id = gp.player_id
+WHERE gp.game_id = $1
+  AND gv.round_n = $2
+`
+
+type FetchSubmittedVideosByPlayersParams struct {
+	GameID int64 `json:"game_id"`
+	RoundN int32 `json:"round_n"`
+}
+
+type FetchSubmittedVideosByPlayersRow struct {
+	GameID      int64              `json:"game_id"`
+	PlayerID    int64              `json:"player_id"`
+	GameVideoID pgtype.Int8        `json:"game_video_id"`
+	VideoID     pgtype.Int8        `json:"video_id"`
+	RoundN      pgtype.Int4        `json:"round_n"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+}
+
+func (q *Queries) FetchSubmittedVideosByPlayers(ctx context.Context, arg FetchSubmittedVideosByPlayersParams) ([]FetchSubmittedVideosByPlayersRow, error) {
+	rows, err := q.db.Query(ctx, fetchSubmittedVideosByPlayers, arg.GameID, arg.RoundN)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FetchSubmittedVideosByPlayersRow
+	for rows.Next() {
+		var i FetchSubmittedVideosByPlayersRow
+		if err := rows.Scan(
+			&i.GameID,
+			&i.PlayerID,
+			&i.GameVideoID,
+			&i.VideoID,
+			&i.RoundN,
+			&i.SubmittedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getVideo = `-- name: GetVideo :one
 SELECT id, video_url, oembed, added_at, updated_at FROM videos WHERE id = $1
 `

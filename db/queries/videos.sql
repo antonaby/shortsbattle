@@ -34,6 +34,15 @@ DO UPDATE
 SET video_id     = EXCLUDED.video_id,
     submitted_at = now()
 RETURNING *;
+
+-- name: FetchSubmittedVideosByPlayers :many
+SELECT gp.game_id, gp.player_id, gv.id as game_video_id, gv.video_id, gv.round_n, gv.submitted_at
+FROM game_players gp
+LEFT JOIN game_videos gv
+  ON gv.game_id = gp.game_id
+  AND gv.player_id = gp.player_id
+WHERE gp.game_id = $1
+  AND gv.round_n = $2;
     
 -- name: GetVideosToWatch :many
 SELECT 
