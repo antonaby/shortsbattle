@@ -134,7 +134,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 				}
 				if sErr.Code == common.ErrorWrongGameState {
 					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "game closed",
+						Error: "wrong game state",
 					})
 				}
 			}
@@ -161,7 +161,7 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 		})
 	}
 
-	roundId, err := parseInt32(c.QueryParam("round"))
+	roundN, err := parseInt32(c.QueryParam("round"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: InvalidIdFormatMsg,
@@ -176,7 +176,7 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId, roundId)
+	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId, roundN)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
