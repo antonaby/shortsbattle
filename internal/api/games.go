@@ -94,7 +94,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if request.VideoID != nil {
-		video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, tgId, roundN)
+		_, video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, tgId, roundN)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {
@@ -118,7 +118,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 		return c.JSON(http.StatusOK, video)
 	} else if request.VideoUrl != nil {
-		video, err := api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, tgId, roundN)
+		_, video, err := api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, tgId, roundN)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {

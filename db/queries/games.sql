@@ -1,15 +1,13 @@
 -- name: JoinGameForTheme :one
 SELECT join_game_for_theme($1, $2, $3, $4, $5, $6) AS game_id;
 
--- name: PlayerInGameWithStates :one
-SELECT EXISTS (
-  SELECT 1
-  FROM game_players gp
-  JOIN games g ON g.id = gp.game_id
-  WHERE gp.game_id  = sqlc.arg(game_id)
-    AND gp.player_id = sqlc.arg(player_id)
-    AND g.state = ANY(sqlc.arg(states)::text[]::game_state[])
-) AS in_game_and_in_states;
+-- name: FindGameWithPlayer :one
+SELECT g.*
+FROM game_players gp
+JOIN games g ON g.id = gp.game_id
+WHERE gp.game_id  = sqlc.arg(game_id)
+  AND gp.player_id = sqlc.arg(player_id)
+  AND g.state = ANY(sqlc.arg(states)::text[]::game_state[]);
 
 -- name: AdvanceGames :many
 WITH candidates AS (

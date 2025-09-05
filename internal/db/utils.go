@@ -66,6 +66,10 @@ func ToPgInterval(time time.Duration) pgtype.Interval {
 	}
 }
 
+type TxFunc func(context.Context, pgx.Tx) error
+type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
+type TxFuncWithValue2[T1 any, T2 any] func(context.Context, pgx.Tx) (T1, T2, error)
+
 func WithTx(ctx context.Context, txm TxManager, fn TxFunc) error {
 	tx, err := txm.Begin(ctx)
 	if err != nil {
@@ -107,4 +111,28 @@ func WithTxValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T
 	}
 
 	return result, tx.Commit(ctx)
+}
+
+func WithTxValue2[T1 any, T2 any](ctx context.Context, txm TxManager, fn TxFuncWithValue2[T1, T2]) (T1, T2, error) {
+	var zero1 T1
+	var zero2 T2
+
+	tx, err := txm.Begin(ctx)
+	if err != nil {
+		return zero1, zero2, err
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
+
+	result1, result2, err := fn(ctx, tx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return zero1, zero2, err
+	}
+
+	return result1, result2, tx.Commit(ctx)
 }

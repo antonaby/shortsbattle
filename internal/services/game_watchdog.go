@@ -60,6 +60,12 @@ func (wd *GameWatchdog) Run(ctx context.Context) error {
 	}
 }
 
+func (wd *GameWatchdog) CheckGameState(game qg.Game) error {
+	
+
+	return nil
+}
+
 func (wd *GameWatchdog) checkPendingGames() {
 	err := db.WithTx(context.Background(), wd.txm, func(ctx context.Context, tx pgx.Tx) error {
 		q := wd.txm.Querier(tx)

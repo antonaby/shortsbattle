@@ -61,17 +61,17 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Video, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Game, *qg.Video, error) {
+	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
+		game, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		err = gm.addVideoToGame(ctx, q, gameId, videoId, playerId, roundN)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		video, err := q.GetVideo(ctx, qg.GetVideoParams{
@@ -79,32 +79,32 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 		})
 
 		if err != nil {
-			return nil, common.ServiceError{
+			return nil, nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
 				Message: "failed to add video to player",
 				Cause:   err,
 			}
 		}
 
-		return &video, nil
+		return game, &video, nil
 	})
 }
 
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.Video, error) {
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.Game, *qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
-		return nil, common.ServiceError{
+		return nil, nil, common.ServiceError{
 			Code:    common.ErrorOEmbedFailed,
 			Message: "can't get oembed data",
 			Cause:   err,
 		}
 	}
 
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
+	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
+		game, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
@@ -114,7 +114,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 		})
 
 		if err != nil {
-			return nil, common.ServiceError{
+			return nil, nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
 				Message: "failed to add video to player",
 				Cause:   err,
@@ -123,37 +123,37 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 
 		err = gm.addVideoToGame(ctx, q, gameId, video.ID, playerId, roundN)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		return &video, nil
+		return game, &video, nil
 	})
 }
 
-func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Querier, gameId int64, playerId int64, states []string) error {
-	ok, err := q.PlayerInGameWithStates(ctx, qg.PlayerInGameWithStatesParams{
-		PlayerID: playerId,
+func (gm *GameManager) findGameForPlayer(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.Game, error) {
+	game, err := q.FindGameWithPlayer(ctx, qg.FindGameWithPlayerParams{
 		GameID:   gameId,
+		PlayerID: playerId,
 		States:   states,
 	})
 
 	if err != nil {
-		return common.ServiceError{
+		if db.IsNoRows(err) {
+			return nil, common.ServiceError{
+				Code:    common.ErrorForbidden,
+				Message: "player not in the game",
+				Cause:   err,
+			}
+		}
+
+		return nil, common.ServiceError{
 			Code:    common.GetDbErrorCode(err),
 			Message: "failed to fetch game",
 			Cause:   err,
 		}
 	}
 
-	if !ok {
-		return common.ServiceError{
-			Code:    common.ErrorForbidden,
-			Message: "player not in the game",
-			Cause:   err,
-		}
-	}
-
-	return nil
+	return &game, nil
 }
 
 func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoId, playerId int64, roundN int32) error {
@@ -178,7 +178,7 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
 		q := gm.txm.Querier(tx)
-		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
+		_, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
 		if err != nil {
 			return nil, err
 		}

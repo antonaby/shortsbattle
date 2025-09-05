@@ -13,9 +13,6 @@ import (
 
 var ErrorDbUrlNotDefined = errors.New("DATABASE_URL not defined")
 
-type TxFunc func(context.Context, pgx.Tx) error
-type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
-
 type TxManager interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	Querier(pgx.Tx) qg.Querier

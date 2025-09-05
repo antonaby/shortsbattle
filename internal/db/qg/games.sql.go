@@ -77,6 +77,37 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 	return items, nil
 }
 
+const findGameWithPlayer = `-- name: FindGameWithPlayer :one
+SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
+FROM game_players gp
+JOIN games g ON g.id = gp.game_id
+WHERE gp.game_id  = $1
+  AND gp.player_id = $2
+  AND g.state = ANY($3::text[]::game_state[])
+`
+
+type FindGameWithPlayerParams struct {
+	GameID   int64    `json:"game_id"`
+	PlayerID int64    `json:"player_id"`
+	States   []string `json:"states"`
+}
+
+func (q *Queries) FindGameWithPlayer(ctx context.Context, arg FindGameWithPlayerParams) (Game, error) {
+	row := q.db.QueryRow(ctx, findGameWithPlayer, arg.GameID, arg.PlayerID, arg.States)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.RoundN,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
 const getGameAndLock = `-- name: GetGameAndLock :one
 SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at from games WHERE id = $1 FOR UPDATE
 `
@@ -206,30 +237,6 @@ func (q *Queries) JoinGameForTheme(ctx context.Context, arg JoinGameForThemePara
 	var game_id int64
 	err := row.Scan(&game_id)
 	return game_id, err
-}
-
-const playerInGameWithStates = `-- name: PlayerInGameWithStates :one
-SELECT EXISTS (
-  SELECT 1
-  FROM game_players gp
-  JOIN games g ON g.id = gp.game_id
-  WHERE gp.game_id  = $1
-    AND gp.player_id = $2
-    AND g.state = ANY($3::text[]::game_state[])
-) AS in_game_and_in_states
-`
-
-type PlayerInGameWithStatesParams struct {
-	GameID   int64    `json:"game_id"`
-	PlayerID int64    `json:"player_id"`
-	States   []string `json:"states"`
-}
-
-func (q *Queries) PlayerInGameWithStates(ctx context.Context, arg PlayerInGameWithStatesParams) (bool, error) {
-	row := q.db.QueryRow(ctx, playerInGameWithStates, arg.GameID, arg.PlayerID, arg.States)
-	var in_game_and_in_states bool
-	err := row.Scan(&in_game_and_in_states)
-	return in_game_and_in_states, err
 }
 
 const setCompletedStatus = `-- name: SetCompletedStatus :one
