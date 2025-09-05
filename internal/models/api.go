@@ -21,7 +21,7 @@ type CreateThemeRequest struct {
 }
 
 type CreateRoundRequest struct {
-	RoundN      int32   `json:"round_n" validate:"required"`
+	RoundN      int32   `json:"round_n" validate:"required,gt=0"`
 	Title       string  `json:"title" validate:"required,min=3"`
 	Description *string `json:"description"`
 }

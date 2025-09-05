@@ -9,6 +9,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -263,10 +264,16 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 			}
 		}
 
+		var round int32
+		if game.RoundN.Valid {
+			round = game.RoundN.Int32
+		}
+
 		return &models.GameUpdate{
 			GameID:            game.ID,
 			MsgType:           models.GameDetailsMsg,
 			State:             game.State,
+			RoundN:            round,
 			StateChangedAt:    game.StateChangedAt,
 			NextStateChangeAt: game.NextStateChangeAt,
 			RamaningTimeMs:    game.RemainingMs,
@@ -308,6 +315,10 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Quer
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
 		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+		RoundN: pgtype.Int4{
+			Int32: 1,
+			Valid: true,
+		},
 	})
 
 	if err != nil {
@@ -326,6 +337,7 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg
 		ID:          game.ID,
 		State:       qg.GameStateWatching,
 		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
+		RoundN:      game.RoundN,
 	})
 
 	if err != nil {
@@ -340,6 +352,36 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg
 }
 
 func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("failed to fetch rounds: %s", game.State),
+		}
+	}
+
+	if int(game.RoundN.Int32) < len(rounds) {
+		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+			ID:          game.ID,
+			State:       qg.GameStateSubmitting,
+			NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+			RoundN: pgtype.Int4{
+				Int32: game.RoundN.Int32 + 1,
+				Valid: true,
+			},
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: fmt.Sprintf("wrong game state: %s", game.State),
+			}
+		}
+
+		upd := statusRowToGameUpdate(status)
+		return &upd, nil
+	}
+
 	completeGame, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
 		ID:    game.ID,
 		State: qg.GameStateCompleted,
@@ -369,6 +411,7 @@ func statusRowToGameUpdate(row qg.UpdateGameStatusRow) models.GameUpdate {
 		GameID:            row.ID,
 		MsgType:           models.GameUpdateMsg,
 		State:             row.State,
+		RoundN:            row.RoundN.Int32,
 		StateChangedAt:    row.StateChangedAt,
 		NextStateChangeAt: row.NextStateChangeAt,
 		RamaningTimeMs:    row.RemainingMs,

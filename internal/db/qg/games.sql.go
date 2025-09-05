@@ -143,6 +143,44 @@ func (q *Queries) GetGameForPlayer(ctx context.Context, arg GetGameForPlayerPara
 	return i, err
 }
 
+const getGameRounds = `-- name: GetGameRounds :many
+SELECT r.round_n, r.title, r.description, r.theme_id, r.created_at 
+FROM rounds r
+JOIN games g ON g.theme_id = r.theme_id
+WHERE g.id = $1
+ORDER BY r.round_n
+`
+
+type GetGameRoundsParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetGameRounds(ctx context.Context, arg GetGameRoundsParams) ([]Round, error) {
+	rows, err := q.db.Query(ctx, getGameRounds, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Round
+	for rows.Next() {
+		var i Round
+		if err := rows.Scan(
+			&i.RoundN,
+			&i.Title,
+			&i.Description,
+			&i.ThemeID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const joinGameForTheme = `-- name: JoinGameForTheme :one
 SELECT join_game_for_theme($1, $2, $3, $4, $5, $6) AS game_id
 `
@@ -197,7 +235,8 @@ func (q *Queries) PlayerInGameWithStates(ctx context.Context, arg PlayerInGameWi
 const setCompletedStatus = `-- name: SetCompletedStatus :one
 UPDATE games SET 
   state = $1,
-  next_state_change_at = NULL
+  next_state_change_at = NULL,
+  round_n = 0
 WHERE id = $2 
 RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at
 `
@@ -226,8 +265,9 @@ func (q *Queries) SetCompletedStatus(ctx context.Context, arg SetCompletedStatus
 const updateGameStatus = `-- name: UpdateGameStatus :one
 UPDATE games SET 
   state = $1, 
-  next_state_change_at = now() + ($2::interval) 
-WHERE id = $3 
+  next_state_change_at = now() + ($2::interval),
+  round_n = $3
+WHERE id = $4 
 RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at, 
 (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint AS remaining_ms
 `
@@ -235,6 +275,7 @@ RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state
 type UpdateGameStatusParams struct {
 	State       GameState       `json:"state"`
 	NextStateIn pgtype.Interval `json:"next_state_in"`
+	RoundN      pgtype.Int4     `json:"round_n"`
 	ID          int64           `json:"id"`
 }
 
@@ -251,7 +292,12 @@ type UpdateGameStatusRow struct {
 }
 
 func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error) {
-	row := q.db.QueryRow(ctx, updateGameStatus, arg.State, arg.NextStateIn, arg.ID)
+	row := q.db.QueryRow(ctx, updateGameStatus,
+		arg.State,
+		arg.NextStateIn,
+		arg.RoundN,
+		arg.ID,
+	)
 	var i UpdateGameStatusRow
 	err := row.Scan(
 		&i.ID,
