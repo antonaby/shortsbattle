@@ -12,28 +12,18 @@ import (
 )
 
 func (api *HttpApi) joinGame(c echo.Context) error {
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return err
 	}
 
-	request := new(m.JoinGameRequest)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
-	}
-
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
+	request, err := bindAndValidate[m.JoinGameRequest](c)
+	if err != nil {
+		return err
 	}
 
 	ctx := c.Request().Context()
-	gameId, err := api.gm.JoinGame(ctx, request.ThemeID, tgId)
+	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId)
 
 	if err != nil {
 		var sErr common.ServiceError
@@ -58,94 +48,30 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 }
 
 func (api *HttpApi) submitVideo(c echo.Context) error {
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return err
 	}
 
-	roundN, err := parseInt32(c.QueryParam("round"))
+	roundN, err := queryParam32(c, "round")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return err
 	}
 
-	gameId, err := parseInt64(c.Param("id"))
+	gameId, err := param64(c, "id")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return err
 	}
 
-	request := new(m.SubmitVideoRequest)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
+	request, err := bindAndValidate[m.SubmitVideoRequest](c)
+	if err != nil {
+		return err
 	}
 
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
-	}
-
-	ctx := c.Request().Context()
 	if request.VideoID != nil {
-		_, video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, tgId, roundN)
-		if err != nil {
-			var sErr common.ServiceError
-			if errors.As(err, &sErr) {
-				if sErr.Code == common.ErrorDbNotFound {
-					return c.JSON(http.StatusNotFound, m.ErrorResponse{
-						Error: ResourceNotFoundMsg,
-					})
-				}
-				if sErr.Code == common.ErrorForbidden {
-					return c.JSON(http.StatusForbidden, m.ErrorResponse{
-						Error: GameActionForbiddenMsg,
-					})
-				}
-			}
-
-			c.Echo().Logger.Errorf("failed to submit video: %v", err)
-			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-				Error: SomethingWentWrongMsg,
-			})
-		}
-
-		return c.JSON(http.StatusOK, video)
+		return api.submitExistingVideo(c, gameId, *request.VideoID, tgId, roundN)
 	} else if request.VideoUrl != nil {
-		_, video, err := api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, tgId, roundN)
-		if err != nil {
-			var sErr common.ServiceError
-			if errors.As(err, &sErr) {
-				if sErr.Code == common.ErrorDbNotFound {
-					return c.JSON(http.StatusNotFound, m.ErrorResponse{
-						Error: ResourceNotFoundMsg,
-					})
-				}
-				if sErr.Code == common.ErrorOEmbedFailed {
-					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "bad video url",
-					})
-				}
-				if sErr.Code == common.ErrorForbidden {
-					return c.JSON(http.StatusForbidden, m.ErrorResponse{
-						Error: GameActionForbiddenMsg,
-					})
-				}
-			}
-
-			c.Echo().Logger.Errorf("failed to submit video: %v", err)
-			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-				Error: SomethingWentWrongMsg,
-			})
-		}
-
-		return c.JSON(http.StatusOK, video)
+		return api.submitNewVideo(c, gameId, *request.VideoUrl, tgId, roundN)
 	}
 
 	return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -153,30 +79,72 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 	})
 }
 
+func (api *HttpApi) submitExistingVideo(c echo.Context, gameId, videoId, playerId int64, roundN int32) error {
+	ctx := c.Request().Context()
+	game, video, err := api.games.SubmitExistingVideo(ctx, gameId, videoId, playerId, roundN)
+	if err != nil {
+		return handleVideoSubmissionError(c, err)
+	}
+
+	api.watchdog.CheckGameState(game)
+	return c.JSON(http.StatusOK, video)
+}
+
+func (api *HttpApi) submitNewVideo(c echo.Context, gameId int64, videoUrl string, playerId int64, roundN int32) error {
+	ctx := c.Request().Context()
+	game, video, err := api.games.SubmitNewVideo(ctx, gameId, videoUrl, playerId, roundN)
+	if err != nil {
+		return handleVideoSubmissionError(c, err)
+	}
+
+	api.watchdog.CheckGameState(game)
+	return c.JSON(http.StatusOK, video)
+}
+
+func handleVideoSubmissionError(c echo.Context, err error) error {
+	var sErr common.ServiceError
+	if errors.As(err, &sErr) {
+		if sErr.Code == common.ErrorDbNotFound {
+			return c.JSON(http.StatusNotFound, m.ErrorResponse{
+				Error: ResourceNotFoundMsg,
+			})
+		}
+		if sErr.Code == common.ErrorOEmbedFailed {
+			return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				Error: "bad video url",
+			})
+		}
+		if sErr.Code == common.ErrorForbidden {
+			return c.JSON(http.StatusForbidden, m.ErrorResponse{
+				Error: GameActionForbiddenMsg,
+			})
+		}
+	}
+
+	c.Echo().Logger.Errorf("failed to submit video: %v", err)
+	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+		Error: SomethingWentWrongMsg,
+	})
+}
+
 func (api *HttpApi) getVideosForGame(c echo.Context) error {
-	gameId, err := parseInt64(c.Param("id"))
+	gameId, err := param64(c, "id")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return err
 	}
 
-	roundN, err := parseInt32(c.QueryParam("round"))
+	roundN, err := queryParam32(c, "round")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return err
 	}
 
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return err
 	}
 
 	ctx := c.Request().Context()
-	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId, roundN)
+	videos, err := api.games.GetVideosToWatch(ctx, gameId, tgId, roundN)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
@@ -197,35 +165,23 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 }
 
 func (api *HttpApi) voteForVideo(c echo.Context) error {
-	gameVideoId, err := parseInt64(c.Param("id"))
+	gameVideoId, err := param64(c, "id")
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return err
 	}
 
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return err
 	}
 
-	request := new(m.VoteForVideoRequest)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
-	}
-
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
+	request, err := bindAndValidate[m.VoteForVideoRequest](c) 
+	if err != nil {
+		return err
 	}
 
 	ctx := c.Request().Context()
-	vote, err := api.gm.VoteForVideo(ctx, qg.VoteForVideoParams{
+	vote, err := api.games.VoteForVideo(ctx, qg.VoteForVideoParams{
 		GameVideoID: gameVideoId,
 		PlayerID:    tgId,
 		Value:       request.Value,

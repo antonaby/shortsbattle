@@ -60,10 +60,10 @@ func (wd *GameWatchdog) Run(ctx context.Context) error {
 	}
 }
 
-func (wd *GameWatchdog) CheckGameState(game qg.Game) error {
+func (wd *GameWatchdog) CheckGameState(game *qg.Game) {
 	
 
-	return nil
+	
 }
 
 func (wd *GameWatchdog) checkPendingGames() {

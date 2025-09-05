@@ -31,7 +31,7 @@ func (api *HttpApi) addVideo(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	video, err := api.vs.AddVideo(ctx, tgId, request.VideoUrl)
+	video, err := api.videos.AddVideo(ctx, tgId, request.VideoUrl)
 
 	if err != nil {
 		var sErr common.ServiceError
@@ -61,7 +61,7 @@ func (api *HttpApi) getVideo(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	video, err := api.vs.GetVideo(ctx, videoId)
+	video, err := api.videos.GetVideo(ctx, videoId)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
@@ -90,7 +90,7 @@ func (api *HttpApi) getVideosForPlayer(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	videos, err := api.vs.GetVideosByPlayer(ctx, tgId)
+	videos, err := api.videos.GetVideosByPlayer(ctx, tgId)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{

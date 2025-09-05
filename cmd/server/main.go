@@ -93,7 +93,7 @@ func main() {
 	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
 	gameStateListener := services.NewGameStateListener(redisClient, gameManager, centrifugeServer, gameStream, gameConsumerGroup, "1", 10, 5*time.Second, 20*time.Second, 1000)
 
-	httpApi := api.NewHttpApi(authService, gameManager, themeService, videoService)
+	httpApi := api.NewHttpApi(authService, gameWatchdog, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 

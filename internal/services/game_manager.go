@@ -17,10 +17,10 @@ type GameManager struct {
 	config GameConfig
 	txm    db.TxManager
 	redis  *redis.Client
-	vs     *VideosService
+	vs     *VideoService
 }
 
-func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideosService, config GameConfig) *GameManager {
+func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideoService, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
 		redis:  redis,

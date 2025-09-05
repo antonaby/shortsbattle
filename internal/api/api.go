@@ -14,18 +14,26 @@ import (
 var JWTContextKey = "jwt"
 
 type HttpApi struct {
-	auth *services.AuthService
-	gm   *services.GameManager
-	ts   *services.ThemeService
-	vs   *services.VideosService
+	auth     *services.AuthService
+	watchdog *services.GameWatchdog
+	games    *services.GameManager
+	themes   *services.ThemeService
+	videos   *services.VideoService
 }
 
-func NewHttpApi(auth *services.AuthService, gm *services.GameManager, ts *services.ThemeService, vs *services.VideosService) *HttpApi {
+func NewHttpApi(
+	auth *services.AuthService,
+	gwd *services.GameWatchdog,
+	gm *services.GameManager,
+	ts *services.ThemeService,
+	vs *services.VideoService,
+) *HttpApi {
 	return &HttpApi{
-		auth: auth,
-		gm:   gm,
-		ts:   ts,
-		vs:   vs,
+		auth:     auth,
+		watchdog: gwd,
+		games:    gm,
+		themes:   ts,
+		videos:   vs,
 	}
 }
 

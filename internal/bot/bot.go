@@ -20,10 +20,10 @@ const PlayerDataKey CtxKey = "PlayerDataKey"
 type TgBotManager struct {
 	bot *tg.Bot
 	ps  services.PlayerService
-	vs  *services.VideosService
+	vs  *services.VideoService
 }
 
-func NewTgBotManager(ps services.PlayerService, vs *services.VideosService) (*TgBotManager, error) {
+func NewTgBotManager(ps services.PlayerService, vs *services.VideoService) (*TgBotManager, error) {
 	m := &TgBotManager{
 		ps: ps,
 		vs: vs,

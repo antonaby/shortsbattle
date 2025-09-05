@@ -1,9 +1,11 @@
 package api
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -83,4 +85,54 @@ func getTgUserIdFromToken(c echo.Context) (int64, error) {
 	}
 
 	return tgId, nil
+}
+
+func queryParam32(c echo.Context, name string) (int32, error) {
+	param, err := parseInt32(c.QueryParam(name))
+	if err != nil {
+		return 0, c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	return param, nil
+}
+
+func param64(c echo.Context, name string) (int64, error) {
+	param, err := parseInt64(c.Param(name))
+	if err != nil {
+		return 0, c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
+	return param, nil
+}
+
+func tgId(c echo.Context) (int64, error) {
+	tgId, err := getTgUserIdFromToken(c)
+	if err != nil {
+		return 0, c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error: UnathorizedErrorMsg,
+		})
+	}
+
+	return tgId, nil
+}
+
+func bindAndValidate[T any](c echo.Context) (T, error) {
+	request := new(T)
+	if err := c.Bind(request); err != nil {
+		return *request, c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: InvalidRequestFormatMsg,
+		})
+	}
+
+	if err := c.Validate(request); err != nil {
+		return *request, c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Error: RequestValidationErrorMsg,
+		})
+	}
+
+	return *request, nil
 }

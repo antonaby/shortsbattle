@@ -14,17 +14,17 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type VideosService struct {
+type VideoService struct {
 	txm db.TxManager
 }
 
-func NewVideosService(txm db.TxManager) *VideosService {
-	return &VideosService{
+func NewVideosService(txm db.TxManager) *VideoService {
+	return &VideoService{
 		txm: txm,
 	}
 }
 
-func (vs *VideosService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
+func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
@@ -40,13 +40,13 @@ func (vs *VideosService) AddVideo(ctx context.Context, playerId int64, videoUrl 
 	})
 }
 
-func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string, oembed []byte) (*qg.Video, error) {
+func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string, oembed []byte) (*qg.Video, error) {
 	video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
 		PPlayerID: playerId,
 		PVideoUrl: videoUrl,
 		POembed:   oembed,
 	})
-	
+
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.GetDbErrorCode(err),
@@ -59,7 +59,7 @@ func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId
 }
 
 // TODO: add pagination and search
-func (vs *VideosService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
+func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
 		q := vs.txm.Querier(tx)
 		videos, err := q.GetVideosByPlayer(ctx, qg.GetVideosByPlayerParams{PlayerID: playerId})
@@ -79,7 +79,7 @@ func (vs *VideosService) GetVideosByPlayer(ctx context.Context, playerId int64) 
 	})
 }
 
-func (vs *VideosService) GetVideo(ctx context.Context, videoId int64) (*qg.Video, error) {
+func (vs *VideoService) GetVideo(ctx context.Context, videoId int64) (*qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := vs.txm.Querier(tx)
 		video, err := q.GetVideo(ctx, qg.GetVideoParams{ID: videoId})

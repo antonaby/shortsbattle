@@ -32,7 +32,7 @@ func (api *HttpApi) createTheme(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	theme, err := api.ts.CreateTheme(ctx, qg.CreateThemeParams{Title: request.Title, Description: description})
+	theme, err := api.themes.CreateTheme(ctx, qg.CreateThemeParams{Title: request.Title, Description: description})
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create theme: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
@@ -52,7 +52,7 @@ func (api *HttpApi) getTheme(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	theme, err := api.ts.GetTheme(ctx, themeId)
+	theme, err := api.themes.GetTheme(ctx, themeId)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
@@ -73,7 +73,7 @@ func (api *HttpApi) getTheme(c echo.Context) error {
 }
 
 func (api *HttpApi) listAllThemes(c echo.Context) error {
-	themes, err := api.ts.ListAllThemes(c.Request().Context())
+	themes, err := api.themes.ListAllThemes(c.Request().Context())
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to list themes: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
@@ -112,7 +112,7 @@ func (api *HttpApi) createRound(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	vr, err := api.ts.CreateRound(ctx, qg.CreateRoundParams{
+	vr, err := api.themes.CreateRound(ctx, qg.CreateRoundParams{
 		RoundN:      request.RoundN,
 		Title:       request.Title,
 		Description: description,
