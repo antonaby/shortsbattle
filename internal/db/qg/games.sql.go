@@ -28,9 +28,9 @@ WITH candidates AS (
       enqueued_at = now()
     FROM candidates c
     WHERE g.id = c.id
-    RETURNING g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
+    RETURNING g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
   )
-  SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at FROM upd
+  SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at FROM upd
 `
 
 type AdvanceGamesParams struct {
@@ -41,6 +41,7 @@ type AdvanceGamesRow struct {
 	ID                int64              `json:"id"`
 	ThemeID           int64              `json:"theme_id"`
 	State             GameState          `json:"state"`
+	RoundN            pgtype.Int4        `json:"round_n"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
@@ -60,6 +61,7 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 			&i.ID,
 			&i.ThemeID,
 			&i.State,
+			&i.RoundN,
 			&i.CreatedAt,
 			&i.StateChangedAt,
 			&i.NextStateChangeAt,
@@ -76,7 +78,7 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 }
 
 const getGameAndLock = `-- name: GetGameAndLock :one
-SELECT id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at from games WHERE id = $1 FOR UPDATE
+SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at from games WHERE id = $1 FOR UPDATE
 `
 
 type GetGameAndLockParams struct {
@@ -90,6 +92,7 @@ func (q *Queries) GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) 
 		&i.ID,
 		&i.ThemeID,
 		&i.State,
+		&i.RoundN,
 		&i.CreatedAt,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
@@ -99,7 +102,7 @@ func (q *Queries) GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) 
 }
 
 const getGameForPlayer = `-- name: GetGameForPlayer :one
-SELECT g.id, g.theme_id, g.state, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at, 
+SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at, 
   COALESCE((EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 0)::bigint AS remaining_ms
 FROM games g
 JOIN game_players gp ON gp.game_id = g.id
@@ -115,6 +118,7 @@ type GetGameForPlayerRow struct {
 	ID                int64              `json:"id"`
 	ThemeID           int64              `json:"theme_id"`
 	State             GameState          `json:"state"`
+	RoundN            pgtype.Int4        `json:"round_n"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
@@ -129,6 +133,7 @@ func (q *Queries) GetGameForPlayer(ctx context.Context, arg GetGameForPlayerPara
 		&i.ID,
 		&i.ThemeID,
 		&i.State,
+		&i.RoundN,
 		&i.CreatedAt,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
@@ -194,7 +199,7 @@ UPDATE games SET
   state = $1,
   next_state_change_at = NULL
 WHERE id = $2 
-RETURNING id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at
+RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at
 `
 
 type SetCompletedStatusParams struct {
@@ -209,6 +214,7 @@ func (q *Queries) SetCompletedStatus(ctx context.Context, arg SetCompletedStatus
 		&i.ID,
 		&i.ThemeID,
 		&i.State,
+		&i.RoundN,
 		&i.CreatedAt,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
@@ -222,7 +228,7 @@ UPDATE games SET
   state = $1, 
   next_state_change_at = now() + ($2::interval) 
 WHERE id = $3 
-RETURNING id, theme_id, state, created_at, state_changed_at, next_state_change_at, enqueued_at, 
+RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at, 
 (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint AS remaining_ms
 `
 
@@ -236,6 +242,7 @@ type UpdateGameStatusRow struct {
 	ID                int64              `json:"id"`
 	ThemeID           int64              `json:"theme_id"`
 	State             GameState          `json:"state"`
+	RoundN            pgtype.Int4        `json:"round_n"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
@@ -250,6 +257,7 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		&i.ID,
 		&i.ThemeID,
 		&i.State,
+		&i.RoundN,
 		&i.CreatedAt,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,

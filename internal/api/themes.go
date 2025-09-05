@@ -32,7 +32,7 @@ func (api *HttpApi) createTheme(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	theme, err := api.ts.CreateTheme(ctx, qg.CreateThemeParams{Name: request.Name, Description: description})
+	theme, err := api.ts.CreateTheme(ctx, qg.CreateThemeParams{Title: request.Title, Description: description})
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create theme: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
@@ -84,7 +84,7 @@ func (api *HttpApi) listAllThemes(c echo.Context) error {
 	return c.JSON(http.StatusOK, themes)
 }
 
-func (api *HttpApi) createVideoRequest(c echo.Context) error {
+func (api *HttpApi) createRound(c echo.Context) error {
 	themeId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -92,7 +92,7 @@ func (api *HttpApi) createVideoRequest(c echo.Context) error {
 		})
 	}
 
-	request := new(m.CreateVideoRequest)
+	request := new(m.CreateRoundRequest)
 	if err := c.Bind(request); err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: InvalidRequestFormatMsg,
@@ -105,18 +105,26 @@ func (api *HttpApi) createVideoRequest(c echo.Context) error {
 		})
 	}
 
+	var description pgtype.Text
+	if request.Description != nil {
+		description.String = *request.Description
+		description.Valid = true
+	}
+
 	ctx := c.Request().Context()
-	vr, err := api.ts.CreateVideoRequest(ctx, qg.CreateVideoRequestParams{
-		Request: request.Request,
-		ThemeID: themeId,
+	vr, err := api.ts.CreateRound(ctx, qg.CreateRoundParams{
+		RoundN:      request.RoundN,
+		Title:       request.Title,
+		Description: description,
+		ThemeID:     themeId,
 	})
 
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
 			if sErr.Code == common.ErrorDbConstraintViolation {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "theme not found",
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "theme not found or round already exists",
 				})
 			}
 		}

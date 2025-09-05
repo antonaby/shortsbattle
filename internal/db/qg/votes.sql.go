@@ -9,87 +9,30 @@ import (
 	"context"
 )
 
-const getTotalVotes = `-- name: GetTotalVotes :many
-SELECT
-  gv.video_id AS id,
-  COUNT(*) FILTER (WHERE gv.value = 'like'::vote_value)    AS likes,
-  COUNT(*) FILTER (WHERE gv.value = 'dislike'::vote_value) AS dislikes
-FROM game_votes AS gv
-WHERE gv.game_id = $1
-GROUP BY gv.video_id
-ORDER BY gv.video_id
-`
-
-type GetTotalVotesParams struct {
-	GameID int64 `json:"game_id"`
-}
-
-type GetTotalVotesRow struct {
-	ID       int64 `json:"id"`
-	Likes    int64 `json:"likes"`
-	Dislikes int64 `json:"dislikes"`
-}
-
-func (q *Queries) GetTotalVotes(ctx context.Context, arg GetTotalVotesParams) ([]GetTotalVotesRow, error) {
-	rows, err := q.db.Query(ctx, getTotalVotes, arg.GameID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetTotalVotesRow
-	for rows.Next() {
-		var i GetTotalVotesRow
-		if err := rows.Scan(&i.ID, &i.Likes, &i.Dislikes); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const voteForVideo = `-- name: VoteForVideo :one
-INSERT INTO game_votes (game_id, player_id, video_id, value)
-SELECT $1, $2, $3, $4
-WHERE EXISTS (
-  SELECT 1
-  FROM game_players gp
-  WHERE gp.game_id = $1 AND gp.player_id = $2
-)
-AND EXISTS (
-  SELECT 1 FROM game_videos gv
-  WHERE gv.game_id = $1 AND gv.video_id = $3
-)
-ON CONFLICT (game_id, player_id, video_id)
+INSERT INTO game_votes (game_video_id, player_id, value)
+VALUES ($1, $2, $3)
+ON CONFLICT (game_video_id, player_id)
 DO UPDATE 
 SET value = EXCLUDED.value, 
     voted_at = now()
-RETURNING game_id, player_id, video_id, voted_at, value
+RETURNING game_video_id, player_id, value, voted_at
 `
 
 type VoteForVideoParams struct {
-	GameID   int64     `json:"game_id"`
-	PlayerID int64     `json:"player_id"`
-	VideoID  int64     `json:"video_id"`
-	Value    VoteValue `json:"value"`
+	GameVideoID int64     `json:"game_video_id"`
+	PlayerID    int64     `json:"player_id"`
+	Value       VoteValue `json:"value"`
 }
 
 func (q *Queries) VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error) {
-	row := q.db.QueryRow(ctx, voteForVideo,
-		arg.GameID,
-		arg.PlayerID,
-		arg.VideoID,
-		arg.Value,
-	)
+	row := q.db.QueryRow(ctx, voteForVideo, arg.GameVideoID, arg.PlayerID, arg.Value)
 	var i GameVote
 	err := row.Scan(
-		&i.GameID,
+		&i.GameVideoID,
 		&i.PlayerID,
-		&i.VideoID,
-		&i.VotedAt,
 		&i.Value,
+		&i.VotedAt,
 	)
 	return i, err
 }

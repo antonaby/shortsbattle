@@ -103,6 +103,7 @@ type Game struct {
 	ID                int64              `json:"id"`
 	ThemeID           int64              `json:"theme_id"`
 	State             GameState          `json:"state"`
+	RoundN            pgtype.Int4        `json:"round_n"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
@@ -116,19 +117,19 @@ type GamePlayer struct {
 }
 
 type GameVideo struct {
+	ID          int64              `json:"id"`
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
 	VideoID     int64              `json:"video_id"`
-	RequestID   int64              `json:"request_id"`
+	RoundN      int32              `json:"round_n"`
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 }
 
 type GameVote struct {
-	GameID   int64              `json:"game_id"`
-	PlayerID int64              `json:"player_id"`
-	VideoID  int64              `json:"video_id"`
-	VotedAt  pgtype.Timestamptz `json:"voted_at"`
-	Value    VoteValue          `json:"value"`
+	GameVideoID int64              `json:"game_video_id"`
+	PlayerID    int64              `json:"player_id"`
+	Value       VoteValue          `json:"value"`
+	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 
 type Player struct {
@@ -144,9 +145,17 @@ type PlayerVideo struct {
 	AddedAt  pgtype.Timestamptz `json:"added_at"`
 }
 
+type Round struct {
+	RoundN      int32              `json:"round_n"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	ThemeID     int64              `json:"theme_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Theme struct {
 	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
+	Title       string             `json:"title"`
 	Description pgtype.Text        `json:"description"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
@@ -157,11 +166,4 @@ type Video struct {
 	Oembed    json.RawMessage    `json:"oembed"`
 	AddedAt   pgtype.Timestamptz `json:"added_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-type VideoRequest struct {
-	ID        int64              `json:"id"`
-	Request   string             `json:"request"`
-	ThemeID   int64              `json:"theme_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }

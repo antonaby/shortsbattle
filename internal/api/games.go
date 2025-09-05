@@ -65,6 +65,13 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 		})
 	}
 
+	roundN, err := parseInt32(c.QueryParam("round"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
 	gameId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
@@ -87,7 +94,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if request.VideoID != nil {
-		video, err := api.gm.SubmitExistingVideo(ctx, gameId, request.VideoRequestId, *request.VideoID, tgId)
+		video, err := api.gm.SubmitExistingVideo(ctx, gameId, *request.VideoID, tgId, roundN)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {
@@ -111,7 +118,7 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 
 		return c.JSON(http.StatusOK, video)
 	} else if request.VideoUrl != nil {
-		video, err := api.gm.SubmitNewVideo(ctx, gameId, request.VideoRequestId, *request.VideoUrl, tgId)
+		video, err := api.gm.SubmitNewVideo(ctx, gameId, *request.VideoUrl, tgId, roundN)
 		if err != nil {
 			var sErr common.ServiceError
 			if errors.As(err, &sErr) {
@@ -154,6 +161,13 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 		})
 	}
 
+	roundId, err := parseInt32(c.QueryParam("round"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+			Error: InvalidIdFormatMsg,
+		})
+	}
+
 	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
@@ -162,7 +176,7 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId)
+	videos, err := api.gm.GetVideosToWatch(ctx, gameId, tgId, roundId)
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
@@ -183,7 +197,7 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 }
 
 func (api *HttpApi) voteForVideo(c echo.Context) error {
-	gameId, err := parseInt64(c.Param("id"))
+	gameVideoId, err := parseInt64(c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 			Error: InvalidIdFormatMsg,
@@ -212,10 +226,9 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	vote, err := api.gm.VoteForVideo(ctx, qg.VoteForVideoParams{
-		GameID:   gameId,
-		PlayerID: tgId,
-		VideoID:  request.VideoID,
-		Value:    request.Value,
+		GameVideoID: gameVideoId,
+		PlayerID:    tgId,
+		Value:       request.Value,
 	})
 
 	if err != nil {

@@ -16,12 +16,14 @@ type ErrorResponse struct {
 }
 
 type CreateThemeRequest struct {
-	Name        string  `json:"name" validate:"required,min=3"`
+	Title       string  `json:"title" validate:"required,min=3"`
 	Description *string `json:"description"`
 }
 
-type CreateVideoRequest struct {
-	Request string `json:"request" validate:"required,min=3"`
+type CreateRoundRequest struct {
+	RoundN      int32   `json:"round_n" validate:"required"`
+	Title       string  `json:"title" validate:"required,min=3"`
+	Description *string `json:"description"`
 }
 
 type AddVideoRequest struct {
@@ -29,9 +31,8 @@ type AddVideoRequest struct {
 }
 
 type SubmitVideoRequest struct {
-	VideoRequestId int64   `json:"video_request_id" validate:"required"`
-	VideoID        *int64  `json:"video_id"`
-	VideoUrl       *string `json:"video_url" validate:"omitempty,url"`
+	VideoID  *int64  `json:"video_id"`
+	VideoUrl *string `json:"video_url" validate:"omitempty,url"`
 }
 
 type JoinGameRequest struct {
@@ -39,8 +40,7 @@ type JoinGameRequest struct {
 }
 
 type VoteForVideoRequest struct {
-	VideoID int64        `json:"video_id" validate:"required"`
-	Value   qg.VoteValue `json:"value" validate:"required"`
+	Value qg.VoteValue `json:"value" validate:"required"`
 }
 
 type TgUserAuthRequest struct {

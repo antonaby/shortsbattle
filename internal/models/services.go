@@ -20,7 +20,7 @@ type GameUpdate struct {
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 	RamaningTimeMs    int64              `json:"remaning_time_ms"`
-	Theme             *qg.GetThemeRow    `json:"theme,omitempty"`
+	Theme             *qg.Theme          `json:"theme,omitempty"`
 	Result            *GameResult        `json:"result,omitempty"`
 }
 
@@ -31,5 +31,4 @@ type ThemeDetails struct {
 }
 
 type GameResult struct {
-	Videos []qg.GetTotalVotesRow `json:"videos"`
 }

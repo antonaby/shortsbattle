@@ -11,133 +11,78 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createTheme = `-- name: CreateTheme :one
-INSERT INTO themes (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at
+const createRound = `-- name: CreateRound :one
+INSERT INTO rounds (round_n, title, description, theme_id) VALUES ($1, $2, $3, $4) RETURNING round_n, title, description, theme_id, created_at
 `
 
-type CreateThemeParams struct {
-	Name        string      `json:"name"`
+type CreateRoundParams struct {
+	RoundN      int32       `json:"round_n"`
+	Title       string      `json:"title"`
 	Description pgtype.Text `json:"description"`
+	ThemeID     int64       `json:"theme_id"`
 }
 
-func (q *Queries) CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error) {
-	row := q.db.QueryRow(ctx, createTheme, arg.Name, arg.Description)
-	var i Theme
+func (q *Queries) CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error) {
+	row := q.db.QueryRow(ctx, createRound,
+		arg.RoundN,
+		arg.Title,
+		arg.Description,
+		arg.ThemeID,
+	)
+	var i Round
 	err := row.Scan(
-		&i.ID,
-		&i.Name,
+		&i.RoundN,
+		&i.Title,
 		&i.Description,
+		&i.ThemeID,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const createVideoRequest = `-- name: CreateVideoRequest :one
-INSERT INTO video_requests (request, theme_id) VALUES ($1, $2) RETURNING id, request, theme_id, created_at
+const createTheme = `-- name: CreateTheme :one
+INSERT INTO themes (title, description) VALUES ($1, $2) RETURNING id, title, description, created_at
 `
 
-type CreateVideoRequestParams struct {
-	Request string `json:"request"`
-	ThemeID int64  `json:"theme_id"`
+type CreateThemeParams struct {
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
 }
 
-func (q *Queries) CreateVideoRequest(ctx context.Context, arg CreateVideoRequestParams) (VideoRequest, error) {
-	row := q.db.QueryRow(ctx, createVideoRequest, arg.Request, arg.ThemeID)
-	var i VideoRequest
+func (q *Queries) CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error) {
+	row := q.db.QueryRow(ctx, createTheme, arg.Title, arg.Description)
+	var i Theme
 	err := row.Scan(
 		&i.ID,
-		&i.Request,
-		&i.ThemeID,
+		&i.Title,
+		&i.Description,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getTheme = `-- name: GetTheme :one
-SELECT
-  t.id          AS theme_id,
-  t.name,
-  t.description,
-  t.created_at,
-  COALESCE(
-    jsonb_agg(
-      jsonb_build_object(
-        'id', vr.id,
-        'request', vr.request,
-        'created_at', vr.created_at
-      )
-      ORDER BY vr.created_at
-    ) FILTER (WHERE vr.id IS NOT NULL),
-    '[]'::jsonb
-  ) AS requests
-FROM themes t
-LEFT JOIN video_requests vr
-  ON vr.theme_id = t.id
-WHERE t.id = $1
-GROUP BY t.id, t.name, t.description, t.created_at
-ORDER BY t.created_at
+SELECT id, title, description, created_at FROM themes WHERE id = $1
 `
 
 type GetThemeParams struct {
 	ID int64 `json:"id"`
 }
 
-type GetThemeRow struct {
-	ThemeID     int64              `json:"theme_id"`
-	Name        string             `json:"name"`
-	Description pgtype.Text        `json:"description"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	Requests    interface{}        `json:"requests"`
-}
-
-func (q *Queries) GetTheme(ctx context.Context, arg GetThemeParams) (GetThemeRow, error) {
+func (q *Queries) GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error) {
 	row := q.db.QueryRow(ctx, getTheme, arg.ID)
-	var i GetThemeRow
+	var i Theme
 	err := row.Scan(
-		&i.ThemeID,
-		&i.Name,
+		&i.ID,
+		&i.Title,
 		&i.Description,
 		&i.CreatedAt,
-		&i.Requests,
 	)
 	return i, err
 }
 
-const getVideoRequests = `-- name: GetVideoRequests :many
-SELECT id, request, theme_id, created_at FROM video_requests WHERE theme_id = $1
-`
-
-type GetVideoRequestsParams struct {
-	ThemeID int64 `json:"theme_id"`
-}
-
-func (q *Queries) GetVideoRequests(ctx context.Context, arg GetVideoRequestsParams) ([]VideoRequest, error) {
-	rows, err := q.db.Query(ctx, getVideoRequests, arg.ThemeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []VideoRequest
-	for rows.Next() {
-		var i VideoRequest
-		if err := rows.Scan(
-			&i.ID,
-			&i.Request,
-			&i.ThemeID,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listAllThemes = `-- name: ListAllThemes :many
-SELECT id, name, description, created_at FROM themes ORDER BY created_at
+SELECT id, title, description, created_at FROM themes ORDER BY created_at
 `
 
 func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
@@ -151,7 +96,7 @@ func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
 		var i Theme
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
+			&i.Title,
 			&i.Description,
 			&i.CreatedAt,
 		); err != nil {
@@ -166,7 +111,7 @@ func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
 }
 
 const listThemes = `-- name: ListThemes :many
-SELECT id, name, description, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
+SELECT id, title, description, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
 `
 
 type ListThemesParams struct {
@@ -185,7 +130,7 @@ func (q *Queries) ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme
 		var i Theme
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
+			&i.Title,
 			&i.Description,
 			&i.CreatedAt,
 		); err != nil {

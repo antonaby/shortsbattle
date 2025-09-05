@@ -8,6 +8,8 @@ package qg
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addVideoToPlayer = `-- name: AddVideoToPlayer :one
@@ -93,47 +95,38 @@ func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerPa
 
 const getVideosToWatch = `-- name: GetVideosToWatch :many
 SELECT 
-    vr.id         AS request_id,
-    vr.request    AS request_text,
-    json_agg(
-      json_build_object(
-        'id', v.id,
-        'video_url', v.video_url,
-        'oembed', v.oembed,
-        'added_at', v.added_at,
-        'updated_at', v.updated_at,
-        'submitted_at', gv.submitted_at
-      ) ORDER BY gv.submitted_at
-    ) AS videos
+    gv.id as game_video_id,
+    gv.game_id,
+    gv.round_n,
+    v.id AS video_id,
+    v.video_url,
+    v.oembed,
+    v.added_at,
+    v.updated_at
 FROM game_videos gv
-JOIN videos v 
-  ON v.id = gv.video_id
-JOIN video_requests vr
-  ON vr.id = gv.request_id
+JOIN videos v ON gv.video_id = v.id
 WHERE gv.game_id = $1
-  AND EXISTS (
-    SELECT 1
-    FROM game_players gp
-    WHERE gp.game_id  = $1
-      AND gp.player_id = $2
-  )
-GROUP BY vr.id, vr.request
-ORDER BY MIN(gv.submitted_at)
+  AND gv.round_n = $2
 `
 
 type GetVideosToWatchParams struct {
-	GameID   int64 `json:"game_id"`
-	PlayerID int64 `json:"player_id"`
+	GameID int64 `json:"game_id"`
+	RoundN int32 `json:"round_n"`
 }
 
 type GetVideosToWatchRow struct {
-	RequestID   int64           `json:"request_id"`
-	RequestText string          `json:"request_text"`
-	Videos      json.RawMessage `json:"videos"`
+	GameVideoID int64              `json:"game_video_id"`
+	GameID      int64              `json:"game_id"`
+	RoundN      int32              `json:"round_n"`
+	VideoID     int64              `json:"video_id"`
+	VideoUrl    string             `json:"video_url"`
+	Oembed      json.RawMessage    `json:"oembed"`
+	AddedAt     pgtype.Timestamptz `json:"added_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error) {
-	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.PlayerID)
+	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.RoundN)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +134,16 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 	var items []GetVideosToWatchRow
 	for rows.Next() {
 		var i GetVideosToWatchRow
-		if err := rows.Scan(&i.RequestID, &i.RequestText, &i.Videos); err != nil {
+		if err := rows.Scan(
+			&i.GameVideoID,
+			&i.GameID,
+			&i.RoundN,
+			&i.VideoID,
+			&i.VideoUrl,
+			&i.Oembed,
+			&i.AddedAt,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -153,7 +155,7 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 }
 
 const upsertGameVideoIfOwned = `-- name: UpsertGameVideoIfOwned :one
-INSERT INTO game_videos (game_id, player_id, video_id, request_id)
+INSERT INTO game_videos (game_id, player_id, video_id, round_n)
 SELECT $1, $2, $3, $4
 WHERE
   -- player owns the video
@@ -167,22 +169,22 @@ WHERE
   AND EXISTS (
     SELECT 1
     FROM games g
-    JOIN video_requests vr
-      ON vr.id = $4 AND vr.theme_id = g.theme_id
-    WHERE g.id = $1
+    JOIN rounds r
+      ON r.theme_id = g.theme_id
+    WHERE g.id = $1 AND r.round_n = $4
   )
-ON CONFLICT ON CONSTRAINT unique_player_game_request
+ON CONFLICT ON CONSTRAINT unique_player_game_round
 DO UPDATE
 SET video_id     = EXCLUDED.video_id,
     submitted_at = now()
-RETURNING game_id, player_id, video_id, request_id, submitted_at
+RETURNING id, game_id, player_id, video_id, round_n, submitted_at
 `
 
 type UpsertGameVideoIfOwnedParams struct {
-	GameID    int64 `json:"game_id"`
-	PlayerID  int64 `json:"player_id"`
-	VideoID   int64 `json:"video_id"`
-	RequestID int64 `json:"request_id"`
+	GameID   int64 `json:"game_id"`
+	PlayerID int64 `json:"player_id"`
+	VideoID  int64 `json:"video_id"`
+	RoundN   int32 `json:"round_n"`
 }
 
 func (q *Queries) UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error) {
@@ -190,14 +192,15 @@ func (q *Queries) UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVide
 		arg.GameID,
 		arg.PlayerID,
 		arg.VideoID,
-		arg.RequestID,
+		arg.RoundN,
 	)
 	var i GameVideo
 	err := row.Scan(
+		&i.ID,
 		&i.GameID,
 		&i.PlayerID,
 		&i.VideoID,
-		&i.RequestID,
+		&i.RoundN,
 		&i.SubmittedAt,
 	)
 	return i, err

@@ -55,8 +55,8 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
 	})
 }
 
-func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*qg.GetThemeRow, error) {
-	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GetThemeRow, error) {
+func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*qg.Theme, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Theme, error) {
 		q := ts.txm.Querier(tx)
 		theme, err := q.GetTheme(ctx, qg.GetThemeParams{ID: themeId})
 		if err != nil {
@@ -71,10 +71,10 @@ func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*qg.GetThe
 	})
 }
 
-func (ts *ThemeService) CreateVideoRequest(ctx context.Context, params qg.CreateVideoRequestParams) (*qg.VideoRequest, error) {
-	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.VideoRequest, error) {
+func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*qg.Round, error) {
+	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Round, error) {
 		q := ts.txm.Querier(tx)
-		request, err := q.CreateVideoRequest(ctx, params)
+		request, err := q.CreateRound(ctx, params)
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),

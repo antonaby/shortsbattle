@@ -39,6 +39,15 @@ func parseInt64(str string) (int64, error) {
 	return value, nil
 }
 
+func parseInt32(str string) (int32, error) {
+	value, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return int32(value), nil
+}
+
 func getJwt(c echo.Context) (jwt.Token, error) {
 	token, ok := c.Get(JWTContextKey).(jwt.Token)
 	if !ok {

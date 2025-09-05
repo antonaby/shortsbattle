@@ -60,7 +60,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoRequestId, videoId, playerId int64) (*qg.Video, error) {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Video, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
 		q := gm.txm.Querier(tx)
 		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
@@ -68,7 +68,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoReq
 			return nil, err
 		}
 
-		err = gm.addVideoToGame(ctx, q, gameId, videoRequestId, videoId, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, videoId, playerId, roundN)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoReq
 	})
 }
 
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId, videoRequestId int64, videoUrl string, playerId int64) (*qg.Video, error) {
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
 		return nil, common.ServiceError{
@@ -120,7 +120,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId, videoRequestI
 			}
 		}
 
-		err = gm.addVideoToGame(ctx, q, gameId, videoRequestId, video.ID, playerId)
+		err = gm.addVideoToGame(ctx, q, gameId, video.ID, playerId, roundN)
 		if err != nil {
 			return nil, err
 		}
@@ -155,12 +155,12 @@ func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Quer
 	return nil
 }
 
-func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoRequestId, videoId, playerId int64) error {
+func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoId, playerId int64, roundN int32) error {
 	_, err := q.UpsertGameVideoIfOwned(ctx, qg.UpsertGameVideoIfOwnedParams{
-		GameID:    gameId,
-		RequestID: videoRequestId,
-		PlayerID:  playerId,
-		VideoID:   videoId,
+		GameID:   gameId,
+		RoundN:   roundN,
+		PlayerID: playerId,
+		VideoID:  videoId,
 	})
 
 	if err != nil {
@@ -174,7 +174,7 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 	return nil
 }
 
-func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playerId int64) ([]qg.GetVideosToWatchRow, error) {
+func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
 		q := gm.txm.Querier(tx)
 		err := gm.checkPlayerInGameAndStates(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
@@ -183,8 +183,8 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId int64, playe
 		}
 
 		videos, err := q.GetVideosToWatch(ctx, qg.GetVideosToWatchParams{
-			GameID:   gameId,
-			PlayerID: playerId,
+			GameID: gameId,
+			RoundN: roundN,
 		})
 
 		if err != nil {
@@ -330,18 +330,7 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.
 		}
 	}
 
-	votes, err := q.GetTotalVotes(ctx, qg.GetTotalVotesParams{GameID: game.ID})
-	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("wrong game state: %s", game.State),
-		}
-	}
-
-	if len(votes) == 0 {
-		votes = []qg.GetTotalVotesRow{}
-	}
-
+	// TODO: add totoal result
 	return &models.GameUpdate{
 		MsgType:           models.GameCompleteMsg,
 		GameID:            completeGame.ID,
@@ -349,9 +338,7 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.
 		StateChangedAt:    completeGame.StateChangedAt,
 		NextStateChangeAt: completeGame.NextStateChangeAt,
 		RamaningTimeMs:    0,
-		Result: &models.GameResult{
-			Videos: votes,
-		},
+		Result:            &models.GameResult{},
 	}, nil
 }
 

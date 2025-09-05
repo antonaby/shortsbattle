@@ -4,17 +4,19 @@
 CREATE TABLE
     themes (
         id BIGSERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
+        title TEXT NOT NULL,
         description TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
 CREATE TABLE
-    video_requests (
-        id BIGSERIAL PRIMARY KEY,
-        request TEXT NOT NULL,
+    rounds (
+        round_n INT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
         theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (theme_id, round_n)
     );
 
 -- players table

@@ -5,8 +5,9 @@ CREATE TYPE game_state AS ENUM ('lobby', 'submitting', 'watching', 'completed');
 CREATE TABLE
   games (
     id BIGSERIAL PRIMARY KEY,
-    theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
+    theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE SET NULL,
     state game_state NOT NULL DEFAULT 'lobby',
+    round_n INT DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     state_changed_at TIMESTAMPTZ,
     next_state_change_at TIMESTAMPTZ,

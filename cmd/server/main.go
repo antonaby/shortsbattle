@@ -52,7 +52,7 @@ func main() {
 	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
 
 	authConfig := services.AuthConfig{
-		TokenExpTime: 10 * time.Minute,
+		TokenExpTime: 300 * time.Minute,
 		Issuer:       "shortsbattle",
 		Audience:     "tg-mini-app",
 	}
