@@ -41,6 +41,7 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 		})
 	}
 
+	api.watchdog.EnqueueGame(gameId)
 	return c.JSON(http.StatusOK, m.OkGameIdReposne{
 		Msg:    "game joined",
 		GameId: gameId,
@@ -86,7 +87,7 @@ func (api *HttpApi) submitExistingVideo(c echo.Context, gameId, videoId, playerI
 		return handleVideoSubmissionError(c, err)
 	}
 
-	api.watchdog.CheckGameState(game)
+	api.watchdog.EnqueueGame(game.ID)
 	return c.JSON(http.StatusOK, video)
 }
 
@@ -97,7 +98,7 @@ func (api *HttpApi) submitNewVideo(c echo.Context, gameId int64, videoUrl string
 		return handleVideoSubmissionError(c, err)
 	}
 
-	api.watchdog.CheckGameState(game)
+	api.watchdog.EnqueueGame(game.ID)
 	return c.JSON(http.StatusOK, video)
 }
 
@@ -175,7 +176,7 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 		return err
 	}
 
-	request, err := bindAndValidate[m.VoteForVideoRequest](c) 
+	request, err := bindAndValidate[m.VoteForVideoRequest](c)
 	if err != nil {
 		return err
 	}

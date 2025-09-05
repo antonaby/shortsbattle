@@ -39,8 +39,9 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:        5,
-		LobbyState:        30 * time.Second,
+		MaxPlayers:        2,
+		MinRemMs:          300,
+		MaxLobbyState:     60 * time.Second,
 		LobbyClosedBefore: 5 * time.Second,
 		SubmittingState:   60 * time.Second,
 		WatchingState:     600 * time.Second,
@@ -90,7 +91,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't create Redis Stream")
 	}
 
-	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000)
+	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000, 1*time.Second)
 	gameStateListener := services.NewGameStateListener(redisClient, gameManager, centrifugeServer, gameStream, gameConsumerGroup, "1", 10, 5*time.Second, 20*time.Second, 1000)
 
 	httpApi := api.NewHttpApi(authService, gameWatchdog, gameManager, themeService, videoService)

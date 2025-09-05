@@ -4,18 +4,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 )
-
-type GameConfig struct {
-	MaxPlayers        int32
-	LobbyState        time.Duration
-	LobbyClosedBefore time.Duration
-	SubmittingState   time.Duration
-	WatchingState     time.Duration
-}
 
 func GetCfChannelName(gameId int64) string {
 	return fmt.Sprintf("game_%d", gameId)
@@ -41,8 +32,4 @@ func ParseCfChannelName(channel string) (int64, error) {
 	}
 
 	return gameId, nil
-}
-
-func kGameVideos(gameId int64) string {
-	return fmt.Sprintf("game:{%d}:videos", gameId)
 }

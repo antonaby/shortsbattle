@@ -30,12 +30,15 @@ type GameWatchdog struct {
 	limit         int32
 	streamName    string
 	streamMaxLean int64
+	enqueueDelay  time.Duration
 }
 
 func NewGameWatchdog(
 	txm db.TxManager, redis *redis.Client,
 	interval time.Duration, limit int32,
-	streamName string, streamMaxLean int64) *GameWatchdog {
+	streamName string, streamMaxLean int64,
+	enqueueDelay time.Duration,
+) *GameWatchdog {
 	return &GameWatchdog{
 		txm:           txm,
 		redis:         redis,
@@ -43,6 +46,7 @@ func NewGameWatchdog(
 		limit:         limit,
 		streamName:    streamName,
 		streamMaxLean: streamMaxLean,
+		enqueueDelay:  enqueueDelay,
 	}
 }
 
@@ -60,14 +64,37 @@ func (wd *GameWatchdog) Run(ctx context.Context) error {
 	}
 }
 
-func (wd *GameWatchdog) CheckGameState(game *qg.Game) {
-	
-
-	
+func (wd *GameWatchdog) EnqueueGame(gameId int64) {
+	time.AfterFunc(wd.enqueueDelay, func() {
+		wd.enqueueGame(gameId)
+	})
 }
 
+func (wd *GameWatchdog) enqueueGame(gameId int64) {
+	time.AfterFunc(wd.enqueueDelay, func() {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFunc()
+
+		_, err := wd.redis.XAdd(ctx, &redis.XAddArgs{
+			Stream: wd.streamName,
+			MaxLen: wd.streamMaxLean,
+			Approx: true,
+			Values: map[string]any{
+				"game_id": gameId,
+			},
+		}).Result()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to enqueue game")
+		}
+	})
+}
+
+
 func (wd *GameWatchdog) checkPendingGames() {
-	err := db.WithTx(context.Background(), wd.txm, func(ctx context.Context, tx pgx.Tx) error {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancelFunc()
+
+	err := db.WithTx(ctx, wd.txm, func(ctx context.Context, tx pgx.Tx) error {
 		q := wd.txm.Querier(tx)
 		games, err := q.AdvanceGames(ctx, qg.AdvanceGamesParams{Limit: wd.limit})
 
@@ -231,7 +258,11 @@ func (gsl *GameStateListener) handleMessage(ctx context.Context, gameId int64) e
 		return err
 	}
 
-	return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), *upd)
+	if upd != nil {
+		return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), *upd)
+	}
+
+	return nil
 }
 
 func parseGameId(msg redis.XMessage) (int64, error) {

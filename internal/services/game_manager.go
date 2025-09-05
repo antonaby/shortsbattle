@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
@@ -12,6 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 )
+
+type GameConfig struct {
+	MaxPlayers        int32
+	MinRemMs          int64
+	MinLobbyState     time.Duration
+	MaxLobbyState     time.Duration
+	LobbyClosedBefore time.Duration
+	SubmittingState   time.Duration
+	WatchingState     time.Duration
+}
 
 type GameManager struct {
 	config GameConfig
@@ -29,6 +40,9 @@ func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideoService, con
 	}
 }
 
+// TODO: check if a player is already in some game. 
+// It needs to update the stored function, 
+// so it checks if a player is already in a game in the lobby state and return this game
 func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (int64, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
 		q := gm.txm.Querier(tx)
@@ -38,7 +52,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 			PLobbyState:        qg.GameStateLobby,
 			PLobbyStateClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
 			PMaxPlayers:        gm.config.MaxPlayers,
-			PNextStateChangeIn: db.ToPgInterval(gm.config.LobbyState),
+			PNextStateChangeIn: db.ToPgInterval(gm.config.MaxLobbyState),
 		})
 
 		if err != nil {
@@ -64,7 +78,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Game, *qg.Video, error) {
 	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		game, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
+		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -102,7 +116,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 
 	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.Video, error) {
 		q := gm.txm.Querier(tx)
-		game, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
+		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStateLobby), string(qg.GameStateSubmitting)})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -130,7 +144,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) findGameForPlayer(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.Game, error) {
+func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.Game, error) {
 	game, err := q.FindGameWithPlayer(ctx, qg.FindGameWithPlayerParams{
 		GameID:   gameId,
 		PlayerID: playerId,
@@ -178,7 +192,7 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
 		q := gm.txm.Querier(tx)
-		_, err := gm.findGameForPlayer(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
+		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
 		if err != nil {
 			return nil, err
 		}
@@ -285,7 +299,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
 		q := gm.txm.Querier(tx)
-		game, err := q.GetGameAndLock(ctx, qg.GetGameAndLockParams{ID: gameId})
+		game, err := q.FetchGameAndLock(ctx, qg.FetchGameAndLockParams{ID: gameId})
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
@@ -310,7 +324,42 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 	})
 }
 
-func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
+	nPLayers, err := q.CountPlayerInGame(ctx, qg.CountPlayerInGameParams{GameID: game.ID})
+	if err != nil {
+		return nil, common.ServiceError{
+			Code:    common.GetDbErrorCode(err),
+			Message: fmt.Sprintf("db error, game_id: %d", game.ID),
+		}
+	}
+
+	if nPLayers >= int64(gm.config.MaxPlayers) {
+		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+			ID:          game.ID,
+			State:       qg.GameStateSubmitting,
+			NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+			RoundN: pgtype.Int4{
+				Int32: 1,
+				Valid: true,
+			},
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: fmt.Sprintf("wrong game state: %s", game.State),
+			}
+		}
+
+		upd := statusRowToGameUpdate(status)
+		return &upd, nil
+	}
+
+	if game.RemainingMs > gm.config.MinRemMs {
+		return nil, nil
+	}
+
+	// TODO: add bots if nPLayers less than MaxPlayers
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
@@ -332,7 +381,8 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.Game, q qg.Quer
 	return &upd, nil
 }
 
-func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+// TODO: check all players submitted videos
+func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateWatching,
@@ -351,7 +401,7 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.Game, q qg
 	return &upd, nil
 }
 
-func (gm *GameManager) handleWathching(ctx context.Context, game *qg.Game, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})
 	if err != nil {
 		return nil, common.ServiceError{

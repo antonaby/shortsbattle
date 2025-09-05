@@ -77,6 +77,74 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 	return items, nil
 }
 
+const countPlayerInGame = `-- name: CountPlayerInGame :one
+SELECT COUNT(*) AS player_count
+FROM game_players
+WHERE game_id = $1
+`
+
+type CountPlayerInGameParams struct {
+	GameID int64 `json:"game_id"`
+}
+
+func (q *Queries) CountPlayerInGame(ctx context.Context, arg CountPlayerInGameParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPlayerInGame, arg.GameID)
+	var player_count int64
+	err := row.Scan(&player_count)
+	return player_count, err
+}
+
+const fetchGameAndLock = `-- name: FetchGameAndLock :one
+SELECT 
+  g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at, 
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    (EXTRACT(EPOCH FROM (now() - state_changed_at)) * 1000)::bigint,
+    0
+  )::bigint AS past_ms
+FROM games g 
+WHERE id = $1 
+FOR UPDATE
+`
+
+type FetchGameAndLockParams struct {
+	ID int64 `json:"id"`
+}
+
+type FetchGameAndLockRow struct {
+	ID                int64              `json:"id"`
+	ThemeID           int64              `json:"theme_id"`
+	State             GameState          `json:"state"`
+	RoundN            pgtype.Int4        `json:"round_n"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
+	RemainingMs       int64              `json:"remaining_ms"`
+	PastMs            int64              `json:"past_ms"`
+}
+
+func (q *Queries) FetchGameAndLock(ctx context.Context, arg FetchGameAndLockParams) (FetchGameAndLockRow, error) {
+	row := q.db.QueryRow(ctx, fetchGameAndLock, arg.ID)
+	var i FetchGameAndLockRow
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.RoundN,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+		&i.RemainingMs,
+		&i.PastMs,
+	)
+	return i, err
+}
+
 const findGameWithPlayer = `-- name: FindGameWithPlayer :one
 SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
 FROM game_players gp
@@ -94,30 +162,6 @@ type FindGameWithPlayerParams struct {
 
 func (q *Queries) FindGameWithPlayer(ctx context.Context, arg FindGameWithPlayerParams) (Game, error) {
 	row := q.db.QueryRow(ctx, findGameWithPlayer, arg.GameID, arg.PlayerID, arg.States)
-	var i Game
-	err := row.Scan(
-		&i.ID,
-		&i.ThemeID,
-		&i.State,
-		&i.RoundN,
-		&i.CreatedAt,
-		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.EnqueuedAt,
-	)
-	return i, err
-}
-
-const getGameAndLock = `-- name: GetGameAndLock :one
-SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at from games WHERE id = $1 FOR UPDATE
-`
-
-type GetGameAndLockParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) GetGameAndLock(ctx context.Context, arg GetGameAndLockParams) (Game, error) {
-	row := q.db.QueryRow(ctx, getGameAndLock, arg.ID)
 	var i Game
 	err := row.Scan(
 		&i.ID,
@@ -276,7 +320,10 @@ UPDATE games SET
   round_n = $3
 WHERE id = $4 
 RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at, 
-(EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint AS remaining_ms
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
+    0
+  )::bigint AS remaining_ms
 `
 
 type UpdateGameStatusParams struct {

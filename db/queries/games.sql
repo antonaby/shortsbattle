@@ -37,8 +37,25 @@ FROM games g
 JOIN game_players gp ON gp.game_id = g.id
 WHERE g.id = $1 AND gp.player_id = $2;
 
--- name: GetGameAndLock :one
-SELECT * from games WHERE id = $1 FOR UPDATE;
+-- name: FetchGameAndLock :one
+SELECT 
+  g.*, 
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    (EXTRACT(EPOCH FROM (now() - state_changed_at)) * 1000)::bigint,
+    0
+  )::bigint AS past_ms
+FROM games g 
+WHERE id = $1 
+FOR UPDATE;
+
+-- name: CountPlayerInGame :one
+SELECT COUNT(*) AS player_count
+FROM game_players
+WHERE game_id = $1;
 
 -- name: UpdateGameStatus :one
 UPDATE games SET 
@@ -47,7 +64,10 @@ UPDATE games SET
   round_n = sqlc.arg(round_n)
 WHERE id = sqlc.arg(id) 
 RETURNING *, 
-(EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint AS remaining_ms;
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
+    0
+  )::bigint AS remaining_ms;
 
 -- name: SetCompletedStatus :one
 UPDATE games SET 
