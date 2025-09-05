@@ -207,6 +207,28 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoP
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GameVote, error) {
 		q := gm.txm.Querier(tx)
 
+		ok, err := q.PlayerCanVote(ctx, qg.PlayerCanVoteParams{
+			GameVideoID: params.GameVideoID,
+			PlayerID:    params.PlayerID,
+			States:      []string{string(qg.GameStateWatching)},
+		})
+
+		if err != nil {
+			return nil, common.ServiceError{
+				Code:    common.GetDbErrorCode(err),
+				Message: "failed to get videos for game",
+				Cause:   err,
+			}
+		}
+
+		if !ok {
+			return nil, common.ServiceError{
+				Code:    common.ErrorForbidden,
+				Message: "player not in the game",
+				Cause:   err,
+			}
+		}
+
 		vote, err := q.VoteForVideo(ctx, params)
 		if err != nil {
 			return nil, common.ServiceError{

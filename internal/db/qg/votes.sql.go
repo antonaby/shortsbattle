@@ -9,6 +9,35 @@ import (
 	"context"
 )
 
+const playerCanVote = `-- name: PlayerCanVote :one
+SELECT EXISTS (
+  SELECT 1
+  FROM game_videos gv
+  JOIN games g ON g.id = gv.game_id
+  WHERE gv.id = $1
+    AND g.state = ANY($2::text[]::game_state[])
+    AND EXISTS (
+      SELECT 1
+      FROM game_players gp
+      WHERE gp.game_id = gv.game_id
+        AND gp.player_id = $3
+    )
+) AS in_game_and_in_states
+`
+
+type PlayerCanVoteParams struct {
+	GameVideoID int64    `json:"game_video_id"`
+	States      []string `json:"states"`
+	PlayerID    int64    `json:"player_id"`
+}
+
+func (q *Queries) PlayerCanVote(ctx context.Context, arg PlayerCanVoteParams) (bool, error) {
+	row := q.db.QueryRow(ctx, playerCanVote, arg.GameVideoID, arg.States, arg.PlayerID)
+	var in_game_and_in_states bool
+	err := row.Scan(&in_game_and_in_states)
+	return in_game_and_in_states, err
+}
+
 const voteForVideo = `-- name: VoteForVideo :one
 INSERT INTO game_votes (game_video_id, player_id, value)
 VALUES ($1, $2, $3)

@@ -24,6 +24,7 @@ type Querier interface {
 	JoinGameForTheme(ctx context.Context, arg JoinGameForThemeParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error)
+	PlayerCanVote(ctx context.Context, arg PlayerCanVoteParams) (bool, error)
 	PlayerInGameWithStates(ctx context.Context, arg PlayerInGameWithStatesParams) (bool, error)
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)

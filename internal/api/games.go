@@ -234,9 +234,9 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbNotFound {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "player not in the game, or game, player or video not found",
+			if sErr.Code == common.ErrorForbidden {
+				return c.JSON(http.StatusForbidden, m.ErrorResponse{
+					Error: GameActionForbiddenMsg,
 				})
 			}
 			if sErr.Code == common.ErrorDbData {
