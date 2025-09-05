@@ -36,9 +36,9 @@ func (api *HttpApi) addVideo(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbConstraintViolation {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "player not found",
+			if sErr.Code == common.ErrorOEmbedFailed {
+				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+					Error: "wrong video url",
 				})
 			}
 		}

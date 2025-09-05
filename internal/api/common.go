@@ -14,6 +14,9 @@ const (
 	InvalidRequestFormatMsg   = "invalid request format"
 	RequestValidationErrorMsg = "request validation error"
 	UnathorizedErrorMsg       = "invalid credentials"
+	GameActionForbiddenMsg    = "player not in game or game is in the wrong state"
+	ResourceNotFoundMsg       = "video or game not found"
+	SomethingWentWrongMsg     = "something went wrong"
 )
 
 type CustomValidator struct {

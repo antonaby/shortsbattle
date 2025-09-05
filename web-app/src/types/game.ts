@@ -59,18 +59,11 @@ export interface Vote {
   value: VoteValue;
 }
 
-export interface ThemeVideoRequest {
-  id: number;
-  request: string;
-  created_at: string;
-}
-
 export interface Theme {
   id: number;
   name: string;
   description: string;
   created_at: string;
-  requests: ThemeVideoRequest[];
 }
 
 export interface GameJoined {

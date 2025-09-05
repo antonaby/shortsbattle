@@ -40,19 +40,19 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 		if errors.As(err, &sErr) {
 			if sErr.Code == common.ErrorDbNotFound {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "theme or player not found",
+					Error: "theme not found",
 				})
 			}
 		}
 
 		c.Echo().Logger.Errorf("failed to create game: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "something went wrong",
+			Error: SomethingWentWrongMsg,
 		})
 	}
 
 	return c.JSON(http.StatusOK, m.OkGameIdReposne{
-		Msg:    "game created",
+		Msg:    "game joined",
 		GameId: gameId,
 	})
 }
@@ -100,19 +100,19 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 			if errors.As(err, &sErr) {
 				if sErr.Code == common.ErrorDbNotFound {
 					return c.JSON(http.StatusNotFound, m.ErrorResponse{
-						Error: "player not in the game, or game, player or video not found",
+						Error: ResourceNotFoundMsg,
 					})
 				}
-				if sErr.Code == common.ErrorWrongGameState {
-					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "wrong game state",
+				if sErr.Code == common.ErrorForbidden {
+					return c.JSON(http.StatusForbidden, m.ErrorResponse{
+						Error: GameActionForbiddenMsg,
 					})
 				}
 			}
 
 			c.Echo().Logger.Errorf("failed to submit video: %v", err)
 			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-				Error: "Something went wrong",
+				Error: SomethingWentWrongMsg,
 			})
 		}
 
@@ -124,24 +124,24 @@ func (api *HttpApi) submitVideo(c echo.Context) error {
 			if errors.As(err, &sErr) {
 				if sErr.Code == common.ErrorDbNotFound {
 					return c.JSON(http.StatusNotFound, m.ErrorResponse{
-						Error: "player not in the game, or game or player not found",
+						Error: ResourceNotFoundMsg,
 					})
 				}
 				if sErr.Code == common.ErrorOEmbedFailed {
 					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "wrong video url",
+						Error: "bad video url",
 					})
 				}
-				if sErr.Code == common.ErrorWrongGameState {
-					return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-						Error: "wrong game state",
+				if sErr.Code == common.ErrorForbidden {
+					return c.JSON(http.StatusForbidden, m.ErrorResponse{
+						Error: GameActionForbiddenMsg,
 					})
 				}
 			}
 
 			c.Echo().Logger.Errorf("failed to submit video: %v", err)
 			return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-				Error: "Something went wrong",
+				Error: SomethingWentWrongMsg,
 			})
 		}
 
@@ -180,16 +180,16 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorWrongGameState {
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-					Error: "wrong game state",
+			if sErr.Code == common.ErrorForbidden {
+				return c.JSON(http.StatusForbidden, m.ErrorResponse{
+					Error: GameActionForbiddenMsg,
 				})
 			}
 		}
 
 		c.Echo().Logger.Errorf("failed to submit video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
+			Error: SomethingWentWrongMsg,
 		})
 	}
 
@@ -248,7 +248,7 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 
 		c.Echo().Logger.Errorf("failed to vote for video: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
+			Error: SomethingWentWrongMsg,
 		})
 	}
 

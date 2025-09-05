@@ -46,6 +46,7 @@ func (vs *VideosService) createVideo(ctx context.Context, q qg.Querier, playerId
 		PVideoUrl: videoUrl,
 		POembed:   oembed,
 	})
+	
 	if err != nil {
 		return nil, common.ServiceError{
 			Code:    common.GetDbErrorCode(err),

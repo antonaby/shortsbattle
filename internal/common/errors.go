@@ -21,6 +21,7 @@ const (
 	ErrorTgInitData
 	ErrorJWT
 	ErrorJWK
+	ErrorForbidden
 )
 
 type ServiceError struct {

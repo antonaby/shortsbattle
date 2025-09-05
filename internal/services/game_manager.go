@@ -146,7 +146,7 @@ func (gm *GameManager) checkPlayerInGameAndStates(ctx context.Context, q qg.Quer
 
 	if !ok {
 		return common.ServiceError{
-			Code:    common.ErrorWrongGameState,
+			Code:    common.ErrorForbidden,
 			Message: "player not in the game",
 			Cause:   err,
 		}
