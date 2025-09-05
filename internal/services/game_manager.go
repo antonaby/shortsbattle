@@ -15,13 +15,13 @@ import (
 )
 
 type GameConfig struct {
-	MaxPlayers        int32
-	MinRemMs          int64
-	MinLobbyState     time.Duration
-	MaxLobbyState     time.Duration
-	LobbyClosedBefore time.Duration
-	SubmittingState   time.Duration
-	WatchingState     time.Duration
+	MaxPlayers                 int32
+	MinRemainingBeforeChangeMs int64
+	MinLobbyState              time.Duration
+	MaxLobbyState              time.Duration
+	LobbyClosedBefore          time.Duration
+	SubmittingState            time.Duration
+	WatchingState              time.Duration
 }
 
 type GameManager struct {
@@ -40,8 +40,8 @@ func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideoService, con
 	}
 }
 
-// TODO: check if a player is already in some game. 
-// It needs to update the stored function, 
+// TODO: check if a player is already in some game.
+// It needs to update the stored function,
 // so it checks if a player is already in a game in the lobby state and return this game
 func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (int64, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
@@ -189,6 +189,7 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 	return nil
 }
 
+// TODO: player don't need to watch it's own video
 func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
 		q := gm.txm.Querier(tx)
@@ -218,6 +219,7 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
+// TODO: player can't vote for it's own videos
 func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoParams) (*qg.GameVote, error) {
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GameVote, error) {
 		q := gm.txm.Querier(tx)
@@ -333,6 +335,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 		}
 	}
 
+	// TODO: check min lobby state time
 	if nPLayers >= int64(gm.config.MaxPlayers) {
 		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 			ID:          game.ID,
@@ -355,7 +358,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 		return &upd, nil
 	}
 
-	if game.RemainingMs > gm.config.MinRemMs {
+	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
 		return nil, nil
 	}
 
