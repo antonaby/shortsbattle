@@ -2,13 +2,17 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pressly/goose/v3"
 
+	"github.com/antonaby/shortsbattle/game-server/db/migrations"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var ErrorDbUrlNotDefined = errors.New("DATABASE_URL not defined")
@@ -20,6 +24,7 @@ type TxManager interface {
 
 type DbManager struct {
 	Pool *pgxpool.Pool
+	DSN  string
 }
 
 func NewDbManager(ctx context.Context, dsn *string) (*DbManager, error) {
@@ -40,6 +45,7 @@ func NewDbManager(ctx context.Context, dsn *string) (*DbManager, error) {
 
 	manager := &DbManager{
 		Pool: pool,
+		DSN:  dbUrl,
 	}
 
 	return manager, nil
@@ -60,4 +66,19 @@ func (m *DbManager) Querier(tx pgx.Tx) qg.Querier {
 
 func (m *DbManager) Begin(ctx context.Context) (pgx.Tx, error) {
 	return m.Pool.Begin(ctx)
+}
+
+func (m *DbManager) Migrate() error {
+	db, err := sql.Open("pgx", m.DSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	goose.SetBaseFS(migrations.Files)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	return goose.Up(db, ".")
 }

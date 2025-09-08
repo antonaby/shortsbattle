@@ -54,6 +54,9 @@ type GameManager struct {
 	vs     *VideoService
 }
 
+// TODO:
+// possible modes:
+// 1) only watching 2) full game 3) ranking game
 func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideoService, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
@@ -444,6 +447,7 @@ func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.Fe
 	return &upd, nil
 }
 
+// TODO: add 30 sec for ad after all players have watched
 func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	votes, err := q.FetchVotesByPlayers(ctx, qg.FetchVotesByPlayersParams{
 		GameID: game.ID,
