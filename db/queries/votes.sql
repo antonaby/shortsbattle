@@ -1,6 +1,5 @@
--- name: PlayerCanVote :one
-SELECT EXISTS (
-  SELECT 1
+-- name: FindGameVideoForVote :one
+SELECT gv.*
   FROM game_videos gv
   JOIN games g ON g.id = gv.game_id
   WHERE gv.id = sqlc.arg(game_video_id)
@@ -10,8 +9,8 @@ SELECT EXISTS (
       FROM game_players gp
       WHERE gp.game_id = gv.game_id
         AND gp.player_id = sqlc.arg(player_id)
-    )
-) AS in_game_and_in_states;
+    ) 
+FOR SHARE OF g;
 
 -- name: VoteForVideo :one
 INSERT INTO game_votes (game_video_id, player_id, value)

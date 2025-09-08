@@ -7,7 +7,8 @@ FROM game_players gp
 JOIN games g ON g.id = gp.game_id
 WHERE gp.game_id  = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
-  AND g.state = ANY(sqlc.arg(states)::text[]::game_state[]);
+  AND g.state = ANY(sqlc.arg(states)::text[]::game_state[])
+FOR SHARE OF g;
 
 -- name: AdvanceGames :many
 WITH candidates AS (
@@ -35,7 +36,8 @@ SELECT g.*,
   COALESCE((EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 0)::bigint AS remaining_ms
 FROM games g
 JOIN game_players gp ON gp.game_id = g.id
-WHERE g.id = $1 AND gp.player_id = $2;
+WHERE g.id = $1 AND gp.player_id = $2
+FOR SHARE OF g;
 
 -- name: FetchGameAndLock :one
 SELECT 
@@ -68,6 +70,13 @@ RETURNING *,
     (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
     0
   )::bigint AS remaining_ms;
+
+-- name: ChangeRemainingTime :one
+UPDATE games SET 
+  next_state_change_at = now() + (sqlc.arg(next_state_in)::interval),
+  enqueued_at = NULL
+WHERE id = sqlc.arg(id) 
+RETURNING *;
 
 -- name: SetCompletedStatus :one
 UPDATE games SET 

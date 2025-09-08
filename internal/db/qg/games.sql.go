@@ -77,6 +77,35 @@ func (q *Queries) AdvanceGames(ctx context.Context, arg AdvanceGamesParams) ([]A
 	return items, nil
 }
 
+const changeRemainingTime = `-- name: ChangeRemainingTime :one
+UPDATE games SET 
+  next_state_change_at = now() + ($1::interval),
+  enqueued_at = NULL
+WHERE id = $2 
+RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at
+`
+
+type ChangeRemainingTimeParams struct {
+	NextStateIn pgtype.Interval `json:"next_state_in"`
+	ID          int64           `json:"id"`
+}
+
+func (q *Queries) ChangeRemainingTime(ctx context.Context, arg ChangeRemainingTimeParams) (Game, error) {
+	row := q.db.QueryRow(ctx, changeRemainingTime, arg.NextStateIn, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.RoundN,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
 const countPlayerInGame = `-- name: CountPlayerInGame :one
 SELECT COUNT(*) AS player_count
 FROM game_players
@@ -152,6 +181,7 @@ JOIN games g ON g.id = gp.game_id
 WHERE gp.game_id  = $1
   AND gp.player_id = $2
   AND g.state = ANY($3::text[]::game_state[])
+FOR SHARE OF g
 `
 
 type FindGameWithPlayerParams struct {
@@ -182,6 +212,7 @@ SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g
 FROM games g
 JOIN game_players gp ON gp.game_id = g.id
 WHERE g.id = $1 AND gp.player_id = $2
+FOR SHARE OF g
 `
 
 type GetGameForPlayerParams struct {

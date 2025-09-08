@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -68,6 +69,7 @@ func ToPgInterval(time time.Duration) pgtype.Interval {
 
 type TxFunc func(context.Context, pgx.Tx) error
 type TxFuncWithValue[T any] func(context.Context, pgx.Tx) (T, error)
+type TxFuncWithVQ[T any] func(context.Context, qg.Querier) (T, error)
 type TxFuncWithValue2[T1 any, T2 any] func(context.Context, pgx.Tx) (T1, T2, error)
 
 func WithTx(ctx context.Context, txm TxManager, fn TxFunc) error {
@@ -105,6 +107,30 @@ func WithTxValue[T any](ctx context.Context, txm TxManager, fn TxFuncWithValue[T
 	}()
 
 	result, err := fn(ctx, tx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return zero, err
+	}
+
+	return result, tx.Commit(ctx)
+}
+
+func WithTxVQ[T any](ctx context.Context, txm TxManager, fn TxFuncWithVQ[T]) (T, error) {
+	var zero T
+
+	tx, err := txm.Begin(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
+
+	q := txm.Querier(tx)
+	result, err := fn(ctx, q)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 		return zero, err

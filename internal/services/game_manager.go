@@ -14,6 +14,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+func gmError(code common.ErrorCode, msg string, err error) error {
+	return common.ServiceError{
+		Code:    code,
+		Message: fmt.Sprintf("game manager: %s", msg),
+		Cause:   err,
+	}
+}
+
+func gmDbError(msg string, err error) error {
+	return gmError(
+		common.GetDbErrorCode(err),
+		msg,
+		err,
+	)
+}
+
+func gmGameUpdError(id int64, err error) error {
+	return gmDbError(
+		fmt.Sprintf("game update failied: game_id=%d", id),
+		err,
+	)
+}
+
 type GameConfig struct {
 	MaxPlayers                 int32
 	MinRemainingBeforeChangeMs int64
@@ -224,24 +247,24 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoP
 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GameVote, error) {
 		q := gm.txm.Querier(tx)
 
-		ok, err := q.PlayerCanVote(ctx, qg.PlayerCanVoteParams{
+		_, err := q.FindGameVideoForVote(ctx, qg.FindGameVideoForVoteParams{
 			GameVideoID: params.GameVideoID,
 			PlayerID:    params.PlayerID,
 			States:      []string{string(qg.GameStateWatching)},
 		})
 
 		if err != nil {
+			if db.IsNoRows(err) {
+				return nil, common.ServiceError{
+					Code:    common.ErrorForbidden,
+					Message: "player not in the game",
+					Cause:   err,
+				}
+			}
+
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
 				Message: "failed to get videos for game",
-				Cause:   err,
-			}
-		}
-
-		if !ok {
-			return nil, common.ServiceError{
-				Code:    common.ErrorForbidden,
-				Message: "player not in the game",
 				Cause:   err,
 			}
 		}
@@ -299,15 +322,10 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64
 }
 
 func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
-		q := gm.txm.Querier(tx)
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		game, err := q.FetchGameAndLock(ctx, qg.FetchGameAndLockParams{ID: gameId})
 		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to fetch game",
-				Cause:   err,
-			}
+			return nil, gmDbError("fetch failed", err)
 		}
 
 		switch game.State {
@@ -318,10 +336,11 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 		case qg.GameStateWatching:
 			return gm.handleWathching(ctx, &game, q)
 		default:
-			return nil, common.ServiceError{
-				Code:    common.ErrorWrongGameState,
-				Message: fmt.Sprintf("wrong game state: %s", game.State),
-			}
+			return nil, gmError(
+				common.ErrorWrongGameState,
+				fmt.Sprintf("wrong game state, game_id=%d", game.ID),
+				nil,
+			)
 		}
 	})
 }
@@ -329,33 +348,16 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	nPLayers, err := q.CountPlayerInGame(ctx, qg.CountPlayerInGameParams{GameID: game.ID})
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("db error, game_id: %d", game.ID),
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
-	// TODO: check min lobby state time
 	if nPLayers >= int64(gm.config.MaxPlayers) {
-		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-			ID:          game.ID,
-			State:       qg.GameStateSubmitting,
-			NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
-			RoundN: pgtype.Int4{
-				Int32: 1,
-				Valid: true,
-			},
-		})
-
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: fmt.Sprintf("wrong game state: %s", game.State),
-			}
+		if game.PastMs >= gm.config.MinLobbyState.Milliseconds() {
+			return gm.fromLobbyToSubmitting(ctx, game, q)
 		}
 
-		upd := statusRowToGameUpdate(status)
-		return &upd, nil
+		remainingMicro := (gm.config.MinLobbyState.Milliseconds() - game.PastMs) * 1000
+		return gm.updateRemainingTime(ctx, game, q, remainingMicro)
 	}
 
 	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
@@ -363,6 +365,10 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 	}
 
 	// TODO: add bots if nPLayers less than MaxPlayers
+	return gm.fromLobbyToSubmitting(ctx, game, q)
+}
+
+func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
@@ -374,14 +380,29 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 	})
 
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("wrong game state: %s", game.State),
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
 	upd := statusRowToGameUpdate(status)
 	return &upd, nil
+}
+
+func (gm *GameManager) updateRemainingTime(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, remainingMicro int64) (*models.GameUpdate, error) {
+	_, err := q.ChangeRemainingTime(ctx, qg.ChangeRemainingTimeParams{
+		ID: game.ID,
+		NextStateIn: pgtype.Interval{
+			Microseconds: remainingMicro,
+			Days:         0,
+			Months:       0,
+			Valid:        true,
+		},
+	})
+
+	if err != nil {
+		return nil, gmGameUpdError(game.ID, err)
+	}
+
+	return nil, nil
 }
 
 // TODO: check all players submitted videos
