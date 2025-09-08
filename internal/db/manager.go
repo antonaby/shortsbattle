@@ -22,10 +22,15 @@ type DbManager struct {
 	Pool *pgxpool.Pool
 }
 
-func NewDbManager(ctx context.Context) (*DbManager, error) {
-	dbUrl := os.Getenv("DATABASE_URL")
-	if len(dbUrl) == 0 {
-		return nil, ErrorDbUrlNotDefined
+func NewDbManager(ctx context.Context, dsn *string) (*DbManager, error) {
+	var dbUrl string
+	if dsn != nil {
+		dbUrl = *dsn
+	} else {
+		dbUrl = os.Getenv("DATABASE_URL")
+		if len(dbUrl) == 0 {
+			return nil, ErrorDbUrlNotDefined
+		}
 	}
 
 	pool, err := pgxpool.New(ctx, dbUrl)
@@ -38,6 +43,10 @@ func NewDbManager(ctx context.Context) (*DbManager, error) {
 	}
 
 	return manager, nil
+}
+
+func (m *DbManager) Ping(ctx context.Context) error {
+	return m.Pool.Ping(ctx)
 }
 
 func (m *DbManager) Close() {
