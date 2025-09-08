@@ -47,6 +47,7 @@ func (api *HttpApi) NewEchoServer() *echo.Echo {
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Error != nil {
 				log.Error().Err(v.Error).
+					Stack().
 					Str("URI", v.URI).
 					Int("status", v.Status).
 					Msg("request")

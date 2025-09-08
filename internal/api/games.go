@@ -35,7 +35,7 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to create game: %v", err)
+		c.Echo().Logger.Errorf("failed to join game: %w", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: SomethingWentWrongMsg,
 		})
@@ -122,7 +122,7 @@ func handleVideoSubmissionError(c echo.Context, err error) error {
 		}
 	}
 
-	c.Echo().Logger.Errorf("failed to submit video: %v", err)
+	c.Echo().Logger.Errorf("failed to submit video: %w", err)
 	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 		Error: SomethingWentWrongMsg,
 	})
@@ -156,7 +156,7 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to submit video: %v", err)
+		c.Echo().Logger.Errorf("failed to submit video: %w", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: SomethingWentWrongMsg,
 		})
@@ -203,7 +203,7 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to vote for video: %v", err)
+		c.Echo().Logger.Errorf("failed to vote for video: %w", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
 			Error: SomethingWentWrongMsg,
 		})

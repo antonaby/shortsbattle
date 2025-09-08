@@ -364,7 +364,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 		return nil, nil
 	}
 
-	// TODO: add bots if nPLayers less than MaxPlayers
+	// TODO: add bots if nPlayers less than MaxPlayers
 	return gm.fromLobbyToSubmitting(ctx, game, q)
 }
 
@@ -405,7 +405,6 @@ func (gm *GameManager) updateRemainingTime(ctx context.Context, game *qg.FetchGa
 	return nil, nil
 }
 
-// TODO: check all players submitted videos
 func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	videos, err := q.FetchSubmittedVideosByPlayers(ctx, qg.FetchSubmittedVideosByPlayersParams{
 		GameID: game.ID,
@@ -413,10 +412,7 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 	})
 
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("wrong game state: %s", game.State), // TODO: set correct error message
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
 	if len(videos) > 0 {
@@ -427,28 +423,17 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 			}
 		}
 
-		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-			ID:          game.ID,
-			State:       qg.GameStateWatching,
-			NextStateIn: db.ToPgInterval(gm.config.WatchingState),
-			RoundN:      game.RoundN,
-		})
-
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: fmt.Sprintf("wrong game state: %s", game.State),
-			}
-		}
-
-		upd := statusRowToGameUpdate(status)
-		return &upd, nil
+		return gm.fromSubmittingToWatching(ctx, game, q)
 	}
 
 	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
 		return nil, nil
 	}
 
+	return gm.fromSubmittingToWatching(ctx, game, q)
+}
+
+func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateWatching,
@@ -457,10 +442,7 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 	})
 
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("wrong game state: %s", game.State),
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
 	upd := statusRowToGameUpdate(status)
