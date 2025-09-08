@@ -34,6 +34,7 @@ type Querier interface {
 	SetCompletedStatus(ctx context.Context, arg SetCompletedStatusParams) (Game, error)
 	TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error)
 	TestCreateGame(ctx context.Context, arg TestCreateGameParams) (Game, error)
+	TestGetGameById(ctx context.Context, arg TestGetGameByIdParams) (Game, error)
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
 	UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error)
 	VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error)

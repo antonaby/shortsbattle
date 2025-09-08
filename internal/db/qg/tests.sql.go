@@ -67,3 +67,27 @@ func (q *Queries) TestCreateGame(ctx context.Context, arg TestCreateGameParams) 
 	)
 	return i, err
 }
+
+const testGetGameById = `-- name: TestGetGameById :one
+SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at from games where id = $1
+`
+
+type TestGetGameByIdParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) TestGetGameById(ctx context.Context, arg TestGetGameByIdParams) (Game, error) {
+	row := q.db.QueryRow(ctx, testGetGameById, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.State,
+		&i.RoundN,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}

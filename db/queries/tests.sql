@@ -18,3 +18,6 @@ INSERT INTO game_players (
   $1, $2
 )
 RETURNING *;
+
+-- name: TestGetGameById :one
+SELECT * from games where id = $1;

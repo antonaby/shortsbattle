@@ -131,13 +131,22 @@ func TestAdvanceGame(t *testing.T) {
 		// 6) No time to change state, nPlayer = 2, but minLobbyTime not exceeded
 		require.Nil(t, upd, "update not nil")
 
-		// 7) Wait and Advance
+		// 7) Fetch game again and check that remaning time reduced
+		game, err = db.WithTxVQ(ctx, ts.dbManager, func(ctx context.Context, q qg.Querier) (qg.Game, error) {
+			return q.TestGetGameById(ctx, qg.TestGetGameByIdParams{ID: game.ID})
+		})
+		if err != nil {
+			t.Fatalf("failed to fetc game again: %v", err)
+		}
+		assert.Less(t, game.NextStateChangeAt.Time.Sub(game.StateChangedAt.Time), gm.config.MaxLobbyState)
+
+		// 8) Wait and Advance
 		time.Sleep(1 * time.Second)
 		upd, err = gm.AdvanceGame(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
-		// 8) Game state changed to submitting
+		// 9) Game state changed to submitting
 		require.NotNil(t, upd)
 		assert.Equal(t, qg.GameStateSubmitting, upd.State)
 		assert.Equal(t, upd.StateChangeReason, ReasonLobbyFullPlayers)
