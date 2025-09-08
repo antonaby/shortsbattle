@@ -11,7 +11,15 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/redis/go-redis/v9"
+)
+
+const (
+	ReasonLobbyFullPlayers = "lobby_full_players"
+	ReasonLobbyTimeout     = "lobby_timeout"
+	ReasonSubmitAll        = "submit_all"
+	ReasonSubmitTimeout    = "submit_timeout"
+	ReasonWatchAll         = "watch_all"
+	ReasonWatchTimeout     = "watch_timeout"
 )
 
 func gmError(code common.ErrorCode, msg string, err error) error {
@@ -50,18 +58,14 @@ type GameConfig struct {
 type GameManager struct {
 	config GameConfig
 	txm    db.TxManager
-	redis  *redis.Client
-	vs     *VideoService
 }
 
 // TODO:
 // possible modes:
 // 1) only watching 2) full game 3) ranking game
-func NewGameManager(txm db.TxManager, redis *redis.Client, vs *VideoService, config GameConfig) *GameManager {
+func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
-		redis:  redis,
-		vs:     vs,
 		config: config,
 	}
 }
@@ -340,14 +344,14 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 }
 
 func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
-	nPLayers, err := q.CountPlayerInGame(ctx, qg.CountPlayerInGameParams{GameID: game.ID})
+	nPlayers, err := q.CountPlayerInGame(ctx, qg.CountPlayerInGameParams{GameID: game.ID})
 	if err != nil {
 		return nil, gmGameUpdError(game.ID, err)
 	}
 
-	if nPLayers >= int64(gm.config.MaxPlayers) {
+	if nPlayers >= int64(gm.config.MaxPlayers) {
 		if game.PastMs >= gm.config.MinLobbyState.Milliseconds() {
-			return gm.fromLobbyToSubmitting(ctx, game, q)
+			return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyFullPlayers)
 		}
 
 		remainingMicro := (gm.config.MinLobbyState.Milliseconds() - game.PastMs) * 1000
@@ -359,10 +363,10 @@ func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLoc
 	}
 
 	// TODO: add bots if nPlayers less than MaxPlayers
-	return gm.fromLobbyToSubmitting(ctx, game, q)
+	return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyTimeout)
 }
 
-func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateSubmitting,
@@ -377,7 +381,7 @@ func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game *qg.Fetch
 		return nil, gmGameUpdError(game.ID, err)
 	}
 
-	upd := statusRowToGameUpdate(status)
+	upd := statusRowToGameUpdate(status, reason)
 	return &upd, nil
 }
 
@@ -420,7 +424,7 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 		}
 
 		if allSubmitted {
-			return gm.fromSubmittingToWatching(ctx, game, q)
+			return gm.fromSubmittingToWatching(ctx, game, q, ReasonSubmitAll)
 		}
 	}
 
@@ -428,10 +432,10 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 		return nil, nil
 	}
 
-	return gm.fromSubmittingToWatching(ctx, game, q)
+	return gm.fromSubmittingToWatching(ctx, game, q, ReasonSubmitTimeout)
 }
 
-func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		ID:          game.ID,
 		State:       qg.GameStateWatching,
@@ -443,7 +447,7 @@ func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.Fe
 		return nil, gmGameUpdError(game.ID, err)
 	}
 
-	upd := statusRowToGameUpdate(status)
+	upd := statusRowToGameUpdate(status, reason)
 	return &upd, nil
 }
 
@@ -469,7 +473,7 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAn
 		}
 
 		if allVoted {
-			return gm.fromWatchingToSubmittingOrComplete(ctx, game, q)
+			return gm.fromWatchingToSubmittingOrComplete(ctx, game, q, ReasonWatchAll)
 		}
 	}
 
@@ -477,10 +481,10 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAn
 		return nil, nil
 	}
 
-	return gm.fromWatchingToSubmittingOrComplete(ctx, game, q)
+	return gm.fromWatchingToSubmittingOrComplete(ctx, game, q, ReasonWatchTimeout)
 }
 
-func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
 	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})
 	if err != nil {
 		return nil, gmGameUpdError(game.ID, err)
@@ -501,7 +505,7 @@ func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, g
 			return nil, gmGameUpdError(game.ID, err)
 		}
 
-		upd := statusRowToGameUpdate(status)
+		upd := statusRowToGameUpdate(status, reason)
 		return &upd, nil
 	}
 
@@ -526,11 +530,12 @@ func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, g
 	}, nil
 }
 
-func statusRowToGameUpdate(row qg.UpdateGameStatusRow) models.GameUpdate {
+func statusRowToGameUpdate(row qg.UpdateGameStatusRow, reason string) models.GameUpdate {
 	return models.GameUpdate{
 		GameID:            row.ID,
 		MsgType:           models.GameUpdateMsg,
 		State:             row.State,
+		StateChangeReason: reason,
 		RoundN:            row.RoundN.Int32,
 		StateChangedAt:    row.StateChangedAt,
 		NextStateChangeAt: row.NextStateChangeAt,

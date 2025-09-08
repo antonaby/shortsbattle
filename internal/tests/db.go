@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 )
@@ -81,4 +82,55 @@ func CreateDbManager(pool *dockertest.Pool, pgContainer *dockertest.Resource, pg
 	}
 
 	return dbManager, nil
+}
+
+func CreateTestTheme(txm db.TxManager, nRounds int) (*qg.Theme, error) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancelFunc()
+
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
+		theme, err := q.CreateTheme(ctx, qg.CreateThemeParams{
+			Title: "Test Theme",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range nRounds {
+			nRound := int32(i + 1)
+			_, err = q.CreateRound(ctx, qg.CreateRoundParams{
+				RoundN:  nRound,
+				Title:   fmt.Sprintf("Round %d", nRound),
+				ThemeID: theme.ID,
+			})
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &theme, nil
+	})
+}
+
+func CreateTestPlayers(txm db.TxManager, nPlayers int) ([]qg.Player, error) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancelFunc()
+
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) ([]qg.Player, error) {
+		players := []qg.Player{}
+		for i := range nPlayers {
+			player, err := q.CreatePlayer(ctx, qg.CreatePlayerParams{
+				TgID: int64(i),
+				TgUsername: fmt.Sprintf("player_%d", i),
+			})
+			if err != nil {
+				return players, err
+			}
+
+			players = append(players, player)
+		}
+
+		return players, nil
+	})
 }

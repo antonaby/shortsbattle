@@ -51,7 +51,7 @@ func main() {
 	themeService := services.NewThemeService(dbManager)
 	videoService := services.NewVideosService(dbManager)
 	playerService := services.NewCachedPlayerService(dbManager, redisClient)
-	gameManager := services.NewGameManager(dbManager, redisClient, videoService, gameConfig)
+	gameManager := services.NewGameManager(dbManager, gameConfig)
 
 	authConfig := services.AuthConfig{
 		TokenExpTime: 300 * time.Minute,
