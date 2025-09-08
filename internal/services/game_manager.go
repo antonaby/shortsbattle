@@ -242,43 +242,34 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
-// TODO: player can't vote for it's own videos
-func (gm *GameManager) VoteForVideo(ctx context.Context, params qg.VoteForVideoParams) (*qg.GameVote, error) {
-	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.GameVote, error) {
+func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value qg.VoteValue) (*qg.Game, *qg.GameVote, error) {
+	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.GameVote, error) {
 		q := gm.txm.Querier(tx)
 
-		_, err := q.FindGameVideoForVote(ctx, qg.FindGameVideoForVoteParams{
-			GameVideoID: params.GameVideoID,
-			PlayerID:    params.PlayerID,
+		game, err := q.FindGameVideoForVote(ctx, qg.FindGameVideoForVoteParams{
+			GameVideoID: gameVideoId,
+			PlayerID:    playerId,
 			States:      []string{string(qg.GameStateWatching)},
 		})
 
 		if err != nil {
 			if db.IsNoRows(err) {
-				return nil, common.ServiceError{
-					Code:    common.ErrorForbidden,
-					Message: "player not in the game",
-					Cause:   err,
-				}
+				return nil, nil, gmError(common.ErrorForbidden, "no game for player", err)
 			}
 
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to get videos for game",
-				Cause:   err,
-			}
+			return nil, nil, gmDbError("voting failed", err)
 		}
 
-		vote, err := q.VoteForVideo(ctx, params)
+		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{
+			GameVideoID: gameVideoId,
+			PlayerID:    playerId,
+			Value:       value,
+		})
 		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to get videos for game",
-				Cause:   err,
-			}
+			return nil, nil, gmDbError("voting failed", err)
 		}
 
-		return &vote, nil
+		return &game, &vote, nil
 	})
 }
 
@@ -416,14 +407,18 @@ func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameA
 	}
 
 	if len(videos) > 0 {
+		allSubmitted := true
 		for _, v := range videos {
 			if !v.GameVideoID.Valid {
 				// Some player hasn't submitted video
+				allSubmitted = false
 				break
 			}
 		}
 
-		return gm.fromSubmittingToWatching(ctx, game, q)
+		if allSubmitted {
+			return gm.fromSubmittingToWatching(ctx, game, q)
+		}
 	}
 
 	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
@@ -450,12 +445,41 @@ func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.Fe
 }
 
 func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
+	votes, err := q.FetchVotesByPlayers(ctx, qg.FetchVotesByPlayersParams{
+		GameID: game.ID,
+		RoundN: game.RoundN.Int32,
+	})
+
+	if err != nil {
+		return nil, gmGameUpdError(game.ID, err)
+	}
+
+	if len(votes) > 0 {
+		allVoted := true
+		for _, v := range votes {
+			if !v.Value.Valid {
+				// Some player hasn't voted
+				allVoted = false
+				break
+			}
+		}
+
+		if allVoted {
+			return gm.fromWatchingToSubmittingOrComplete(ctx, game, q)
+		}
+	}
+
+	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
+		return nil, nil
+	}
+
+	return gm.fromWatchingToSubmittingOrComplete(ctx, game, q)
+}
+
+func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("failed to fetch rounds: %s", game.State),
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
 	if int(game.RoundN.Int32) < len(rounds) {
@@ -470,10 +494,7 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAn
 		})
 
 		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: fmt.Sprintf("wrong game state: %s", game.State),
-			}
+			return nil, gmGameUpdError(game.ID, err)
 		}
 
 		upd := statusRowToGameUpdate(status)
@@ -486,10 +507,7 @@ func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAn
 	})
 
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: fmt.Sprintf("wrong game state: %s", game.State),
-		}
+		return nil, gmGameUpdError(game.ID, err)
 	}
 
 	// TODO: add totoal result

@@ -41,8 +41,8 @@ FROM game_players gp
 LEFT JOIN game_videos gv
   ON gv.game_id = gp.game_id
   AND gv.player_id = gp.player_id
-WHERE gp.game_id = $1
   AND gv.round_n = $2
+WHERE gp.game_id = $1
 `
 
 type FetchSubmittedVideosByPlayersParams struct {

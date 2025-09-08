@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	m "github.com/antonaby/shortsbattle/game-server/internal/models"
 
 	"github.com/labstack/echo/v4"
@@ -182,11 +181,7 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	vote, err := api.games.VoteForVideo(ctx, qg.VoteForVideoParams{
-		GameVideoID: gameVideoId,
-		PlayerID:    tgId,
-		Value:       request.Value,
-	})
+	game, vote, err := api.games.VoteForVideo(ctx, gameVideoId, tgId, request.Value)
 
 	if err != nil {
 		var sErr common.ServiceError
@@ -209,5 +204,6 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 		})
 	}
 
+	api.watchdog.EnqueueGame(game.ID)
 	return c.JSON(http.StatusOK, vote)
 }

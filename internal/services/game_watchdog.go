@@ -50,6 +50,7 @@ func NewGameWatchdog(
 	}
 }
 
+// TODO: use github.com/go-co-op/gocron
 func (wd *GameWatchdog) Run(ctx context.Context) error {
 	t := time.NewTicker(wd.interval)
 	defer t.Stop()
@@ -64,6 +65,7 @@ func (wd *GameWatchdog) Run(ctx context.Context) error {
 	}
 }
 
+// TODO: use just separate goroutine
 func (wd *GameWatchdog) EnqueueGame(gameId int64) {
 	time.AfterFunc(wd.enqueueDelay, func() {
 		wd.enqueueGame(gameId)
@@ -71,24 +73,21 @@ func (wd *GameWatchdog) EnqueueGame(gameId int64) {
 }
 
 func (wd *GameWatchdog) enqueueGame(gameId int64) {
-	time.AfterFunc(wd.enqueueDelay, func() {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelFunc()
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
 
-		_, err := wd.redis.XAdd(ctx, &redis.XAddArgs{
-			Stream: wd.streamName,
-			MaxLen: wd.streamMaxLean,
-			Approx: true,
-			Values: map[string]any{
-				"game_id": gameId,
-			},
-		}).Result()
-		if err != nil {
-			log.Error().Err(err).Msg("failed to enqueue game")
-		}
-	})
+	_, err := wd.redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: wd.streamName,
+		MaxLen: wd.streamMaxLean,
+		Approx: true,
+		Values: map[string]any{
+			"game_id": gameId,
+		},
+	}).Result()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to enqueue game")
+	}
 }
-
 
 func (wd *GameWatchdog) checkPendingGames() {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)

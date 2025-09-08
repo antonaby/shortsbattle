@@ -7,14 +7,69 @@ package qg
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const fetchVotesByPlayers = `-- name: FetchVotesByPlayers :many
+SELECT gp.game_id, gp.player_id, gvd.id as game_video_id, gvd.video_id, gvt.value, gvt.voted_at
+FROM game_players gp
+LEFT JOIN game_votes gvt 
+  ON gp.player_id = gvt.player_id
+LEFT JOIN game_videos gvd 
+  ON gvt.game_video_id = gvd.id 
+  AND gvd.round_n = $2
+WHERE gp.game_id = $1
+`
+
+type FetchVotesByPlayersParams struct {
+	GameID int64 `json:"game_id"`
+	RoundN int32 `json:"round_n"`
+}
+
+type FetchVotesByPlayersRow struct {
+	GameID      int64              `json:"game_id"`
+	PlayerID    int64              `json:"player_id"`
+	GameVideoID pgtype.Int8        `json:"game_video_id"`
+	VideoID     pgtype.Int8        `json:"video_id"`
+	Value       NullVoteValue      `json:"value"`
+	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+}
+
+func (q *Queries) FetchVotesByPlayers(ctx context.Context, arg FetchVotesByPlayersParams) ([]FetchVotesByPlayersRow, error) {
+	rows, err := q.db.Query(ctx, fetchVotesByPlayers, arg.GameID, arg.RoundN)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FetchVotesByPlayersRow
+	for rows.Next() {
+		var i FetchVotesByPlayersRow
+		if err := rows.Scan(
+			&i.GameID,
+			&i.PlayerID,
+			&i.GameVideoID,
+			&i.VideoID,
+			&i.Value,
+			&i.VotedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findGameVideoForVote = `-- name: FindGameVideoForVote :one
-SELECT gv.id, gv.game_id, gv.player_id, gv.video_id, gv.round_n, gv.submitted_at
+SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
   FROM game_videos gv
   JOIN games g ON g.id = gv.game_id
   WHERE gv.id = $1
     AND g.state = ANY($2::text[]::game_state[])
+    AND gv.player_id <> $3
     AND EXISTS (
       SELECT 1
       FROM game_players gp
@@ -30,16 +85,18 @@ type FindGameVideoForVoteParams struct {
 	PlayerID    int64    `json:"player_id"`
 }
 
-func (q *Queries) FindGameVideoForVote(ctx context.Context, arg FindGameVideoForVoteParams) (GameVideo, error) {
+func (q *Queries) FindGameVideoForVote(ctx context.Context, arg FindGameVideoForVoteParams) (Game, error) {
 	row := q.db.QueryRow(ctx, findGameVideoForVote, arg.GameVideoID, arg.States, arg.PlayerID)
-	var i GameVideo
+	var i Game
 	err := row.Scan(
 		&i.ID,
-		&i.GameID,
-		&i.PlayerID,
-		&i.VideoID,
+		&i.ThemeID,
+		&i.State,
 		&i.RoundN,
-		&i.SubmittedAt,
+		&i.CreatedAt,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.EnqueuedAt,
 	)
 	return i, err
 }
