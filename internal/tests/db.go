@@ -67,7 +67,7 @@ func CreateDbManager(pool *dockertest.Pool, pgContainer *dockertest.Resource, pg
 		defer cancelFunc()
 
 		var err error
-		dbManager, err = db.NewDbManager(ctx, &dsn)
+		dbManager, err = db.NewDbManager(&dsn)
 		if err != nil {
 			return err
 		}

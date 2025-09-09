@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,7 +28,7 @@ type DbManager struct {
 	DSN  string
 }
 
-func NewDbManager(ctx context.Context, dsn *string) (*DbManager, error) {
+func NewDbManager(dsn *string) (*DbManager, error) {
 	var dbUrl string
 	if dsn != nil {
 		dbUrl = *dsn
@@ -37,6 +38,9 @@ func NewDbManager(ctx context.Context, dsn *string) (*DbManager, error) {
 			return nil, ErrorDbUrlNotDefined
 		}
 	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
 
 	pool, err := pgxpool.New(ctx, dbUrl)
 	if err != nil {

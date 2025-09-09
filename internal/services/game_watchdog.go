@@ -145,7 +145,9 @@ func NewGameListener(redis *redis.Client, manager *GameManager, updatePublisher 
 }
 
 func (gsl *GameListener) EnsureStreamGroup() error {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
 	err := gsl.redis.XGroupCreateMkStream(ctx, gsl.config.StreamName, gsl.config.ConsumerGroupName, "0").Err()
 	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
 		return err

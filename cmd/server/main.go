@@ -26,7 +26,7 @@ func main() {
 		log.Error().Err(err).Msg(".env file not loaded")
 	}
 
-	dbManager, err := db.NewDbManager(context.Background(), nil)
+	dbManager, err := db.NewDbManager(nil)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't connect to Postgres")
 	}

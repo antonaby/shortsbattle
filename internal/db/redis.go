@@ -23,7 +23,8 @@ func NewRedisClient() (*redis.Client, error) {
 		DB:       0,
 	})
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
 
 	_, err := client.Ping(ctx).Result()
 	if err != nil {
