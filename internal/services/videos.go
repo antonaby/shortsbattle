@@ -11,7 +11,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/jackc/pgx/v5"
 )
 
 func vsError(code common.ErrorCode, msg string, err error) error {
@@ -46,8 +45,7 @@ func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl s
 		return nil, err
 	}
 
-	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
-		q := vs.txm.Querier(tx)
+	return db.WithTxVQ(ctx, vs.txm, func(ctx context.Context, q qg.Querier) (*qg.Video, error) {
 		return vs.createVideo(ctx, q, playerId, videoUrl, oembed)
 	})
 }
@@ -68,8 +66,7 @@ func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId 
 
 // TODO: add pagination and search
 func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
-	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
-		q := vs.txm.Querier(tx)
+	return db.WithTxVQ(ctx, vs.txm, func(ctx context.Context, q qg.Querier) ([]qg.Video, error) {
 		videos, err := q.GetVideosByPlayer(ctx, playerId)
 		if err != nil {
 			return nil, vsDbError("failed to fetch video", err)

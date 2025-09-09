@@ -141,12 +141,12 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
-		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 1, 10)
+		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 3, 10)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
-		// add 3 video to player
+		// add 3 video to player 1
 		video1, err := vs.AddVideo(ctx, players[0].TgID, "https://www.youtube.com/shorts/GkTZHFyHi1c")
 		if err != nil {
 			t.Fatalf("failed to add video (player 1): %v", err)
@@ -172,17 +172,21 @@ func TestGameActions(t *testing.T) {
 		// create game and add player to it
 		game1, err := tests.CreateGameWithStage(ctx, ts.dbManager, theme.ID, qg.GameStageSubmit)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to create game: %v", err)
 		}
 		_, err = tests.AddPlayerToGame(ctx, ts.dbManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to add player to game (player 1): %v", err)
+		}
+		_, err = tests.AddPlayerToGame(ctx, ts.dbManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 2): %v", err)
 		}
 
 		// add existing video 1
 		_, gameVideo1, err := gm.SubmitExistingVideo(ctx, game1.ID, video1.ID, players[0].TgID, 1)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to submit video (player 1): %v", err)
 		}
 		// check that video has been added to the same game and player
 		require.Equal(t, game1.ID, gameVideo1.GameID)
@@ -191,7 +195,7 @@ func TestGameActions(t *testing.T) {
 		// add existing video 3
 		_, gameVideo2, err := gm.SubmitExistingVideo(ctx, game1.ID, video3.ID, players[0].TgID, 1)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to submit video (player 1): %v", err)
 		}
 
 		// check that video has been updated not added
@@ -201,7 +205,7 @@ func TestGameActions(t *testing.T) {
 		// add new video
 		_, gameVideo3, err := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/wHZyy_G0aYU", players[0].TgID, 1)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to submit video (player 1): %v", err)
 		}
 		// check that video has been updated not added
 		require.Equal(t, gameVideo1.ID, gameVideo3.ID)
@@ -210,11 +214,22 @@ func TestGameActions(t *testing.T) {
 		// add new video, but the one that already exist in DB
 		_, gameVideo4, err := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[0].TgID, 1)
 		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
+			t.Fatalf("failed to submit video (player 1): %v", err)
 		}
 		// check that video has been updated not added, the video is the same as video 1
 		require.Equal(t, gameVideo1.ID, gameVideo4.ID)
 		require.Equal(t, video1.ID, gameVideo4.VideoID)
+
+		// add video for player 2
+		_, gameVideo5, err := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[1].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to submit video (player 2): %v", err)
+		}
+
+		// should be different game vidoes but the same video
+		require.NotEqual(t, gameVideo4.ID, gameVideo5.ID)
+		require.NotEqual(t, gameVideo4.PlayerID, gameVideo5.PlayerID)
+		require.Equal(t, gameVideo4.VideoID, gameVideo5.VideoID)
 	})
 }
 
