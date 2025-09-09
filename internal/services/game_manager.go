@@ -1,13 +1,14 @@
 package services
 
 import (
-
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -67,40 +68,30 @@ func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	}
 }
 
-// TODO: check if a player is already in some game.
-// It needs to update the stored function,
-// so it checks if a player is already in a game in the lobby state and return this game
-// func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64) (int64, error) {
-// 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
-// 		q := gm.txm.Querier(tx)
-// 		gameId, err := q.JoinGameForTheme(ctx, qg.JoinGameForThemeParams{
-// 			PThemeID:           themeId,
-// 			PPlayerID:          playerId,
-// 			PLobbyState:        qg.GameStateLobby,
-// 			PLobbyStateClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
-// 			PMaxPlayers:        gm.config.MaxPlayers,
-// 			PNextStateChangeIn: db.ToPgInterval(gm.config.MaxLobbyState),
-// 		})
+func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64, mode qg.PlayerGameMode) (int64, error) {
+	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (int64, error) {
+		q := gm.txm.Querier(tx)
+		gameId, err := q.JoinGame(ctx, qg.JoinGameParams{
+			ThemeID:           themeId,
+			PlayerID:          playerId,
+			LobbyStage:        qg.GameStageLobby,
+			LobbyStageClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
+			MaxPlayers:        gm.config.MaxPlayers,
+			NextStageChangeIn: db.ToPgInterval(gm.config.MaxLobbyState),
+			Mode:              mode,
+		})
 
-// 		if err != nil {
-// 			if db.IsClass23(err) {
-// 				return 0, common.ServiceError{
-// 					Code:    common.ErrorDbNotFound,
-// 					Message: "theme or player not found",
-// 					Cause:   err,
-// 				}
-// 			}
+		if err != nil {
+			if db.IsClass23(err) {
+				return 0, gmError(common.ErrorDbNotFound, "theme not found", err)
+			}
 
-// 			return 0, common.ServiceError{
-// 				Code:    common.ErrorDbUnknown,
-// 				Message: "filed to join game",
-// 				Cause:   err,
-// 			}
-// 		}
+			return 0, gmDbError("filed to join game", err)
+		}
 
-// 		return gameId, nil
-// 	})
-// }
+		return gameId, nil
+	})
+}
 
 // func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Game, *qg.Video, error) {
 // 	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.Video, error) {

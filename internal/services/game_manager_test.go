@@ -1,9 +1,13 @@
 package services
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/stretchr/testify/require"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/tests"
 	"github.com/ory/dockertest/v3"
@@ -44,6 +48,77 @@ func NewGMTestSuite(t *testing.T) *GameManagerTestSuite {
 		pgContainer: pgContainer,
 		dbManager:   dbManager,
 	}
+}
+
+func TestJoinGame(t *testing.T) {
+	ts := NewGMTestSuite(t)
+
+	theme, err := tests.CreateTestTheme(ts.dbManager, 3)
+	if err != nil {
+		t.Fatalf("failed to create test theme: %v", err)
+	}
+
+	players, err := tests.CreateTestPlayers(ts.dbManager, 3)
+	if err != nil {
+		t.Fatalf("failed to create test theme: %v", err)
+	}
+
+	gm := NewGameManager(ts.dbManager, GameConfig{
+		MaxPlayers:                 2,
+		MinRemainingBeforeChangeMs: 300,
+		MinLobbyState:              1 * time.Second,
+		MaxLobbyState:              3 * time.Second,
+		LobbyClosedBefore:          1 * time.Second,
+		SubmittingState:            60 * time.Second,
+		WatchingState:              600 * time.Second,
+	})
+
+	t.Run("JoinGame", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFunc()
+
+		// player 1 joins game
+		gameIdPlayer1Attempt1, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to join game (player 1): %v", err)
+		}
+		// player 1 should join same game
+		gameIdPlayer1Attempt2, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to join game (player 1): %v", err)
+		}
+
+		// check that the game is the same
+		require.Equal(t, gameIdPlayer1Attempt1, gameIdPlayer1Attempt2)
+
+		// player 2 should join same game
+		gameIdPlayer2, err := gm.JoinGame(ctx, theme.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to join game (player 2): %v", err)
+		}
+
+		// check that the game is the same
+		require.Equal(t, gameIdPlayer1Attempt2, gameIdPlayer2)
+
+		// wait until lobby is closed (LobbyClosedBefore)
+		time.Sleep(2 * time.Second)
+		gameIdPlayer1Attempt3, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to join game (player 1): %v", err)
+		}
+
+		// should be the same game as player already in
+		require.Equal(t, gameIdPlayer1Attempt2, gameIdPlayer1Attempt3)
+
+		// player 3 should join new game
+		gameIdPlayer3, err := gm.JoinGame(ctx, theme.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to join game (player 2): %v", err)
+		}
+
+		// should be new game as lobby closed (LobbyClosedBefore)
+		require.NotEqual(t, gameIdPlayer3, gameIdPlayer1Attempt3)
+	})
 }
 
 func TestAdvanceGame(t *testing.T) {

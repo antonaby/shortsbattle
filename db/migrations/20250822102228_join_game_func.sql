@@ -8,7 +8,8 @@ CREATE OR REPLACE FUNCTION join_game(
   p_lobby_stage           game_stage,
   p_lobby_stage_closed    INTERVAL,
   p_max_players           INT,
-  p_next_state_change_in  INTERVAL
+  p_next_stage_change_in  INTERVAL,
+  p_mode                  player_game_mode
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
@@ -16,7 +17,7 @@ DECLARE
   v_game_id BIGINT;
 BEGIN
   -- 1) Serialize by *player* so they can't join two games concurrently
-  PERFORM pg_advisory_xact_lock(1, p_player_id::int);
+  PERFORM pg_advisory_xact_lock(p_player_id);
 
   -- 2) If the player is already in a game (same theme), return that game_id
   SELECT gp.game_id INTO v_game_id
@@ -25,8 +26,7 @@ BEGIN
   JOIN game_status gs ON gs.game_id = g.id
   WHERE gp.player_id = p_player_id
     AND g.theme_id = p_theme_id       
-    AND gs.stage = p_lobby_stage    
-  ORDER BY gp.created_at DESC            
+    AND gs.stage = p_lobby_stage           
   LIMIT 1;
 
   IF v_game_id IS NOT NULL THEN
@@ -34,7 +34,7 @@ BEGIN
   END IF;
 
   -- 3) Serialize by theme using an advisory *transaction* lock
-  PERFORM pg_advisory_xact_lock(2, p_theme_id::int);
+  PERFORM pg_advisory_xact_lock(1, p_theme_id::int);
 
   -- 4) Find a lobby game with room
   SELECT g.id INTO v_game_id 
@@ -61,14 +61,14 @@ BEGIN
       v_game_id, 
       p_lobby_stage, 
       now(), 
-      now() + p_next_state_change_in
+      now() + p_next_stage_change_in
     );
   END IF;
 
   -- Add player to the chosen/created game.
   -- If they're already in, do nothing (idempotent).
-  INSERT INTO game_players (game_id, player_id)
-  VALUES (v_game_id, p_player_id)
+  INSERT INTO game_players (game_id, player_id, mode)
+  VALUES (v_game_id, p_player_id, p_mode)
   ON CONFLICT DO NOTHING;
 
   RETURN v_game_id;

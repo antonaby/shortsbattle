@@ -5,14 +5,15 @@ SELECT join_game(
   sqlc.arg(lobby_stage), 
   sqlc.arg(lobby_stage_closed), 
   sqlc.arg(max_players), 
-  sqlc.arg(next_state_change_in)
+  sqlc.arg(next_stage_change_in),
+  sqlc.arg(mode)
 ) AS game_id;
 
 -- name: AdvanceGames :many
 WITH candidates AS (
     SELECT game_id, stage
     FROM game_status
-    WHERE (next_state_change_at <= now() OR next_enqueue_at <= now())
+    WHERE (next_state_change_at <= now() OR next_enqueue_at <= now() OR next_enqueue_at is NULL)
       AND stage <> 'completed'::game_stage     
     ORDER BY next_state_change_at ASC, game_id
     FOR UPDATE SKIP LOCKED
@@ -51,6 +52,7 @@ FOR SHARE OF g;
 -- name: GetGameAndLock :one
 SELECT 
   g.*, 
+  gs.*,
   GREATEST(
     (EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint,
     0

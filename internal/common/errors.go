@@ -12,7 +12,7 @@ const (
 	ErrorDbUnknown = iota
 	ErrorDbNotFound
 	ErrorDbData
-	ErrorWrongGameState
+	ErrorWrongGameStage
 	ErrorDbConstraintViolation
 	ErrorOEmbedFailed
 	ErrorRedisStream
