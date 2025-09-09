@@ -54,4 +54,5 @@ SELECT
 FROM game_videos gv
 JOIN videos v ON gv.video_id = v.id
 WHERE gv.game_id = $1
-  AND gv.round_n = $2;
+  AND gv.round_n = $2
+  AND gv.player_id <> $3;

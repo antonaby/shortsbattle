@@ -108,6 +108,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 	})
 }
 
+// TODO: check player mode
 func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.Game, *qg.GameVideo, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
@@ -172,35 +173,30 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 	return &gv, nil
 }
 
-// // TODO: player don't need to watch it's own video
-// func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
-// 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.GetVideosToWatchRow, error) {
-// 		q := gm.txm.Querier(tx)
-// 		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStateWatching)})
-// 		if err != nil {
-// 			return nil, err
-// 		}
+func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.GetVideosToWatchRow, error) {
+		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageWatch)})
+		if err != nil {
+			return nil, err
+		}
 
-// 		videos, err := q.GetVideosToWatch(ctx, qg.GetVideosToWatchParams{
-// 			GameID: gameId,
-// 			RoundN: roundN,
-// 		})
+		videos, err := q.GetVideosToWatch(ctx, qg.GetVideosToWatchParams{
+			GameID:   gameId,
+			PlayerID: playerId,
+			RoundN:   roundN,
+		})
 
-// 		if err != nil {
-// 			return nil, common.ServiceError{
-// 				Code:    common.GetDbErrorCode(err),
-// 				Message: "failed to get videos for game",
-// 				Cause:   err,
-// 			}
-// 		}
+		if err != nil {
+			return nil, gmDbError("failed to get videos for game", err)
+		}
 
-// 		if len(videos) == 0 {
-// 			videos = []qg.GetVideosToWatchRow{}
-// 		}
+		if len(videos) == 0 {
+			videos = []qg.GetVideosToWatchRow{}
+		}
 
-// 		return videos, nil
-// 	})
-// }
+		return videos, nil
+	})
+}
 
 // func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value qg.VoteValue) (*qg.Game, *qg.GameVote, error) {
 // 	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.GameVote, error) {

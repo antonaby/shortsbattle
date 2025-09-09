@@ -150,14 +150,25 @@ func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, s
 	})
 }
 
+func ChangeGameStage(ctx context.Context, txm db.TxManager, gameId int64, stage qg.GameStage) (*qg.GameStatus, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, error) {
+		status, err := q.TestUpdateGameStage(ctx, stage, gameId)
+		if err != nil {
+			return nil, err
+		}
+
+		return &status, nil
+	})
+}
+
 func AddPlayerToGame(ctx context.Context, txm db.TxManager, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
 		gp, err := q.TestAddPlayerToGame(ctx, qg.TestAddPlayerToGameParams{
-			GameID: gameId,
+			GameID:   gameId,
 			PlayerID: playerId,
-			Mode: mode,
+			Mode:     mode,
 		})
-		
+
 		if err != nil {
 			return nil, err
 		}

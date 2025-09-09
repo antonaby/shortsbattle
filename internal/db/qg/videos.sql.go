@@ -128,7 +128,14 @@ FROM game_videos gv
 JOIN videos v ON gv.video_id = v.id
 WHERE gv.game_id = $1
   AND gv.round_n = $2
+  AND gv.player_id <> $3
 `
+
+type GetVideosToWatchParams struct {
+	GameID   int64 `json:"game_id"`
+	RoundN   int32 `json:"round_n"`
+	PlayerID int64 `json:"player_id"`
+}
 
 type GetVideosToWatchRow struct {
 	GameVideoID int64              `json:"game_video_id"`
@@ -141,8 +148,8 @@ type GetVideosToWatchRow struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) GetVideosToWatch(ctx context.Context, gameID int64, roundN int32) ([]GetVideosToWatchRow, error) {
-	rows, err := q.db.Query(ctx, getVideosToWatch, gameID, roundN)
+func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error) {
+	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.RoundN, arg.PlayerID)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/stretchr/testify/require"
@@ -230,6 +231,38 @@ func TestGameActions(t *testing.T) {
 		require.NotEqual(t, gameVideo4.ID, gameVideo5.ID)
 		require.NotEqual(t, gameVideo4.PlayerID, gameVideo5.PlayerID)
 		require.Equal(t, gameVideo4.VideoID, gameVideo5.VideoID)
+
+		// player 3 not in the game, so it can't submit video
+		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[2].TgID, 1)
+		require.NotNil(t, forbiddenErr)
+		forbiddenServiceErr, ok := forbiddenErr.(common.ServiceError)
+		if ok {
+			require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
+		}
+
+		// chnage game stage to watch to be able to get videos to watch
+		_, err = tests.ChangeGameStage(ctx, ts.dbManager, game1.ID, qg.GameStageWatch)
+		if err != nil {
+			t.Fatalf("failed to chnage game stage: %v", err)
+		}
+
+		// get videos for player 1
+		videosToWatchP1, err := gm.GetVideosToWatch(ctx, game1.ID, players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos to watch (player 1): %v", err)
+		}
+		// should be videos from player 2
+		require.Equal(t, 1, len(videosToWatchP1))
+		require.Equal(t, gameVideo5.VideoID, videosToWatchP1[0].VideoID)
+
+		// get videos for player 2
+		videosToWatchP2, err := gm.GetVideosToWatch(ctx, game1.ID, players[1].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos to watch (player 1): %v", err)
+		}
+		// should be videos from player 1
+		require.Equal(t, 1, len(videosToWatchP2))
+		require.Equal(t, gameVideo4.VideoID, videosToWatchP2[0].VideoID)
 	})
 }
 

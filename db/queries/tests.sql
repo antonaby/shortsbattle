@@ -11,6 +11,12 @@ INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at,
 VALUES ($1, $2, now(), now(), now())
 RETURNING *;
 
+-- name: TestUpdateGameStage :one
+UPDATE game_status
+SET stage = $1
+WHERE game_id = $2
+RETURNING *;
+
 -- name: TestAddPlayerToGame :one
 INSERT INTO game_players (
   game_id,
