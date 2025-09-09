@@ -42,9 +42,9 @@ func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl s
 
 func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId int64, videoUrl string, oembed []byte) (*qg.Video, error) {
 	video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
-		PPlayerID: playerId,
-		PVideoUrl: videoUrl,
-		POembed:   oembed,
+		PlayerID: playerId,
+		VideoUrl: videoUrl,
+		Oembed:   oembed,
 	})
 
 	if err != nil {
@@ -62,7 +62,7 @@ func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId 
 func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) ([]qg.Video, error) {
 		q := vs.txm.Querier(tx)
-		videos, err := q.GetVideosByPlayer(ctx, qg.GetVideosByPlayerParams{PlayerID: playerId})
+		videos, err := q.GetVideosByPlayer(ctx, playerId)
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),
@@ -76,22 +76,6 @@ func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) (
 		}
 
 		return videos, nil
-	})
-}
-
-func (vs *VideoService) GetVideo(ctx context.Context, videoId int64) (*qg.Video, error) {
-	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
-		q := vs.txm.Querier(tx)
-		video, err := q.GetVideo(ctx, qg.GetVideoParams{ID: videoId})
-		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to fetch video",
-				Cause:   err,
-			}
-		}
-
-		return &video, nil
 	})
 }
 

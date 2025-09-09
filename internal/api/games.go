@@ -1,209 +1,200 @@
 package api
 
-import (
-	"errors"
-	"net/http"
 
-	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	m "github.com/antonaby/shortsbattle/game-server/internal/models"
+// func (api *HttpApi) joinGame(c echo.Context) error {
+// 	tgId, err := tgId(c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	"github.com/labstack/echo/v4"
-)
+// 	request, err := bindAndValidate[m.JoinGameRequest](c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-func (api *HttpApi) joinGame(c echo.Context) error {
-	tgId, err := tgId(c)
-	if err != nil {
-		return err
-	}
+// 	ctx := c.Request().Context()
+// 	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId)
 
-	request, err := bindAndValidate[m.JoinGameRequest](c)
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		var sErr common.ServiceError
+// 		if errors.As(err, &sErr) {
+// 			if sErr.Code == common.ErrorDbNotFound {
+// 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
+// 					Error: "theme not found",
+// 				})
+// 			}
+// 		}
 
-	ctx := c.Request().Context()
-	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId)
+// 		c.Echo().Logger.Errorf("failed to join game: %w", err)
+// 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+// 			Error: SomethingWentWrongMsg,
+// 		})
+// 	}
 
-	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbNotFound {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "theme not found",
-				})
-			}
-		}
+// 	api.watchdog.EnqueueGame(gameId)
+// 	return c.JSON(http.StatusOK, m.OkGameIdReposne{
+// 		Msg:    "game joined",
+// 		GameId: gameId,
+// 	})
+// }
 
-		c.Echo().Logger.Errorf("failed to join game: %w", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
-	}
+// func (api *HttpApi) submitVideo(c echo.Context) error {
+// 	tgId, err := tgId(c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	api.watchdog.EnqueueGame(gameId)
-	return c.JSON(http.StatusOK, m.OkGameIdReposne{
-		Msg:    "game joined",
-		GameId: gameId,
-	})
-}
+// 	roundN, err := queryParam32(c, "round")
+// 	if err != nil {
+// 		return err
+// 	}
 
-func (api *HttpApi) submitVideo(c echo.Context) error {
-	tgId, err := tgId(c)
-	if err != nil {
-		return err
-	}
+// 	gameId, err := param64(c, "id")
+// 	if err != nil {
+// 		return err
+// 	}
 
-	roundN, err := queryParam32(c, "round")
-	if err != nil {
-		return err
-	}
+// 	request, err := bindAndValidate[m.SubmitVideoRequest](c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	gameId, err := param64(c, "id")
-	if err != nil {
-		return err
-	}
+// 	if request.VideoID != nil {
+// 		return api.submitExistingVideo(c, gameId, *request.VideoID, tgId, roundN)
+// 	} else if request.VideoUrl != nil {
+// 		return api.submitNewVideo(c, gameId, *request.VideoUrl, tgId, roundN)
+// 	}
 
-	request, err := bindAndValidate[m.SubmitVideoRequest](c)
-	if err != nil {
-		return err
-	}
+// 	return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+// 		Error: "video_id or video_url must be provided",
+// 	})
+// }
 
-	if request.VideoID != nil {
-		return api.submitExistingVideo(c, gameId, *request.VideoID, tgId, roundN)
-	} else if request.VideoUrl != nil {
-		return api.submitNewVideo(c, gameId, *request.VideoUrl, tgId, roundN)
-	}
+// func (api *HttpApi) submitExistingVideo(c echo.Context, gameId, videoId, playerId int64, roundN int32) error {
+// 	ctx := c.Request().Context()
+// 	game, video, err := api.games.SubmitExistingVideo(ctx, gameId, videoId, playerId, roundN)
+// 	if err != nil {
+// 		return handleVideoSubmissionError(c, err)
+// 	}
 
-	return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-		Error: "video_id or video_url must be provided",
-	})
-}
+// 	api.watchdog.EnqueueGame(game.ID)
+// 	return c.JSON(http.StatusOK, video)
+// }
 
-func (api *HttpApi) submitExistingVideo(c echo.Context, gameId, videoId, playerId int64, roundN int32) error {
-	ctx := c.Request().Context()
-	game, video, err := api.games.SubmitExistingVideo(ctx, gameId, videoId, playerId, roundN)
-	if err != nil {
-		return handleVideoSubmissionError(c, err)
-	}
+// func (api *HttpApi) submitNewVideo(c echo.Context, gameId int64, videoUrl string, playerId int64, roundN int32) error {
+// 	ctx := c.Request().Context()
+// 	game, video, err := api.games.SubmitNewVideo(ctx, gameId, videoUrl, playerId, roundN)
+// 	if err != nil {
+// 		return handleVideoSubmissionError(c, err)
+// 	}
 
-	api.watchdog.EnqueueGame(game.ID)
-	return c.JSON(http.StatusOK, video)
-}
+// 	api.watchdog.EnqueueGame(game.ID)
+// 	return c.JSON(http.StatusOK, video)
+// }
 
-func (api *HttpApi) submitNewVideo(c echo.Context, gameId int64, videoUrl string, playerId int64, roundN int32) error {
-	ctx := c.Request().Context()
-	game, video, err := api.games.SubmitNewVideo(ctx, gameId, videoUrl, playerId, roundN)
-	if err != nil {
-		return handleVideoSubmissionError(c, err)
-	}
+// func handleVideoSubmissionError(c echo.Context, err error) error {
+// 	var sErr common.ServiceError
+// 	if errors.As(err, &sErr) {
+// 		if sErr.Code == common.ErrorDbNotFound {
+// 			return c.JSON(http.StatusNotFound, m.ErrorResponse{
+// 				Error: ResourceNotFoundMsg,
+// 			})
+// 		}
+// 		if sErr.Code == common.ErrorOEmbedFailed {
+// 			return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+// 				Error: "bad video url",
+// 			})
+// 		}
+// 		if sErr.Code == common.ErrorForbidden {
+// 			return c.JSON(http.StatusForbidden, m.ErrorResponse{
+// 				Error: GameActionForbiddenMsg,
+// 			})
+// 		}
+// 	}
 
-	api.watchdog.EnqueueGame(game.ID)
-	return c.JSON(http.StatusOK, video)
-}
+// 	c.Echo().Logger.Errorf("failed to submit video: %w", err)
+// 	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+// 		Error: SomethingWentWrongMsg,
+// 	})
+// }
 
-func handleVideoSubmissionError(c echo.Context, err error) error {
-	var sErr common.ServiceError
-	if errors.As(err, &sErr) {
-		if sErr.Code == common.ErrorDbNotFound {
-			return c.JSON(http.StatusNotFound, m.ErrorResponse{
-				Error: ResourceNotFoundMsg,
-			})
-		}
-		if sErr.Code == common.ErrorOEmbedFailed {
-			return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-				Error: "bad video url",
-			})
-		}
-		if sErr.Code == common.ErrorForbidden {
-			return c.JSON(http.StatusForbidden, m.ErrorResponse{
-				Error: GameActionForbiddenMsg,
-			})
-		}
-	}
+// func (api *HttpApi) getVideosForGame(c echo.Context) error {
+// 	gameId, err := param64(c, "id")
+// 	if err != nil {
+// 		return err
+// 	}
 
-	c.Echo().Logger.Errorf("failed to submit video: %w", err)
-	return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-		Error: SomethingWentWrongMsg,
-	})
-}
+// 	roundN, err := queryParam32(c, "round")
+// 	if err != nil {
+// 		return err
+// 	}
 
-func (api *HttpApi) getVideosForGame(c echo.Context) error {
-	gameId, err := param64(c, "id")
-	if err != nil {
-		return err
-	}
+// 	tgId, err := tgId(c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	roundN, err := queryParam32(c, "round")
-	if err != nil {
-		return err
-	}
+// 	ctx := c.Request().Context()
+// 	videos, err := api.games.GetVideosToWatch(ctx, gameId, tgId, roundN)
+// 	if err != nil {
+// 		var sErr common.ServiceError
+// 		if errors.As(err, &sErr) {
+// 			if sErr.Code == common.ErrorForbidden {
+// 				return c.JSON(http.StatusForbidden, m.ErrorResponse{
+// 					Error: GameActionForbiddenMsg,
+// 				})
+// 			}
+// 		}
 
-	tgId, err := tgId(c)
-	if err != nil {
-		return err
-	}
+// 		c.Echo().Logger.Errorf("failed to submit video: %w", err)
+// 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+// 			Error: SomethingWentWrongMsg,
+// 		})
+// 	}
 
-	ctx := c.Request().Context()
-	videos, err := api.games.GetVideosToWatch(ctx, gameId, tgId, roundN)
-	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorForbidden {
-				return c.JSON(http.StatusForbidden, m.ErrorResponse{
-					Error: GameActionForbiddenMsg,
-				})
-			}
-		}
+// 	return c.JSON(http.StatusOK, videos)
+// }
 
-		c.Echo().Logger.Errorf("failed to submit video: %w", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
-	}
+// func (api *HttpApi) voteForVideo(c echo.Context) error {
+// 	gameVideoId, err := param64(c, "id")
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return c.JSON(http.StatusOK, videos)
-}
+// 	tgId, err := tgId(c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-func (api *HttpApi) voteForVideo(c echo.Context) error {
-	gameVideoId, err := param64(c, "id")
-	if err != nil {
-		return err
-	}
+// 	request, err := bindAndValidate[m.VoteForVideoRequest](c)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	tgId, err := tgId(c)
-	if err != nil {
-		return err
-	}
+// 	ctx := c.Request().Context()
+// 	game, vote, err := api.games.VoteForVideo(ctx, gameVideoId, tgId, request.Value)
 
-	request, err := bindAndValidate[m.VoteForVideoRequest](c)
-	if err != nil {
-		return err
-	}
+// 	if err != nil {
+// 		var sErr common.ServiceError
+// 		if errors.As(err, &sErr) {
+// 			if sErr.Code == common.ErrorForbidden {
+// 				return c.JSON(http.StatusForbidden, m.ErrorResponse{
+// 					Error: GameActionForbiddenMsg,
+// 				})
+// 			}
+// 			if sErr.Code == common.ErrorDbData {
+// 				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+// 					Error: "invalid vote value",
+// 				})
+// 			}
+// 		}
 
-	ctx := c.Request().Context()
-	game, vote, err := api.games.VoteForVideo(ctx, gameVideoId, tgId, request.Value)
+// 		c.Echo().Logger.Errorf("failed to vote for video: %w", err)
+// 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
+// 			Error: SomethingWentWrongMsg,
+// 		})
+// 	}
 
-	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorForbidden {
-				return c.JSON(http.StatusForbidden, m.ErrorResponse{
-					Error: GameActionForbiddenMsg,
-				})
-			}
-			if sErr.Code == common.ErrorDbData {
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-					Error: "invalid vote value",
-				})
-			}
-		}
-
-		c.Echo().Logger.Errorf("failed to vote for video: %w", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
-	}
-
-	api.watchdog.EnqueueGame(game.ID)
-	return c.JSON(http.StatusOK, vote)
-}
+// 	api.watchdog.EnqueueGame(game.ID)
+// 	return c.JSON(http.StatusOK, vote)
+// }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -32,14 +31,4 @@ func NewRedisClient() (*redis.Client, error) {
 	}
 
 	return client, nil
-}
-
-func EnsureStreamGroup(client *redis.Client, streamName, consumerGroupName string) error {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	err := client.XGroupCreateMkStream(ctx, streamName, consumerGroupName, "0").Err()
-	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
-		return err
-	}
-
-	return nil
 }

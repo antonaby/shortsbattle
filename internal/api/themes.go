@@ -32,7 +32,7 @@ func (api *HttpApi) createTheme(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	theme, err := api.themes.CreateTheme(ctx, qg.CreateThemeParams{Title: request.Title, Description: description})
+	theme, err := api.themes.CreateTheme(ctx, request.Title, description)
 	if err != nil {
 		c.Echo().Logger.Errorf("failed to create theme: %v", err)
 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{

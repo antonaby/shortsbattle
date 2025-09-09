@@ -7,8 +7,6 @@ package qg
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const testAddPlayerToGame = `-- name: TestAddPlayerToGame :one
@@ -18,76 +16,45 @@ INSERT INTO game_players (
 ) VALUES (
   $1, $2
 )
-RETURNING game_id, player_id, joined_at
+RETURNING game_id, player_id, mode, is_active, joined_at
 `
 
-type TestAddPlayerToGameParams struct {
-	GameID   int64 `json:"game_id"`
-	PlayerID int64 `json:"player_id"`
-}
-
-func (q *Queries) TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error) {
-	row := q.db.QueryRow(ctx, testAddPlayerToGame, arg.GameID, arg.PlayerID)
+func (q *Queries) TestAddPlayerToGame(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, testAddPlayerToGame, gameID, playerID)
 	var i GamePlayer
-	err := row.Scan(&i.GameID, &i.PlayerID, &i.JoinedAt)
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
+	)
 	return i, err
 }
 
 const testCreateGame = `-- name: TestCreateGame :one
 INSERT INTO games (
-  theme_id,
-  state,
-  next_state_change_at
+  theme_id
 ) VALUES (
-  $1,
-  $2,
-  now() + $3::interval
+  $1
 )
-RETURNING id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at
+RETURNING id, theme_id, created_at
 `
 
-type TestCreateGameParams struct {
-	ThemeID      int64           `json:"theme_id"`
-	State        GameState       `json:"state"`
-	NextChangeIn pgtype.Interval `json:"next_change_in"`
-}
-
-func (q *Queries) TestCreateGame(ctx context.Context, arg TestCreateGameParams) (Game, error) {
-	row := q.db.QueryRow(ctx, testCreateGame, arg.ThemeID, arg.State, arg.NextChangeIn)
+func (q *Queries) TestCreateGame(ctx context.Context, themeID int64) (Game, error) {
+	row := q.db.QueryRow(ctx, testCreateGame, themeID)
 	var i Game
-	err := row.Scan(
-		&i.ID,
-		&i.ThemeID,
-		&i.State,
-		&i.RoundN,
-		&i.CreatedAt,
-		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.EnqueuedAt,
-	)
+	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
 	return i, err
 }
 
 const testGetGameById = `-- name: TestGetGameById :one
-SELECT id, theme_id, state, round_n, created_at, state_changed_at, next_state_change_at, enqueued_at from games where id = $1
+SELECT id, theme_id, created_at from games where id = $1
 `
 
-type TestGetGameByIdParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) TestGetGameById(ctx context.Context, arg TestGetGameByIdParams) (Game, error) {
-	row := q.db.QueryRow(ctx, testGetGameById, arg.ID)
+func (q *Queries) TestGetGameById(ctx context.Context, id int64) (Game, error) {
+	row := q.db.QueryRow(ctx, testGetGameById, id)
 	var i Game
-	err := row.Scan(
-		&i.ID,
-		&i.ThemeID,
-		&i.State,
-		&i.RoundN,
-		&i.CreatedAt,
-		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.EnqueuedAt,
-	)
+	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
 	return i, err
 }

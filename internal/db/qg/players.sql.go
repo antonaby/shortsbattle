@@ -35,12 +35,8 @@ const getPlayerByTgId = `-- name: GetPlayerByTgId :one
 SELECT tg_id, tg_username, tg_language_code, created_at FROM players WHERE tg_id = $1
 `
 
-type GetPlayerByTgIdParams struct {
-	TgID int64 `json:"tg_id"`
-}
-
-func (q *Queries) GetPlayerByTgId(ctx context.Context, arg GetPlayerByTgIdParams) (Player, error) {
-	row := q.db.QueryRow(ctx, getPlayerByTgId, arg.TgID)
+func (q *Queries) GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error) {
+	row := q.db.QueryRow(ctx, getPlayerByTgId, tgID)
 	var i Player
 	err := row.Scan(
 		&i.TgID,

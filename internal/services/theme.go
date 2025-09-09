@@ -7,6 +7,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ThemeService struct {
@@ -19,10 +20,10 @@ func NewThemeService(txm db.TxManager) *ThemeService {
 	}
 }
 
-func (ts *ThemeService) CreateTheme(ctx context.Context, params qg.CreateThemeParams) (*qg.Theme, error) {
+func (ts *ThemeService) CreateTheme(ctx context.Context, title string, description pgtype.Text) (*qg.Theme, error) {
 	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Theme, error) {
 		q := ts.txm.Querier(tx)
-		theme, err := q.CreateTheme(ctx, params)
+		theme, err := q.CreateTheme(ctx, title, description)
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.ErrorDbUnknown,
@@ -58,7 +59,7 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
 func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*qg.Theme, error) {
 	return db.WithTxValue(ctx, ts.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Theme, error) {
 		q := ts.txm.Querier(tx)
-		theme, err := q.GetTheme(ctx, qg.GetThemeParams{ID: themeId})
+		theme, err := q.GetTheme(ctx, themeId)
 		if err != nil {
 			return nil, common.ServiceError{
 				Code:    common.GetDbErrorCode(err),

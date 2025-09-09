@@ -65,7 +65,7 @@ func (ps *CachedPlayerService) CheckPlayerExistsOrCreate(ctx context.Context, pa
 }
 
 func (ps *CachedPlayerService) getPlayerFromDb(ctx context.Context, q qg.Querier, params qg.CreatePlayerParams) (*qg.Player, error) {
-	player, err := q.GetPlayerByTgId(ctx, qg.GetPlayerByTgIdParams{TgID: params.TgID})
+	player, err := q.GetPlayerByTgId(ctx, params.TgID)
 	if err != nil {
 		if db.IsNoRows(err) {
 			return ps.createPlayer(ctx, q, params)

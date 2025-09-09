@@ -3,18 +3,14 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"time"
 
 	"net/http"
 
-	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/centrifugal/centrifuge"
-
-	"github.com/rs/zerolog/log"
 )
 
 type WsConnectionConfig struct {
@@ -97,53 +93,56 @@ func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.C
 
 func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	// TODO: add online/ofline player statuses
-	// TODO: add private channel	
+	// TODO: add private channel
+	// TODO: restore
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 
-		gameId, err := services.ParseCfChannelName(e.Channel)
-		if err != nil {
-			log.Error().Err(err).Msgf("can't parse channel name: %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
-			return
-		}
+		// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// defer cancel()
 
-		userId, err := common.ParseTgId(client.UserID())
-		if err != nil {
-			log.Error().Err(err).Msgf("can't parse user id: %s", client.UserID())
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
-			return
-		}
+		// gameId, err := services.ParseCfChannelName(e.Channel)
+		// if err != nil {
+		// 	log.Error().Err(err).Msgf("can't parse channel name: %s", e.Channel)
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+		// 	return
+		// }
 
-		details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, userId)
-		if err != nil {
-			log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
+		// userId, err := common.ParseTgId(client.UserID())
+		// if err != nil {
+		// 	log.Error().Err(err).Msgf("can't parse user id: %s", client.UserID())
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
+		// 	return
+		// }
 
-			var gErr common.ServiceError
-			if errors.As(err, &gErr) {
-				if gErr.Code == common.ErrorDbNotFound {
-					cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
-					return
-				}
-			}
+		// details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, userId)
+		// if err != nil {
+		// 	log.Error().Err(err).Msgf("can't get game for channel: %s", e.Channel)
 
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
-			return
-		}
+		// 	var gErr common.ServiceError
+		// 	if errors.As(err, &gErr) {
+		// 		if gErr.Code == common.ErrorDbNotFound {
+		// 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
+		// 			return
+		// 		}
+		// 	}
 
-		updBytes, err := json.Marshal(details)
-		if err != nil {
-			log.Error().Err(err).Msgf("failed to convert game update to bytes: %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
-			return
-		}
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+		// 	return
+		// }
 
-		cb(centrifuge.SubscribeReply{
-			Options: centrifuge.SubscribeOptions{
-				Data: updBytes,
-			},
-		}, nil)
+		// updBytes, err := json.Marshal(details)
+		// if err != nil {
+		// 	log.Error().Err(err).Msgf("failed to convert game update to bytes: %s", e.Channel)
+		// 	cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
+		// 	return
+		// }
+
+		// cb(centrifuge.SubscribeReply{
+		// 	Options: centrifuge.SubscribeOptions{
+		// 		Data: updBytes,
+		// 	},
+		// }, nil)
 	})
 
 	client.OnRefresh(func(e centrifuge.RefreshEvent, cb centrifuge.RefreshCallback) {

@@ -17,13 +17,13 @@ SELECT id, video_url, oembed, added_at, updated_at FROM add_video_for_player($1,
 `
 
 type AddVideoToPlayerParams struct {
-	PPlayerID int64           `json:"p_player_id"`
-	PVideoUrl string          `json:"p_video_url"`
-	POembed   json.RawMessage `json:"p_oembed"`
+	PlayerID int64           `json:"player_id"`
+	VideoUrl string          `json:"video_url"`
+	Oembed   json.RawMessage `json:"oembed"`
 }
 
 func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error) {
-	row := q.db.QueryRow(ctx, addVideoToPlayer, arg.PPlayerID, arg.PVideoUrl, arg.POembed)
+	row := q.db.QueryRow(ctx, addVideoToPlayer, arg.PlayerID, arg.VideoUrl, arg.Oembed)
 	var i Video
 	err := row.Scan(
 		&i.ID,
@@ -35,7 +35,7 @@ func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerPara
 	return i, err
 }
 
-const fetchSubmittedVideosByPlayers = `-- name: FetchSubmittedVideosByPlayers :many
+const getSubmittedVideosByPlayers = `-- name: GetSubmittedVideosByPlayers :many
 SELECT gp.game_id, gp.player_id, gv.id as game_video_id, gv.video_id, gv.round_n, gv.submitted_at
 FROM game_players gp
 LEFT JOIN game_videos gv
@@ -45,12 +45,7 @@ LEFT JOIN game_videos gv
 WHERE gp.game_id = $1
 `
 
-type FetchSubmittedVideosByPlayersParams struct {
-	GameID int64 `json:"game_id"`
-	RoundN int32 `json:"round_n"`
-}
-
-type FetchSubmittedVideosByPlayersRow struct {
+type GetSubmittedVideosByPlayersRow struct {
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
 	GameVideoID pgtype.Int8        `json:"game_video_id"`
@@ -59,15 +54,15 @@ type FetchSubmittedVideosByPlayersRow struct {
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 }
 
-func (q *Queries) FetchSubmittedVideosByPlayers(ctx context.Context, arg FetchSubmittedVideosByPlayersParams) ([]FetchSubmittedVideosByPlayersRow, error) {
-	rows, err := q.db.Query(ctx, fetchSubmittedVideosByPlayers, arg.GameID, arg.RoundN)
+func (q *Queries) GetSubmittedVideosByPlayers(ctx context.Context, gameID int64, roundN int32) ([]GetSubmittedVideosByPlayersRow, error) {
+	rows, err := q.db.Query(ctx, getSubmittedVideosByPlayers, gameID, roundN)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []FetchSubmittedVideosByPlayersRow
+	var items []GetSubmittedVideosByPlayersRow
 	for rows.Next() {
-		var i FetchSubmittedVideosByPlayersRow
+		var i GetSubmittedVideosByPlayersRow
 		if err := rows.Scan(
 			&i.GameID,
 			&i.PlayerID,
@@ -86,27 +81,6 @@ func (q *Queries) FetchSubmittedVideosByPlayers(ctx context.Context, arg FetchSu
 	return items, nil
 }
 
-const getVideo = `-- name: GetVideo :one
-SELECT id, video_url, oembed, added_at, updated_at FROM videos WHERE id = $1
-`
-
-type GetVideoParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) GetVideo(ctx context.Context, arg GetVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, getVideo, arg.ID)
-	var i Video
-	err := row.Scan(
-		&i.ID,
-		&i.VideoUrl,
-		&i.Oembed,
-		&i.AddedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
 SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at 
 FROM videos AS v
@@ -114,12 +88,8 @@ JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1
 `
 
-type GetVideosByPlayerParams struct {
-	PlayerID int64 `json:"player_id"`
-}
-
-func (q *Queries) GetVideosByPlayer(ctx context.Context, arg GetVideosByPlayerParams) ([]Video, error) {
-	rows, err := q.db.Query(ctx, getVideosByPlayer, arg.PlayerID)
+func (q *Queries) GetVideosByPlayer(ctx context.Context, playerID int64) ([]Video, error) {
+	rows, err := q.db.Query(ctx, getVideosByPlayer, playerID)
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +130,6 @@ WHERE gv.game_id = $1
   AND gv.round_n = $2
 `
 
-type GetVideosToWatchParams struct {
-	GameID int64 `json:"game_id"`
-	RoundN int32 `json:"round_n"`
-}
-
 type GetVideosToWatchRow struct {
 	GameVideoID int64              `json:"game_video_id"`
 	GameID      int64              `json:"game_id"`
@@ -176,8 +141,8 @@ type GetVideosToWatchRow struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error) {
-	rows, err := q.db.Query(ctx, getVideosToWatch, arg.GameID, arg.RoundN)
+func (q *Queries) GetVideosToWatch(ctx context.Context, gameID int64, roundN int32) ([]GetVideosToWatchRow, error) {
+	rows, err := q.db.Query(ctx, getVideosToWatch, gameID, roundN)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,5 @@
 -- name: AddVideoToPlayer :one  
-SELECT * FROM add_video_for_player($1, $2, $3);
-
--- name: GetVideo :one
-SELECT * FROM videos WHERE id = $1;
+SELECT * FROM add_video_for_player(sqlc.arg(player_id), sqlc.arg(video_url), sqlc.arg(oembed));
 
 -- name: GetVideosByPlayer :many
 SELECT v.* 
@@ -35,7 +32,7 @@ SET video_id     = EXCLUDED.video_id,
     submitted_at = now()
 RETURNING *;
 
--- name: FetchSubmittedVideosByPlayers :many
+-- name: GetSubmittedVideosByPlayers :many
 SELECT gp.game_id, gp.player_id, gv.id as game_video_id, gv.video_id, gv.round_n, gv.submitted_at
 FROM game_players gp
 LEFT JOIN game_videos gv

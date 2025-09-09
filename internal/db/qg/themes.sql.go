@@ -44,13 +44,8 @@ const createTheme = `-- name: CreateTheme :one
 INSERT INTO themes (title, description) VALUES ($1, $2) RETURNING id, title, description, created_at
 `
 
-type CreateThemeParams struct {
-	Title       string      `json:"title"`
-	Description pgtype.Text `json:"description"`
-}
-
-func (q *Queries) CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error) {
-	row := q.db.QueryRow(ctx, createTheme, arg.Title, arg.Description)
+func (q *Queries) CreateTheme(ctx context.Context, title string, description pgtype.Text) (Theme, error) {
+	row := q.db.QueryRow(ctx, createTheme, title, description)
 	var i Theme
 	err := row.Scan(
 		&i.ID,
@@ -65,12 +60,8 @@ const getTheme = `-- name: GetTheme :one
 SELECT id, title, description, created_at FROM themes WHERE id = $1
 `
 
-type GetThemeParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) GetTheme(ctx context.Context, arg GetThemeParams) (Theme, error) {
-	row := q.db.QueryRow(ctx, getTheme, arg.ID)
+func (q *Queries) GetTheme(ctx context.Context, id int64) (Theme, error) {
+	row := q.db.QueryRow(ctx, getTheme, id)
 	var i Theme
 	err := row.Scan(
 		&i.ID,
@@ -114,13 +105,8 @@ const listThemes = `-- name: ListThemes :many
 SELECT id, title, description, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
 `
 
-type ListThemesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-}
-
-func (q *Queries) ListThemes(ctx context.Context, arg ListThemesParams) ([]Theme, error) {
-	rows, err := q.db.Query(ctx, listThemes, arg.Limit, arg.Offset)
+func (q *Queries) ListThemes(ctx context.Context, limit int32, offset int32) ([]Theme, error) {
+	rows, err := q.db.Query(ctx, listThemes, limit, offset)
 	if err != nil {
 		return nil, err
 	}

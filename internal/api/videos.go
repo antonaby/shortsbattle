@@ -52,35 +52,6 @@ func (api *HttpApi) addVideo(c echo.Context) error {
 	return c.JSON(http.StatusOK, video)
 }
 
-func (api *HttpApi) getVideo(c echo.Context) error {
-	videoId, err := parseInt64(c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
-	}
-
-	ctx := c.Request().Context()
-	video, err := api.videos.GetVideo(ctx, videoId)
-	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbNotFound {
-				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-					Error: "video not found",
-				})
-			}
-		}
-
-		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
-	}
-
-	return c.JSON(http.StatusOK, video)
-}
-
 func (api *HttpApi) getVideosForPlayer(c echo.Context) error {
 	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {

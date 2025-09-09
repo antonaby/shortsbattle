@@ -7,6 +7,7 @@ package qg
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -22,22 +23,17 @@ LEFT JOIN game_videos gvd
 WHERE gp.game_id = $1
 `
 
-type FetchVotesByPlayersParams struct {
-	GameID int64 `json:"game_id"`
-	RoundN int32 `json:"round_n"`
-}
-
 type FetchVotesByPlayersRow struct {
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
 	GameVideoID pgtype.Int8        `json:"game_video_id"`
 	VideoID     pgtype.Int8        `json:"video_id"`
-	Value       NullVoteValue      `json:"value"`
+	Value       []byte             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 
-func (q *Queries) FetchVotesByPlayers(ctx context.Context, arg FetchVotesByPlayersParams) ([]FetchVotesByPlayersRow, error) {
-	rows, err := q.db.Query(ctx, fetchVotesByPlayers, arg.GameID, arg.RoundN)
+func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64, roundN int32) ([]FetchVotesByPlayersRow, error) {
+	rows, err := q.db.Query(ctx, fetchVotesByPlayers, gameID, roundN)
 	if err != nil {
 		return nil, err
 	}
@@ -63,12 +59,13 @@ func (q *Queries) FetchVotesByPlayers(ctx context.Context, arg FetchVotesByPlaye
 	return items, nil
 }
 
-const findGameVideoForVote = `-- name: FindGameVideoForVote :one
-SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g.next_state_change_at, g.enqueued_at
+const getGameVideosForVote = `-- name: GetGameVideosForVote :one
+SELECT g.id, g.theme_id, g.created_at
   FROM game_videos gv
   JOIN games g ON g.id = gv.game_id
+  JOIN game_status gs ON gs.game_id = g.id
   WHERE gv.id = $1
-    AND g.state = ANY($2::text[]::game_state[])
+    AND gs.stage = ANY($2::text[]::game_stage[])
     AND gv.player_id <> $3
     AND EXISTS (
       SELECT 1
@@ -79,25 +76,16 @@ SELECT g.id, g.theme_id, g.state, g.round_n, g.created_at, g.state_changed_at, g
 FOR SHARE OF g
 `
 
-type FindGameVideoForVoteParams struct {
+type GetGameVideosForVoteParams struct {
 	GameVideoID int64    `json:"game_video_id"`
-	States      []string `json:"states"`
+	Stages      []string `json:"stages"`
 	PlayerID    int64    `json:"player_id"`
 }
 
-func (q *Queries) FindGameVideoForVote(ctx context.Context, arg FindGameVideoForVoteParams) (Game, error) {
-	row := q.db.QueryRow(ctx, findGameVideoForVote, arg.GameVideoID, arg.States, arg.PlayerID)
+func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (Game, error) {
+	row := q.db.QueryRow(ctx, getGameVideosForVote, arg.GameVideoID, arg.Stages, arg.PlayerID)
 	var i Game
-	err := row.Scan(
-		&i.ID,
-		&i.ThemeID,
-		&i.State,
-		&i.RoundN,
-		&i.CreatedAt,
-		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.EnqueuedAt,
-	)
+	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
 	return i, err
 }
 
@@ -112,9 +100,9 @@ RETURNING game_video_id, player_id, value, voted_at
 `
 
 type VoteForVideoParams struct {
-	GameVideoID int64     `json:"game_video_id"`
-	PlayerID    int64     `json:"player_id"`
-	Value       VoteValue `json:"value"`
+	GameVideoID int64           `json:"game_video_id"`
+	PlayerID    int64           `json:"player_id"`
+	Value       json.RawMessage `json:"value"`
 }
 
 func (q *Queries) VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 )
@@ -89,9 +90,7 @@ func CreateTestTheme(txm db.TxManager, nRounds int) (*qg.Theme, error) {
 	defer cancelFunc()
 
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
-		theme, err := q.CreateTheme(ctx, qg.CreateThemeParams{
-			Title: "Test Theme",
-		})
+		theme, err := q.CreateTheme(ctx, "Test Theme", pgtype.Text{})
 		if err != nil {
 			return nil, err
 		}

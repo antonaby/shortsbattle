@@ -1,9 +1,10 @@
--- name: FindGameVideoForVote :one
+-- name: GetGameVideosForVote :one
 SELECT g.*
   FROM game_videos gv
   JOIN games g ON g.id = gv.game_id
+  JOIN game_status gs ON gs.game_id = g.id
   WHERE gv.id = sqlc.arg(game_video_id)
-    AND g.state = ANY(sqlc.arg(states)::text[]::game_state[])
+    AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
     AND gv.player_id <> sqlc.arg(player_id)
     AND EXISTS (
       SELECT 1

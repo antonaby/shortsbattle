@@ -12,108 +12,113 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type GameState string
+type GameStage string
 
 const (
-	GameStateLobby      GameState = "lobby"
-	GameStateSubmitting GameState = "submitting"
-	GameStateWatching   GameState = "watching"
-	GameStateCompleted  GameState = "completed"
+	GameStageLobby    GameStage = "lobby"
+	GameStageSubmit   GameStage = "submit"
+	GameStageWatch    GameStage = "watch"
+	GameStageComplete GameStage = "complete"
 )
 
-func (e *GameState) Scan(src interface{}) error {
+func (e *GameStage) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = GameState(s)
+		*e = GameStage(s)
 	case string:
-		*e = GameState(s)
+		*e = GameStage(s)
 	default:
-		return fmt.Errorf("unsupported scan type for GameState: %T", src)
+		return fmt.Errorf("unsupported scan type for GameStage: %T", src)
 	}
 	return nil
 }
 
-type NullGameState struct {
-	GameState GameState `json:"game_state"`
-	Valid     bool      `json:"valid"` // Valid is true if GameState is not NULL
+type NullGameStage struct {
+	GameStage GameStage `json:"game_stage"`
+	Valid     bool      `json:"valid"` // Valid is true if GameStage is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullGameState) Scan(value interface{}) error {
+func (ns *NullGameStage) Scan(value interface{}) error {
 	if value == nil {
-		ns.GameState, ns.Valid = "", false
+		ns.GameStage, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.GameState.Scan(value)
+	return ns.GameStage.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullGameState) Value() (driver.Value, error) {
+func (ns NullGameStage) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.GameState), nil
+	return string(ns.GameStage), nil
 }
 
-type VoteValue string
+type PlayerGameMode string
 
 const (
-	VoteValueLike    VoteValue = "like"
-	VoteValueDislike VoteValue = "dislike"
-	VoteValueSkip    VoteValue = "skip"
+	PlayerGameModeSubmitAndVote PlayerGameMode = "submit_and_vote"
+	PlayerGameModeOnlyVote      PlayerGameMode = "only_vote"
 )
 
-func (e *VoteValue) Scan(src interface{}) error {
+func (e *PlayerGameMode) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = VoteValue(s)
+		*e = PlayerGameMode(s)
 	case string:
-		*e = VoteValue(s)
+		*e = PlayerGameMode(s)
 	default:
-		return fmt.Errorf("unsupported scan type for VoteValue: %T", src)
+		return fmt.Errorf("unsupported scan type for PlayerGameMode: %T", src)
 	}
 	return nil
 }
 
-type NullVoteValue struct {
-	VoteValue VoteValue `json:"vote_value"`
-	Valid     bool      `json:"valid"` // Valid is true if VoteValue is not NULL
+type NullPlayerGameMode struct {
+	PlayerGameMode PlayerGameMode `json:"player_game_mode"`
+	Valid          bool           `json:"valid"` // Valid is true if PlayerGameMode is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullVoteValue) Scan(value interface{}) error {
+func (ns *NullPlayerGameMode) Scan(value interface{}) error {
 	if value == nil {
-		ns.VoteValue, ns.Valid = "", false
+		ns.PlayerGameMode, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.VoteValue.Scan(value)
+	return ns.PlayerGameMode.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullVoteValue) Value() (driver.Value, error) {
+func (ns NullPlayerGameMode) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.VoteValue), nil
+	return string(ns.PlayerGameMode), nil
 }
 
 type Game struct {
-	ID                int64              `json:"id"`
-	ThemeID           int64              `json:"theme_id"`
-	State             GameState          `json:"state"`
-	RoundN            pgtype.Int4        `json:"round_n"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	EnqueuedAt        pgtype.Timestamptz `json:"enqueued_at"`
+	ID        int64              `json:"id"`
+	ThemeID   int64              `json:"theme_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type GamePlayer struct {
 	GameID   int64              `json:"game_id"`
 	PlayerID int64              `json:"player_id"`
+	Mode     PlayerGameMode     `json:"mode"`
+	IsActive pgtype.Bool        `json:"is_active"`
 	JoinedAt pgtype.Timestamptz `json:"joined_at"`
+}
+
+type GameStatus struct {
+	GameID            int64              `json:"game_id"`
+	Stage             GameStage          `json:"stage"`
+	RoundN            int32              `json:"round_n"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
 }
 
 type GameVideo struct {
@@ -128,7 +133,7 @@ type GameVideo struct {
 type GameVote struct {
 	GameVideoID int64              `json:"game_video_id"`
 	PlayerID    int64              `json:"player_id"`
-	Value       VoteValue          `json:"value"`
+	Value       json.RawMessage    `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 

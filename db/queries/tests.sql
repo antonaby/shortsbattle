@@ -1,12 +1,8 @@
 -- name: TestCreateGame :one
 INSERT INTO games (
-  theme_id,
-  state,
-  next_state_change_at
+  theme_id
 ) VALUES (
-  sqlc.arg(theme_id),
-  sqlc.arg(state),
-  now() + sqlc.arg(next_change_in)::interval
+  sqlc.arg(theme_id)
 )
 RETURNING *;
 

@@ -85,15 +85,24 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
-	gameStream := "games"
-	gameConsumerGroup := "games-workers"
-	err = db.EnsureStreamGroup(redisClient, gameStream, gameConsumerGroup)
+	wathchdogConfig := services.GameWatchdogConfig{
+		CronStr:           "",
+		EnqueueInterval:   5 * time.Second,
+		WriteBatchSize:    30,
+		ReadBatchSize:     10,
+		StreamName:        "games",
+		ConsumerGroupName: "games-workers",
+		StreamMaxLean:     1000,
+		ReadWait:          1 * time.Second,
+		IdleDLQ:           10 * time.Second,
+	}
+
+	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, wathchdogConfig)
+	gameListener := services.NewGameListener(redisClient, gameManager, centrifugeServer, wathchdogConfig)
+	err = gameListener.EnsureStreamGroup()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't create Redis Stream")
 	}
-
-	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, 1*time.Second, 100, gameStream, 1000, 1*time.Second)
-	gameStateListener := services.NewGameStateListener(redisClient, gameManager, centrifugeServer, gameStream, gameConsumerGroup, "1", 10, 5*time.Second, 20*time.Second, 1000)
 
 	httpApi := api.NewHttpApi(authService, gameWatchdog, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
@@ -102,12 +111,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	err = gameStateListener.ReclaimPending(ctx)
+	err = gameListener.ReclaimPending(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't reclaim pending messages")
 	}
 
-	go gameStateListener.Listen(ctx)
+	go gameListener.Listen(ctx)
 	go gameWatchdog.Run(ctx)
 	go botManager.Start(ctx)
 

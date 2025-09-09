@@ -11,15 +11,14 @@ CREATE TABLE
     CONSTRAINT unique_player_game_round UNIQUE (game_id, player_id, round_n)
   );
 
-CREATE TYPE vote_value AS ENUM ('like', 'dislike', 'skip');
-
 CREATE TABLE
   game_votes (
     game_video_id BIGINT NOT NULL REFERENCES game_videos (id) ON DELETE CASCADE,
     player_id BIGINT NOT NULL REFERENCES players (tg_id) ON DELETE CASCADE,
-    value vote_value NOT NULL,
+    value jsonb NOT NULL DEFAULT '{}'::jsonb,
     voted_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    PRIMARY KEY (game_video_id, player_id)
+    PRIMARY KEY (game_video_id, player_id),
+    CONSTRAINT value_is_object CHECK (jsonb_typeof(value) = 'object')
   );
 
 -- +goose StatementEnd
