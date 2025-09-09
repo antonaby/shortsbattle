@@ -7,20 +7,29 @@ package qg
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const testAddPlayerToGame = `-- name: TestAddPlayerToGame :one
 INSERT INTO game_players (
   game_id,
-  player_id
+  player_id,
+  mode
 ) VALUES (
-  $1, $2
+  $1, $2, $3
 )
 RETURNING game_id, player_id, mode, is_active, joined_at
 `
 
-func (q *Queries) TestAddPlayerToGame(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
-	row := q.db.QueryRow(ctx, testAddPlayerToGame, gameID, playerID)
+type TestAddPlayerToGameParams struct {
+	GameID   int64          `json:"game_id"`
+	PlayerID int64          `json:"player_id"`
+	Mode     PlayerGameMode `json:"mode"`
+}
+
+func (q *Queries) TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, testAddPlayerToGame, arg.GameID, arg.PlayerID, arg.Mode)
 	var i GamePlayer
 	err := row.Scan(
 		&i.GameID,
@@ -48,13 +57,68 @@ func (q *Queries) TestCreateGame(ctx context.Context, themeID int64) (Game, erro
 	return i, err
 }
 
+const testCreateGameStatus = `-- name: TestCreateGameStatus :one
+INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
+VALUES ($1, $2, now(), now(), now())
+RETURNING game_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at
+`
+
+func (q *Queries) TestCreateGameStatus(ctx context.Context, gameID int64, stage GameStage) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, testCreateGameStatus, gameID, stage)
+	var i GameStatus
+	err := row.Scan(
+		&i.GameID,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.NextEnqueueAt,
+	)
+	return i, err
+}
+
 const testGetGameById = `-- name: TestGetGameById :one
-SELECT id, theme_id, created_at from games where id = $1
+SELECT id, theme_id, created_at FROM games WHERE id = $1
 `
 
 func (q *Queries) TestGetGameById(ctx context.Context, id int64) (Game, error) {
 	row := q.db.QueryRow(ctx, testGetGameById, id)
 	var i Game
 	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
+	return i, err
+}
+
+const testGetGameStatusById = `-- name: TestGetGameStatusById :one
+SELECT game_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at,  
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 
+    0
+  )::bigint AS remaining_ms
+FROM game_status 
+WHERE game_id = $1
+`
+
+type TestGetGameStatusByIdRow struct {
+	GameID            int64              `json:"game_id"`
+	Stage             GameStage          `json:"stage"`
+	RoundN            int32              `json:"round_n"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
+	RemainingMs       int64              `json:"remaining_ms"`
+}
+
+func (q *Queries) TestGetGameStatusById(ctx context.Context, gameID int64) (TestGetGameStatusByIdRow, error) {
+	row := q.db.QueryRow(ctx, testGetGameStatusById, gameID)
+	var i TestGetGameStatusByIdRow
+	err := row.Scan(
+		&i.GameID,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.NextEnqueueAt,
+		&i.RemainingMs,
+	)
 	return i, err
 }

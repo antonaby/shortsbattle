@@ -6,14 +6,29 @@ INSERT INTO games (
 )
 RETURNING *;
 
+-- name: TestCreateGameStatus :one
+INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
+VALUES ($1, $2, now(), now(), now())
+RETURNING *;
+
 -- name: TestAddPlayerToGame :one
 INSERT INTO game_players (
   game_id,
-  player_id
+  player_id,
+  mode
 ) VALUES (
-  $1, $2
+  $1, $2, $3
 )
 RETURNING *;
 
 -- name: TestGetGameById :one
-SELECT * from games where id = $1;
+SELECT * FROM games WHERE id = $1;
+
+-- name: TestGetGameStatusById :one
+SELECT *,  
+  GREATEST(
+    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 
+    0
+  )::bigint AS remaining_ms
+FROM game_status 
+WHERE game_id = $1;

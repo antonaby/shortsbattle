@@ -56,12 +56,13 @@ BEGIN
       p_theme_id
     )
     RETURNING id INTO v_game_id;
-    INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at)
+    INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
     VALUES (
       v_game_id, 
       p_lobby_stage, 
       now(), 
-      now() + p_next_stage_change_in
+      now() + p_next_stage_change_in,
+      now()
     );
   END IF;
 

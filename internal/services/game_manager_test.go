@@ -50,32 +50,34 @@ func NewGMTestSuite(t *testing.T) *GameManagerTestSuite {
 	}
 }
 
-func TestJoinGame(t *testing.T) {
+func TestGameActions(t *testing.T) {
 	ts := NewGMTestSuite(t)
-
-	theme, err := tests.CreateTestTheme(ts.dbManager, 3)
-	if err != nil {
-		t.Fatalf("failed to create test theme: %v", err)
-	}
-
-	players, err := tests.CreateTestPlayers(ts.dbManager, 3)
-	if err != nil {
-		t.Fatalf("failed to create test theme: %v", err)
-	}
 
 	gm := NewGameManager(ts.dbManager, GameConfig{
 		MaxPlayers:                 2,
 		MinRemainingBeforeChangeMs: 300,
 		MinLobbyState:              1 * time.Second,
-		MaxLobbyState:              3 * time.Second,
-		LobbyClosedBefore:          1 * time.Second,
+		MaxLobbyState:              4 * time.Second,
+		LobbyClosedBefore:          2 * time.Second,
 		SubmittingState:            60 * time.Second,
 		WatchingState:              600 * time.Second,
 	})
 
+	vs := NewVideosService(ts.dbManager)
+
 	t.Run("JoinGame", func(t *testing.T) {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.dbManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 3, 0)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
 
 		// player 1 joins game
 		gameIdPlayer1Attempt1, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
@@ -118,6 +120,101 @@ func TestJoinGame(t *testing.T) {
 
 		// should be new game as lobby closed (LobbyClosedBefore)
 		require.NotEqual(t, gameIdPlayer3, gameIdPlayer1Attempt3)
+
+		// get game status for the previous game
+		gameSatatus, err := tests.GetGameStatus(ctx, ts.dbManager, gameIdPlayer1Attempt3)
+		if err != nil {
+			t.Fatalf("failed to get game status (player 1): %v", err)
+		}
+
+		// should still be in the lobby state
+		require.Equal(t, qg.GameStageLobby, gameSatatus.Stage)
+		require.Greater(t, gameSatatus.RemainingMs, int64(0))
+	})
+
+	t.Run("SubmitVideo", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.dbManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 1, 10)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		// add 3 video to player
+		video1, err := vs.AddVideo(ctx, players[0].TgID, "https://www.youtube.com/shorts/GkTZHFyHi1c")
+		if err != nil {
+			t.Fatalf("failed to add video (player 1): %v", err)
+		}
+		_, err = vs.AddVideo(ctx, players[0].TgID, "https://www.youtube.com/shorts/GkTZHFyHi1c")
+		if err != nil {
+			t.Fatalf("failed to add video (player 1): %v", err)
+		}
+		video3, err := vs.AddVideo(ctx, players[0].TgID, "https://www.youtube.com/shorts/zy7xd4zOl7s")
+		if err != nil {
+			t.Fatalf("failed to add video (player 1): %v", err)
+		}
+
+		videos, err := vs.GetVideosByPlayer(ctx, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+		// check that 2 video has been added (as 1 and 2 video are the same)
+		require.Equal(t, 2, len(videos))
+		require.Equal(t, video1.ID, videos[0].ID)
+		require.Equal(t, video3.ID, videos[1].ID)
+
+		// create game and add player to it
+		game1, err := tests.CreateGameWithStage(ctx, ts.dbManager, theme.ID, qg.GameStageSubmit)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+		_, err = tests.AddPlayerToGame(ctx, ts.dbManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+
+		// add existing video 1
+		_, gameVideo1, err := gm.SubmitExistingVideo(ctx, game1.ID, video1.ID, players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+		// check that video has been added to the same game and player
+		require.Equal(t, game1.ID, gameVideo1.GameID)
+		require.Equal(t, players[0].TgID, gameVideo1.PlayerID)
+
+		// add existing video 3
+		_, gameVideo2, err := gm.SubmitExistingVideo(ctx, game1.ID, video3.ID, players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+
+		// check that video has been updated not added
+		require.Equal(t, gameVideo1.ID, gameVideo2.ID)
+		require.NotEqual(t, gameVideo1.VideoID, gameVideo2.VideoID)
+
+		// add new video
+		_, gameVideo3, err := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/wHZyy_G0aYU", players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+		// check that video has been updated not added
+		require.Equal(t, gameVideo1.ID, gameVideo3.ID)
+		require.NotEqual(t, gameVideo1.VideoID, gameVideo3.VideoID)
+
+		// add new video, but the one that already exist in DB
+		_, gameVideo4, err := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to get videos (player 1): %v", err)
+		}
+		// check that video has been updated not added, the video is the same as video 1
+		require.Equal(t, gameVideo1.ID, gameVideo4.ID)
+		require.Equal(t, video1.ID, gameVideo4.VideoID)
 	})
 }
 

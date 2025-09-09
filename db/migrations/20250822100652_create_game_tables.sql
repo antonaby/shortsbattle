@@ -14,9 +14,9 @@ CREATE TABLE
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
     stage game_stage NOT NULL DEFAULT 'lobby',
     round_n INT NOT NULL DEFAULT 0,
-    state_changed_at TIMESTAMPTZ,
-    next_state_change_at TIMESTAMPTZ,
-    next_enqueue_at TIMESTAMPTZ,
+    state_changed_at TIMESTAMPTZ NOT NULL,
+    next_state_change_at TIMESTAMPTZ NOT NULL,
+    next_enqueue_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (game_id)
   );
 

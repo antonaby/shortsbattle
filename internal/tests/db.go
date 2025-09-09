@@ -85,10 +85,7 @@ func CreateDbManager(pool *dockertest.Pool, pgContainer *dockertest.Resource, pg
 	return dbManager, nil
 }
 
-func CreateTestTheme(txm db.TxManager, nRounds int) (*qg.Theme, error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancelFunc()
-
+func CreateTestTheme(ctx context.Context, txm db.TxManager, nRounds int) (*qg.Theme, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
 		theme, err := q.CreateTheme(ctx, "Test Theme", pgtype.Text{})
 		if err != nil {
@@ -112,15 +109,12 @@ func CreateTestTheme(txm db.TxManager, nRounds int) (*qg.Theme, error) {
 	})
 }
 
-func CreateTestPlayers(txm db.TxManager, nPlayers int) ([]qg.Player, error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancelFunc()
-
+func CreateTestPlayers(ctx context.Context, txm db.TxManager, nPlayers int, tgIdOffset int) ([]qg.Player, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) ([]qg.Player, error) {
 		players := []qg.Player{}
 		for i := range nPlayers {
 			player, err := q.CreatePlayer(ctx, qg.CreatePlayerParams{
-				TgID: int64(i),
+				TgID:       int64(tgIdOffset + i),
 				TgUsername: fmt.Sprintf("player_%d", i),
 			})
 			if err != nil {
@@ -131,5 +125,43 @@ func CreateTestPlayers(txm db.TxManager, nPlayers int) ([]qg.Player, error) {
 		}
 
 		return players, nil
+	})
+}
+
+func GetGameStatus(ctx context.Context, txm db.TxManager, gameId int64) (qg.TestGetGameStatusByIdRow, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (qg.TestGetGameStatusByIdRow, error) {
+		return q.TestGetGameStatusById(ctx, gameId)
+	})
+}
+
+func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, stage qg.GameStage) (*qg.Game, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Game, error) {
+		game, err := q.TestCreateGame(ctx, themeId)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = q.TestCreateGameStatus(ctx, game.ID, stage)
+		if err != nil {
+			return nil, err
+		}
+
+		return &game, nil
+	})
+}
+
+func AddPlayerToGame(ctx context.Context, txm db.TxManager, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
+		gp, err := q.TestAddPlayerToGame(ctx, qg.TestAddPlayerToGameParams{
+			GameID: gameId,
+			PlayerID: playerId,
+			Mode: mode,
+		})
+		
+		if err != nil {
+			return nil, err
+		}
+
+		return &gp, nil
 	})
 }

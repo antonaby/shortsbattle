@@ -14,6 +14,22 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+func vsError(code common.ErrorCode, msg string, err error) error {
+	return common.ServiceError{
+		Code:    code,
+		Message: fmt.Sprintf("video service: %s", msg),
+		Cause:   err,
+	}
+}
+
+func vsDbError(msg string, err error) error {
+	return vsError(
+		common.GetDbErrorCode(err),
+		msg,
+		err,
+	)
+}
+
 type VideoService struct {
 	txm db.TxManager
 }
@@ -27,11 +43,7 @@ func NewVideosService(txm db.TxManager) *VideoService {
 func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl, "")
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbedFailed,
-			Message: "failed to get oembed data",
-			Cause:   err,
-		}
+		return nil, err
 	}
 
 	return db.WithTxValue(ctx, vs.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Video, error) {
@@ -48,11 +60,7 @@ func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId 
 	})
 
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.GetDbErrorCode(err),
-			Message: "failed to create video",
-			Cause:   err,
-		}
+		return nil, vsDbError("failed to create video", err)
 	}
 
 	return &video, nil
@@ -64,11 +72,7 @@ func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) (
 		q := vs.txm.Querier(tx)
 		videos, err := q.GetVideosByPlayer(ctx, playerId)
 		if err != nil {
-			return nil, common.ServiceError{
-				Code:    common.GetDbErrorCode(err),
-				Message: "failed to fetch video",
-				Cause:   err,
-			}
+			return nil, vsDbError("failed to fetch video", err)
 		}
 
 		if len(videos) == 0 {
@@ -82,11 +86,7 @@ func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) (
 func oembedEndpoint(videoURL, igToken string) (string, error) {
 	u, err := url.Parse(videoURL)
 	if err != nil {
-		return "", common.ServiceError{
-			Code:    common.ErrorOEmbedFailed,
-			Message: "failed to fetch oembed data",
-			Cause:   err,
-		}
+		return "", vsError(common.ErrorOEmbedFailed, "failed to parse video url", err)
 	}
 
 	host := strings.ToLower(u.Host)
@@ -108,11 +108,7 @@ func oembedEndpoint(videoURL, igToken string) (string, error) {
 		return "https://graph.facebook.com/v21.0/instagram_oembed?url=" + escapedUrl + "&access_token=" + url.QueryEscape(igToken), nil
 	}
 
-	return "", common.ServiceError{
-		Code:    common.ErrorOEmbedFailed,
-		Message: fmt.Sprintf("unsupported host %s", host),
-		Cause:   err,
-	}
+	return "", vsError(common.ErrorOEmbedFailed, fmt.Sprintf("unsupported host %s", host), err)
 }
 
 func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) {
@@ -124,30 +120,18 @@ func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) 
 	req, _ := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbedFailed,
-			Message: "failed to fetch oembed data",
-			Cause:   err,
-		}
+		return nil, vsError(common.ErrorOEmbedFailed, "failed to get oembed data", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
-		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbedFailed,
-			Message: fmt.Sprintf("oembed status %d: %s", resp.StatusCode, string(b)),
-			Cause:   err,
-		}
+		return nil, vsError(common.ErrorOEmbedFailed, fmt.Sprintf("oembed status %d: %s", resp.StatusCode, string(b)), err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.ErrorOEmbedFailed,
-			Message: "failed to fetch oembed data",
-			Cause:   err,
-		}
+		return nil, vsError(common.ErrorOEmbedFailed, "failed to read oembed data", err)
 	}
 
 	return body, nil

@@ -13,8 +13,8 @@ SELECT join_game(
 WITH candidates AS (
     SELECT game_id, stage
     FROM game_status
-    WHERE (next_state_change_at <= now() OR next_enqueue_at <= now() OR next_enqueue_at is NULL)
-      AND stage <> 'completed'::game_stage     
+    WHERE (next_state_change_at <= now() OR next_enqueue_at <= now())
+      AND stage <> 'complete'::game_stage     
     ORDER BY next_state_change_at ASC, game_id
     FOR UPDATE SKIP LOCKED
     LIMIT sqlc.arg(batch_size)
@@ -29,19 +29,22 @@ WITH candidates AS (
   )
   SELECT * FROM upd;
 
--- name: GetGameByPlayerAndStage :one
+-- name: GetGameInStageLock :one
 SELECT g.*
 FROM game_players gp
 JOIN games g ON g.id = gp.game_id
 JOIN game_status gs ON gs.game_id = g.id
-WHERE gp.game_id  = sqlc.arg(game_id)
+WHERE gp.game_id = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
   AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
 FOR SHARE OF g;
 
--- name: GetGameByPlayer :one
+-- name: GetGameLock :one
 SELECT g.*, 
-  COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0)::bigint AS remaining_ms
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms
 FROM game_players gp
 JOIN games g ON g.id = gp.game_id
 JOIN game_status gs ON gs.game_id = g.id
@@ -49,16 +52,22 @@ WHERE gp.game_id  = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
 FOR SHARE OF g;
 
--- name: GetGameAndLock :one
+-- name: GetGameStateLock :one
 SELECT 
-  g.*, 
-  gs.*,
+  g.id, 
+  g.theme_id,
+  g.created_at, 
+  gs.stage,
+  gs.round_n,
+  gs.state_changed_at,
+  gs.next_state_change_at,
+  gs.next_enqueue_at,
   GREATEST(
-    (EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint,
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
     0
   )::bigint AS remaining_ms,
   GREATEST(
-    (EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint,
+    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
 FROM games g 
