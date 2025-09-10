@@ -85,8 +85,8 @@ func (q *Queries) CountPlayerInGame(ctx context.Context, gameID int64) (int64, e
 	return player_count, err
 }
 
-const getGameInStageLock = `-- name: GetGameInStageLock :one
-SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at
+const getGameAndPlayerLock = `-- name: GetGameAndPlayerLock :one
+SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id = $1
@@ -95,15 +95,30 @@ WHERE gp.game_id = $1
 FOR SHARE OF gs
 `
 
-type GetGameInStageLockParams struct {
+type GetGameAndPlayerLockParams struct {
 	GameID   int64    `json:"game_id"`
 	PlayerID int64    `json:"player_id"`
 	Stages   []string `json:"stages"`
 }
 
-func (q *Queries) GetGameInStageLock(ctx context.Context, arg GetGameInStageLockParams) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, getGameInStageLock, arg.GameID, arg.PlayerID, arg.Stages)
-	var i GameStatus
+type GetGameAndPlayerLockRow struct {
+	GameID            int64              `json:"game_id"`
+	ThemeID           int64              `json:"theme_id"`
+	Stage             GameStage          `json:"stage"`
+	RoundN            int32              `json:"round_n"`
+	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
+	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
+	DueAt             pgtype.Timestamptz `json:"due_at"`
+	PlayerID          int64              `json:"player_id"`
+	Mode              PlayerGameMode     `json:"mode"`
+	IsActive          pgtype.Bool        `json:"is_active"`
+	JoinedAt          pgtype.Timestamptz `json:"joined_at"`
+}
+
+func (q *Queries) GetGameAndPlayerLock(ctx context.Context, arg GetGameAndPlayerLockParams) (GetGameAndPlayerLockRow, error) {
+	row := q.db.QueryRow(ctx, getGameAndPlayerLock, arg.GameID, arg.PlayerID, arg.Stages)
+	var i GetGameAndPlayerLockRow
 	err := row.Scan(
 		&i.GameID,
 		&i.ThemeID,
@@ -113,6 +128,10 @@ func (q *Queries) GetGameInStageLock(ctx context.Context, arg GetGameInStageLock
 		&i.NextStateChangeAt,
 		&i.NextEnqueueAt,
 		&i.DueAt,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
 	)
 	return i, err
 }

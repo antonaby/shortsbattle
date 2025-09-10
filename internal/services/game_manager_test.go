@@ -109,7 +109,7 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
-		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 10)
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 4, 10)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -153,6 +153,10 @@ func TestGameActions(t *testing.T) {
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
 		if err != nil {
 			t.Fatalf("failed to add player to game (player 2): %v", err)
+		}
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[2].TgID, qg.PlayerGameModeOnlyVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 3): %v", err)
 		}
 
 		// add existing video 1
@@ -207,8 +211,14 @@ func TestGameActions(t *testing.T) {
 		notFoundServiceErr := notFoundError.(common.ServiceError)
 		require.Equal(t, common.ErrorDbNotFound, int(notFoundServiceErr.Code))
 
-		// player 3 not in the game, so it can't submit video
-		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[2].TgID, 1)
+		// player 3 can't add videos as it's in only watching mode
+		_, _, wrongModeErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[2].TgID, 1)
+		require.NotNil(t, wrongModeErr)
+		wrongModeServiceErr := wrongModeErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(wrongModeServiceErr.Code))
+
+		// player 4 not in the game, so it can't submit video
+		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[3].TgID, 1)
 		require.NotNil(t, forbiddenErr)
 		forbiddenServiceErr := forbiddenErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))

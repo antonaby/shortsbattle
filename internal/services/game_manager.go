@@ -59,9 +59,6 @@ type GameManager struct {
 	txm    db.TxManager
 }
 
-// TODO:
-// possible modes:
-// 1) only watching 2) full game 3) ranking game
 func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	return &GameManager{
 		txm:    txm,
@@ -93,12 +90,15 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
-// TODO: check player mode
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GameStatus, *qg.GameVideo, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVideo, error) {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
 		if err != nil {
 			return nil, nil, err
+		}
+
+		if game.Mode != qg.PlayerGameModeSubmitAndVote {
+			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
 		gv, err := gm.addVideoToGame(ctx, q, gameId, videoId, playerId, roundN)
@@ -110,17 +110,20 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 	})
 }
 
-// TODO: check player mode
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GameStatus, *qg.GameVideo, error) {
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
 		if err != nil {
 			return nil, nil, err
+		}
+
+		if game.Mode != qg.PlayerGameModeSubmitAndVote {
+			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
 		video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
@@ -142,8 +145,8 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.GameStatus, error) {
-	game, err := q.GetGameInStageLock(ctx, qg.GetGameInStageLockParams{
+func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.GetGameAndPlayerLockRow, error) {
+	game, err := q.GetGameAndPlayerLock(ctx, qg.GetGameAndPlayerLockParams{
 		GameID:   gameId,
 		PlayerID: playerId,
 		Stages:   states,

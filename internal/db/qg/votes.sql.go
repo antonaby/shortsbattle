@@ -65,25 +65,25 @@ SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.ne
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = $1
-    AND gs.stage = ANY($2::text[]::game_stage[])
-    AND gv.player_id <> $3
+    AND gv.player_id <> $2
+    AND gs.stage = ANY($3::text[]::game_stage[])
     AND EXISTS (
       SELECT 1
       FROM game_players gp
       WHERE gp.game_id = gv.game_id
-        AND gp.player_id = $3
+        AND gp.player_id = $2
     ) 
 FOR SHARE OF gs
 `
 
 type GetGameVideosForVoteParams struct {
 	GameVideoID int64    `json:"game_video_id"`
-	Stages      []string `json:"stages"`
 	PlayerID    int64    `json:"player_id"`
+	Stages      []string `json:"stages"`
 }
 
 func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, getGameVideosForVote, arg.GameVideoID, arg.Stages, arg.PlayerID)
+	row := q.db.QueryRow(ctx, getGameVideosForVote, arg.GameVideoID, arg.PlayerID, arg.Stages)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,

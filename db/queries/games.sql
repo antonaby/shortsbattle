@@ -29,8 +29,8 @@ WITH candidates AS (
   )
   SELECT * FROM upd;
 
--- name: GetGameInStageLock :one
-SELECT gs.*
+-- name: GetGameAndPlayerLock :one
+SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id = sqlc.arg(game_id)
