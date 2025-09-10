@@ -247,6 +247,7 @@ func (gsl *GameListener) ReclaimPending(ctx context.Context) error {
 	}
 }
 
+// TODO: restore
 func (gsl *GameListener) handleMessage(ctx context.Context, gameId int64) error {
 	// upd, err := gsl.manager.AdvanceGame(ctx, gameId)
 	// if err != nil {

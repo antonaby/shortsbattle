@@ -211,7 +211,7 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 
 		if err != nil {
 			if db.IsNoRows(err) {
-				return nil, nil, gmError(common.ErrorForbidden, "no game for player", err)
+				return nil, nil, gmError(common.ErrorForbidden, "player not in the game", err)
 			}
 
 			return nil, nil, gmDbError("failed to vote", err)
@@ -235,6 +235,10 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		game, err := q.GetGameLock(ctx, gameId, playerId)
 		if err != nil {
+			if db.IsNoRows(err) {
+				return nil, gmError(common.ErrorForbidden, "player not in the game", err)
+			}
+
 			return nil, gmDbError("failed to fetch game", err)
 		}
 
