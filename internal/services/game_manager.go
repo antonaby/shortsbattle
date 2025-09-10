@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -198,36 +199,35 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
-// func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value qg.VoteValue) (*qg.Game, *qg.GameVote, error) {
-// 	return db.WithTxValue2(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*qg.Game, *qg.GameVote, error) {
-// 		q := gm.txm.Querier(tx)
+func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GameStatus, *qg.GameVote, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVote, error) {
+		game, err := q.GetGameVideosForVote(ctx, qg.GetGameVideosForVoteParams{
+			GameVideoID: gameVideoId,
+			PlayerID:    playerId,
+			Stages:      []string{string(qg.GameStageWatch)},
+		})
 
-// 		game, err := q.FindGameVideoForVote(ctx, qg.FindGameVideoForVoteParams{
-// 			GameVideoID: gameVideoId,
-// 			PlayerID:    playerId,
-// 			States:      []string{string(qg.GameStateWatching)},
-// 		})
+		if err != nil {
+			if db.IsNoRows(err) {
+				return nil, nil, gmError(common.ErrorForbidden, "no game for player", err)
+			}
 
-// 		if err != nil {
-// 			if db.IsNoRows(err) {
-// 				return nil, nil, gmError(common.ErrorForbidden, "no game for player", err)
-// 			}
+			return nil, nil, gmDbError("failed to vote", err)
+		}
 
-// 			return nil, nil, gmDbError("voting failed", err)
-// 		}
+		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{
+			GameVideoID: gameVideoId,
+			PlayerID:    playerId,
+			Value:       value,
+		})
 
-// 		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{
-// 			GameVideoID: gameVideoId,
-// 			PlayerID:    playerId,
-// 			Value:       value,
-// 		})
-// 		if err != nil {
-// 			return nil, nil, gmDbError("voting failed", err)
-// 		}
+		if err != nil {
+			return nil, nil, gmDbError("failed to vote", err)
+		}
 
-// 		return &game, &vote, nil
-// 	})
-// }
+		return &game, &vote, nil
+	})
+}
 
 // func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
 // 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {

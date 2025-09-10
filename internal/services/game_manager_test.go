@@ -210,6 +210,12 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to chnage game stage: %v", err)
 		}
 
+		// can't submit in the wrong game stage
+		_, _, wrongGameSatgeErr := gm.SubmitExistingVideo(ctx, game1.ID, video3.ID, players[0].TgID, 1)
+		require.NotNil(t, wrongGameSatgeErr)
+		wrongGameSatgeServiceErr := wrongGameSatgeErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(wrongGameSatgeServiceErr.Code))
+
 		// get videos for player 1
 		videosToWatchP1, err := gm.GetVideosToWatch(ctx, game1.ID, players[0].TgID, 1)
 		if err != nil {
@@ -228,6 +234,8 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, 1, len(videosToWatchP2))
 		require.Equal(t, gameVideo4.VideoID, videosToWatchP2[0].VideoID)
 	})
+
+	
 }
 
 func TestAdvanceGame(t *testing.T) {
