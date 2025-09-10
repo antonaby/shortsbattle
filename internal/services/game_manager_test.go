@@ -91,6 +91,13 @@ func TestGameActions(t *testing.T) {
 		// should still be in the lobby state
 		require.Equal(t, qg.GameStageLobby, gameSatatus.Stage)
 		require.Greater(t, gameSatatus.RemainingMs, int64(0))
+
+		gameDetails, err := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer1Attempt3, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get game details (player 1): %v", err)
+		}
+		require.Equal(t, qg.GameStageLobby, gameDetails.Stage)
+		require.Less(t, gameDetails.RamaningTimeMs, int64(2000))
 	})
 
 	t.Run("SubmitVideo", func(t *testing.T) {

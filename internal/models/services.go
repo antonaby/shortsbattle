@@ -16,8 +16,8 @@ const (
 type GameUpdate struct {
 	GameID            int64              `json:"id"`
 	MsgType           MessageType        `json:"msg_type"`
-	State             qg.GameStage       `json:"state"`
-	StateChangeReason string             `json:"state_change_reason"`
+	Stage             qg.GameStage       `json:"state"`
+	StateChangeReason *string            `json:"state_change_reason,omitempty"`
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`

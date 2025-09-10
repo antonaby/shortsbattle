@@ -9,6 +9,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 )
 
 const (
@@ -199,6 +200,7 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
+// TODO: check voting mode
 func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GameStatus, *qg.GameVote, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVote, error) {
 		game, err := q.GetGameVideosForVote(ctx, qg.GetGameVideosForVoteParams{
@@ -229,44 +231,30 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 	})
 }
 
-// func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId int64, playerId int64) (*models.GameUpdate, error) {
-// 	return db.WithTxValue(ctx, gm.txm, func(ctx context.Context, tx pgx.Tx) (*models.GameUpdate, error) {
-// 		q := gm.txm.Querier(tx)
-// 		game, err := q.GetGameForPlayer(ctx, qg.GetGameForPlayerParams{ID: gameId, PlayerID: playerId})
-// 		if err != nil {
-// 			return nil, common.ServiceError{
-// 				Code:    common.GetDbErrorCode(err),
-// 				Message: "failed to fetch game",
-// 				Cause:   err,
-// 			}
-// 		}
+func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
+		game, err := q.GetGameLock(ctx, gameId, playerId)
+		if err != nil {
+			return nil, gmDbError("failed to fetch game", err)
+		}
 
-// 		theme, err := q.GetTheme(ctx, qg.GetThemeParams{ID: game.ThemeID})
-// 		if err != nil {
-// 			return nil, common.ServiceError{
-// 				Code:    common.GetDbErrorCode(err),
-// 				Message: "failed to fetch game theme",
-// 				Cause:   err,
-// 			}
-// 		}
+		theme, err := q.GetTheme(ctx, game.ThemeID)
+		if err != nil {
+			return nil, gmDbError("failed to fetch game theme", err)
+		}
 
-// 		var round int32
-// 		if game.RoundN.Valid {
-// 			round = game.RoundN.Int32
-// 		}
-
-// 		return &models.GameUpdate{
-// 			GameID:            game.ID,
-// 			MsgType:           models.GameDetailsMsg,
-// 			State:             game.State,
-// 			RoundN:            round,
-// 			StateChangedAt:    game.StateChangedAt,
-// 			NextStateChangeAt: game.NextStateChangeAt,
-// 			RamaningTimeMs:    game.RemainingMs,
-// 			Theme:             &theme,
-// 		}, nil
-// 	})
-// }
+		return &models.GameUpdate{
+			GameID:            game.GameID,
+			MsgType:           models.GameDetailsMsg,
+			Stage:             game.Stage,
+			RoundN:            game.RoundN,
+			StateChangedAt:    game.StateChangedAt,
+			NextStateChangeAt: game.NextStateChangeAt,
+			RamaningTimeMs:    game.RemainingMs,
+			Theme:             &theme,
+		}, nil
+	})
+}
 
 // func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
 // 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
