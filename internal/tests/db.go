@@ -85,6 +85,43 @@ func CreateDbManager(pool *dockertest.Pool, pgContainer *dockertest.Resource, pg
 	return dbManager, nil
 }
 
+type DockerTestSuite struct {
+	Pool        *dockertest.Pool
+	PGContainer *dockertest.Resource
+	DBManager   *db.DbManager
+}
+
+func NewDockerTestSuite(t *testing.T) *DockerTestSuite {
+	pool, err := CreateDockerPool()
+	if err != nil {
+		t.Fatalf("failed to connect to docker: %v", err)
+	}
+
+	pgUser := "admin"
+	pgPassword := "123"
+	pgDb := "sbtest"
+
+	pgContainer, err := CreatePostgresContainer(t, pool, pgUser, pgPassword, pgDb)
+	if err != nil {
+		t.Fatalf("failed to create pg container: %v", err)
+	}
+
+	dbManager, err := CreateDbManager(pool, pgContainer, pgUser, pgPassword, pgDb)
+	if err != nil {
+		t.Fatalf("failed to create db manager: %v", err)
+	}
+
+	t.Cleanup(func() {
+		dbManager.Close()
+	})
+
+	return &DockerTestSuite{
+		Pool:        pool,
+		PGContainer: pgContainer,
+		DBManager:   dbManager,
+	}
+}
+
 func CreateTestTheme(ctx context.Context, txm db.TxManager, nRounds int) (*qg.Theme, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
 		theme, err := q.CreateTheme(ctx, "Test Theme", pgtype.Text{})

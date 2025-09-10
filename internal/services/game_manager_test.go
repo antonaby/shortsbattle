@@ -6,55 +6,15 @@ import (
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/stretchr/testify/require"
-
 	"github.com/antonaby/shortsbattle/game-server/internal/tests"
-	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/require"
 )
 
-type GameManagerTestSuite struct {
-	pool        *dockertest.Pool
-	pgContainer *dockertest.Resource
-	dbManager   *db.DbManager
-}
-
-func NewGMTestSuite(t *testing.T) *GameManagerTestSuite {
-	pool, err := tests.CreateDockerPool()
-	if err != nil {
-		t.Fatalf("failed to connect to docker: %v", err)
-	}
-
-	pgUser := "admin"
-	pgPassword := "123"
-	pgDb := "sbtest"
-
-	pgContainer, err := tests.CreatePostgresContainer(t, pool, pgUser, pgPassword, pgDb)
-	if err != nil {
-		t.Fatalf("failed to create pg container: %v", err)
-	}
-
-	dbManager, err := tests.CreateDbManager(pool, pgContainer, pgUser, pgPassword, pgDb)
-	if err != nil {
-		t.Fatalf("failed to create db manager: %v", err)
-	}
-
-	t.Cleanup(func() {
-		dbManager.Close()
-	})
-
-	return &GameManagerTestSuite{
-		pool:        pool,
-		pgContainer: pgContainer,
-		dbManager:   dbManager,
-	}
-}
-
 func TestGameActions(t *testing.T) {
-	ts := NewGMTestSuite(t)
+	ts := tests.NewDockerTestSuite(t)
 
-	gm := NewGameManager(ts.dbManager, GameConfig{
+	gm := NewGameManager(ts.DBManager, GameConfig{
 		MaxPlayers:                 2,
 		MinRemainingBeforeChangeMs: 300,
 		MinLobbyState:              1 * time.Second,
@@ -64,18 +24,18 @@ func TestGameActions(t *testing.T) {
 		WatchingState:              600 * time.Second,
 	})
 
-	vs := NewVideosService(ts.dbManager)
+	vs := NewVideosService(ts.DBManager)
 
 	t.Run("JoinGame", func(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.dbManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
-		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 3, 0)
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 0)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -123,7 +83,7 @@ func TestGameActions(t *testing.T) {
 		require.NotEqual(t, gameIdPlayer3, gameIdPlayer1Attempt3)
 
 		// get game status for the previous game
-		gameSatatus, err := tests.GetGameStatus(ctx, ts.dbManager, gameIdPlayer1Attempt3)
+		gameSatatus, err := tests.GetGameStatus(ctx, ts.DBManager, gameIdPlayer1Attempt3)
 		if err != nil {
 			t.Fatalf("failed to get game status (player 1): %v", err)
 		}
@@ -137,12 +97,12 @@ func TestGameActions(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.dbManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
-		players, err := tests.CreateTestPlayers(ctx, ts.dbManager, 3, 10)
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 10)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -171,15 +131,15 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, video3.ID, videos[1].ID)
 
 		// create game and add player to it
-		game1, err := tests.CreateGameWithStage(ctx, ts.dbManager, theme.ID, qg.GameStageSubmit)
+		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit)
 		if err != nil {
 			t.Fatalf("failed to create game: %v", err)
 		}
-		_, err = tests.AddPlayerToGame(ctx, ts.dbManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
 		if err != nil {
 			t.Fatalf("failed to add player to game (player 1): %v", err)
 		}
-		_, err = tests.AddPlayerToGame(ctx, ts.dbManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
 		if err != nil {
 			t.Fatalf("failed to add player to game (player 2): %v", err)
 		}
@@ -232,6 +192,12 @@ func TestGameActions(t *testing.T) {
 		require.NotEqual(t, gameVideo4.PlayerID, gameVideo5.PlayerID)
 		require.Equal(t, gameVideo4.VideoID, gameVideo5.VideoID)
 
+		// player 2 can't submit video owned by player 1
+		_, _, notFoundError := gm.SubmitExistingVideo(ctx, game1.ID, video3.ID, players[1].TgID, 1)
+		require.NotNil(t, notFoundError)
+		notFoundServiceErr := notFoundError.(common.ServiceError)
+		require.Equal(t, common.ErrorDbNotFound, int(notFoundServiceErr.Code))
+
 		// player 3 not in the game, so it can't submit video
 		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[2].TgID, 1)
 		require.NotNil(t, forbiddenErr)
@@ -239,7 +205,7 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
 
 		// chnage game stage to watch to be able to get videos to watch
-		_, err = tests.ChangeGameStage(ctx, ts.dbManager, game1.ID, qg.GameStageWatch)
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game1.ID, qg.GameStageWatch)
 		if err != nil {
 			t.Fatalf("failed to chnage game stage: %v", err)
 		}
