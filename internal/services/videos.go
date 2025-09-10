@@ -40,7 +40,7 @@ func NewVideosService(txm db.TxManager) *VideoService {
 }
 
 func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
-	oembed, err := fetchOEmbed(ctx, videoUrl, "")
+	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) (
 	})
 }
 
-func oembedEndpoint(videoURL, igToken string) (string, error) {
+func oembedEndpoint(videoURL string) (string, error) {
 	u, err := url.Parse(videoURL)
 	if err != nil {
 		return "", vsError(common.ErrorOEmbedFailed, "failed to parse video url", err)
@@ -94,22 +94,13 @@ func oembedEndpoint(videoURL, igToken string) (string, error) {
 		return "https://www.youtube.com/oembed?format=json&url=" + escapedUrl, nil
 	case strings.Contains(host, "tiktok.com"):
 		return "https://www.tiktok.com/oembed?url=" + escapedUrl, nil
-	case strings.Contains(host, "instagram.com"):
-		if igToken == "" {
-			return "", common.ServiceError{
-				Code:    common.ErrorOEmbedFailed,
-				Message: "instagram access token not provided",
-				Cause:   err,
-			}
-		}
-		return "https://graph.facebook.com/v21.0/instagram_oembed?url=" + escapedUrl + "&access_token=" + url.QueryEscape(igToken), nil
 	}
 
 	return "", vsError(common.ErrorOEmbedFailed, fmt.Sprintf("unsupported host %s", host), err)
 }
 
-func fetchOEmbed(ctx context.Context, videoURL, igToken string) ([]byte, error) {
-	endpoint, err := oembedEndpoint(videoURL, igToken)
+func fetchOEmbed(ctx context.Context, videoURL string) ([]byte, error) {
+	endpoint, err := oembedEndpoint(videoURL)
 	if err != nil {
 		return nil, err
 	}

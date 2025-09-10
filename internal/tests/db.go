@@ -141,7 +141,11 @@ func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, s
 			return nil, err
 		}
 
-		_, err = q.TestCreateGameStatus(ctx, game.ID, stage)
+		_, err = q.TestCreateGameStatus(ctx, qg.TestCreateGameStatusParams{
+			GameID:  game.ID,
+			Stage:   stage,
+			ThemeID: game.ThemeID,
+		})
 		if err != nil {
 			return nil, err
 		}

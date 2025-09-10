@@ -13,27 +13,26 @@ import (
 )
 
 const fetchVotesByPlayers = `-- name: FetchVotesByPlayers :many
-SELECT gp.game_id, gp.player_id, gvd.id as game_video_id, gvd.video_id, gvt.value, gvt.voted_at
-FROM game_players gp
-LEFT JOIN game_votes gvt 
-  ON gp.player_id = gvt.player_id
-LEFT JOIN game_videos gvd 
-  ON gvt.game_video_id = gvd.id 
-  AND gvd.round_n = $2
-WHERE gp.game_id = $1
+SELECT gvd.id, gvd.game_id, gvd.player_id, gvd.video_id, gvd.round_n, gvd.submitted_at, gvt.value, gvt.voted_at
+FROM game_videos gvd
+LEFT JOIN game_votes gvt ON gvd.id = gvt.game_video_id
+WHERE gvd.game_id = $1
+ORDER BY gvd.round_n
 `
 
 type FetchVotesByPlayersRow struct {
+	ID          int64              `json:"id"`
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
-	GameVideoID pgtype.Int8        `json:"game_video_id"`
-	VideoID     pgtype.Int8        `json:"video_id"`
+	VideoID     int64              `json:"video_id"`
+	RoundN      int32              `json:"round_n"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 	Value       []byte             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 
-func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64, roundN int32) ([]FetchVotesByPlayersRow, error) {
-	rows, err := q.db.Query(ctx, fetchVotesByPlayers, gameID, roundN)
+func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64) ([]FetchVotesByPlayersRow, error) {
+	rows, err := q.db.Query(ctx, fetchVotesByPlayers, gameID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +41,12 @@ func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64, roundN 
 	for rows.Next() {
 		var i FetchVotesByPlayersRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.GameID,
 			&i.PlayerID,
-			&i.GameVideoID,
 			&i.VideoID,
+			&i.RoundN,
+			&i.SubmittedAt,
 			&i.Value,
 			&i.VotedAt,
 		); err != nil {
@@ -60,10 +61,9 @@ func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64, roundN 
 }
 
 const getGameVideosForVote = `-- name: GetGameVideosForVote :one
-SELECT g.id, g.theme_id, g.created_at
+SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at
   FROM game_videos gv
-  JOIN games g ON g.id = gv.game_id
-  JOIN game_status gs ON gs.game_id = g.id
+  JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = $1
     AND gs.stage = ANY($2::text[]::game_stage[])
     AND gv.player_id <> $3
@@ -73,7 +73,7 @@ SELECT g.id, g.theme_id, g.created_at
       WHERE gp.game_id = gv.game_id
         AND gp.player_id = $3
     ) 
-FOR SHARE OF g
+FOR SHARE OF gs
 `
 
 type GetGameVideosForVoteParams struct {
@@ -82,10 +82,19 @@ type GetGameVideosForVoteParams struct {
 	PlayerID    int64    `json:"player_id"`
 }
 
-func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (Game, error) {
+func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (GameStatus, error) {
 	row := q.db.QueryRow(ctx, getGameVideosForVote, arg.GameVideoID, arg.Stages, arg.PlayerID)
-	var i Game
-	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
+	var i GameStatus
+	err := row.Scan(
+		&i.GameID,
+		&i.ThemeID,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.NextStateChangeAt,
+		&i.NextEnqueueAt,
+		&i.DueAt,
+	)
 	return i, err
 }
 

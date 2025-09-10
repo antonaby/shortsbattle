@@ -235,10 +235,8 @@ func TestGameActions(t *testing.T) {
 		// player 3 not in the game, so it can't submit video
 		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, "https://www.youtube.com/shorts/GkTZHFyHi1c", players[2].TgID, 1)
 		require.NotNil(t, forbiddenErr)
-		forbiddenServiceErr, ok := forbiddenErr.(common.ServiceError)
-		if ok {
-			require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
-		}
+		forbiddenServiceErr := forbiddenErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
 
 		// chnage game stage to watch to be able to get videos to watch
 		_, err = tests.ChangeGameStage(ctx, ts.dbManager, game1.ID, qg.GameStageWatch)

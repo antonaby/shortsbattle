@@ -92,8 +92,8 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 }
 
 // TODO: check player mode
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.Game, *qg.GameVideo, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.Game, *qg.GameVideo, error) {
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GameStatus, *qg.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
 		if err != nil {
 			return nil, nil, err
@@ -109,13 +109,13 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 }
 
 // TODO: check player mode
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.Game, *qg.GameVideo, error) {
-	oembed, err := fetchOEmbed(ctx, videoUrl, "")
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GameStatus, *qg.GameVideo, error) {
+	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.Game, *qg.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
 		if err != nil {
 			return nil, nil, err
@@ -140,7 +140,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.Game, error) {
+func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.GameStatus, error) {
 	game, err := q.GetGameInStageLock(ctx, qg.GetGameInStageLockParams{
 		GameID:   gameId,
 		PlayerID: playerId,

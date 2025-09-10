@@ -47,49 +47,67 @@ INSERT INTO games (
 ) VALUES (
   $1
 )
-RETURNING id, theme_id, created_at
+RETURNING id, theme_id, created_at, completed_at
 `
 
 func (q *Queries) TestCreateGame(ctx context.Context, themeID int64) (Game, error) {
 	row := q.db.QueryRow(ctx, testCreateGame, themeID)
 	var i Game
-	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.CreatedAt,
+		&i.CompletedAt,
+	)
 	return i, err
 }
 
 const testCreateGameStatus = `-- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
-VALUES ($1, $2, now(), now(), now())
-RETURNING game_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at
+INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
+VALUES ($1, $2, $3, now(), now(), now())
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at
 `
 
-func (q *Queries) TestCreateGameStatus(ctx context.Context, gameID int64, stage GameStage) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, testCreateGameStatus, gameID, stage)
+type TestCreateGameStatusParams struct {
+	GameID  int64     `json:"game_id"`
+	ThemeID int64     `json:"theme_id"`
+	Stage   GameStage `json:"stage"`
+}
+
+func (q *Queries) TestCreateGameStatus(ctx context.Context, arg TestCreateGameStatusParams) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, testCreateGameStatus, arg.GameID, arg.ThemeID, arg.Stage)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,
+		&i.ThemeID,
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
 		&i.NextEnqueueAt,
+		&i.DueAt,
 	)
 	return i, err
 }
 
 const testGetGameById = `-- name: TestGetGameById :one
-SELECT id, theme_id, created_at FROM games WHERE id = $1
+SELECT id, theme_id, created_at, completed_at FROM games WHERE id = $1
 `
 
 func (q *Queries) TestGetGameById(ctx context.Context, id int64) (Game, error) {
 	row := q.db.QueryRow(ctx, testGetGameById, id)
 	var i Game
-	err := row.Scan(&i.ID, &i.ThemeID, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.ThemeID,
+		&i.CreatedAt,
+		&i.CompletedAt,
+	)
 	return i, err
 }
 
 const testGetGameStatusById = `-- name: TestGetGameStatusById :one
-SELECT game_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at,  
+SELECT game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at,  
   GREATEST(
     (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 
     0
@@ -100,11 +118,13 @@ WHERE game_id = $1
 
 type TestGetGameStatusByIdRow struct {
 	GameID            int64              `json:"game_id"`
+	ThemeID           int64              `json:"theme_id"`
 	Stage             GameStage          `json:"stage"`
 	RoundN            int32              `json:"round_n"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
+	DueAt             pgtype.Timestamptz `json:"due_at"`
 	RemainingMs       int64              `json:"remaining_ms"`
 }
 
@@ -113,11 +133,13 @@ func (q *Queries) TestGetGameStatusById(ctx context.Context, gameID int64) (Test
 	var i TestGetGameStatusByIdRow
 	err := row.Scan(
 		&i.GameID,
+		&i.ThemeID,
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
 		&i.NextEnqueueAt,
+		&i.DueAt,
 		&i.RemainingMs,
 	)
 	return i, err
@@ -127,7 +149,7 @@ const testUpdateGameStage = `-- name: TestUpdateGameStage :one
 UPDATE game_status
 SET stage = $1
 WHERE game_id = $2
-RETURNING game_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at
 `
 
 func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
@@ -135,11 +157,13 @@ func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, game
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,
+		&i.ThemeID,
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextStateChangeAt,
 		&i.NextEnqueueAt,
+		&i.DueAt,
 	)
 	return i, err
 }

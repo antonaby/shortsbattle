@@ -12,7 +12,7 @@ import (
 )
 
 const createRound = `-- name: CreateRound :one
-INSERT INTO rounds (round_n, title, description, theme_id) VALUES ($1, $2, $3, $4) RETURNING round_n, title, description, theme_id, created_at
+INSERT INTO rounds (round_n, title, description, theme_id) VALUES ($1, $2, $3, $4) RETURNING theme_id, round_n, title, description, created_at
 `
 
 type CreateRoundParams struct {
@@ -31,10 +31,10 @@ func (q *Queries) CreateRound(ctx context.Context, arg CreateRoundParams) (Round
 	)
 	var i Round
 	err := row.Scan(
+		&i.ThemeID,
 		&i.RoundN,
 		&i.Title,
 		&i.Description,
-		&i.ThemeID,
 		&i.CreatedAt,
 	)
 	return i, err

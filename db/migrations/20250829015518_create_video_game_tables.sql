@@ -8,7 +8,7 @@ CREATE TABLE
     video_id BIGINT NOT NULL REFERENCES videos (id) ON DELETE CASCADE,
     round_n INT NOT NULL,
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    CONSTRAINT unique_player_game_round UNIQUE (game_id, player_id, round_n)
+    CONSTRAINT unique_player_game_round UNIQUE (game_id, round_n, player_id)
   );
 
 CREATE TABLE

@@ -21,32 +21,29 @@ BEGIN
 
   -- 2) If the player is already in a game (same theme), return that game_id
   SELECT gp.game_id INTO v_game_id
-  FROM game_players gp
-  JOIN games g ON g.id = gp.game_id
-  JOIN game_status gs ON gs.game_id = g.id
-  WHERE gp.player_id = p_player_id
-    AND g.theme_id = p_theme_id       
-    AND gs.stage = p_lobby_stage           
+  FROM game_status gs
+  JOIN game_players gp ON gp.game_id = gs.game_id AND gp.player_id = p_player_id
+  WHERE gs.stage = p_lobby_stage  
+    AND gs.theme_id = p_theme_id       
   LIMIT 1;
 
   IF v_game_id IS NOT NULL THEN
     RETURN v_game_id;
   END IF;
 
-  -- 3) Serialize by theme using an advisory *transaction* lock
+  -- 3) Serialize by theme
   PERFORM pg_advisory_xact_lock(1, p_theme_id::int);
 
   -- 4) Find a lobby game with room
-  SELECT g.id INTO v_game_id 
-  FROM games g
-  JOIN game_status gs ON gs.game_id = g.id
-  LEFT JOIN game_players gp ON gp.game_id = g.id
-  WHERE g.theme_id = p_theme_id
-    AND gs.stage = p_lobby_stage
+  SELECT gs.game_id INTO v_game_id 
+  FROM game_status gs
+  LEFT JOIN game_players gp ON gp.game_id = gs.game_id
+  WHERE gs.stage = p_lobby_stage
+    AND gs.theme_id = p_theme_id
     AND gs.next_state_change_at >= now() + p_lobby_stage_closed
-  GROUP BY g.id, g.created_at
+  GROUP BY gs.game_id, gs.state_changed_at
   HAVING COUNT(gp.player_id) < p_max_players
-  ORDER BY COUNT(gp.player_id) DESC, g.created_at ASC, g.id ASC
+  ORDER BY COUNT(gp.player_id) DESC, gs.state_changed_at ASC
   LIMIT 1;
 
   -- 5) Create a new game if none found
@@ -56,9 +53,11 @@ BEGIN
       p_theme_id
     )
     RETURNING id INTO v_game_id;
-    INSERT INTO game_status (game_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
+    
+    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
     VALUES (
       v_game_id, 
+      p_theme_id,
       p_lobby_stage, 
       now(), 
       now() + p_next_stage_change_in,

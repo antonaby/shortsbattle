@@ -82,7 +82,7 @@ func (wd *GameWatchdog) enqueueGame(gameId int64) {
 	}).Result()
 
 	if err != nil {
-		log.Error().Err(err).Msg("failed to enqueue game")
+		log.Error().Stack().Err(err).Msg("failed to enqueue game")
 	}
 }
 
@@ -121,7 +121,7 @@ func (wd *GameWatchdog) checkPendingGames() {
 	})
 
 	if err != nil {
-		log.Error().Err(err).Msg("failed to advance game states")
+		log.Error().Err(err).Stack().Msg("failed to advance game states")
 	}
 }
 
@@ -177,7 +177,7 @@ LOOP:
 			}
 
 			if err != nil {
-				log.Error().Err(err).Msgf("readgroup error %s", gsl.config.StreamName)
+				log.Error().Err(err).Stack().Msgf("readgroup error %s", gsl.config.StreamName)
 				continue
 			}
 
@@ -185,17 +185,17 @@ LOOP:
 				for _, msg := range str.Messages {
 					gameId, err := parseGameId(msg)
 					if err != nil {
-						log.Error().Err(err).Msgf("failed to parse game id %s:%s", gsl.config.StreamName, msg.ID)
+						log.Error().Err(err).Stack().Msgf("failed to parse game id %s:%s", gsl.config.StreamName, msg.ID)
 						continue
 					}
 
 					if err := gsl.handleMessage(ctx, gameId); err != nil {
-						log.Error().Err(err).Msgf("handler failed for %s:%s", gsl.config.StreamName, msg.ID)
+						log.Error().Err(err).Stack().Msgf("handler failed for %s:%s", gsl.config.StreamName, msg.ID)
 						continue
 					}
 
 					if err := gsl.redis.XAck(ctx, gsl.config.StreamName, gsl.config.ConsumerGroupName, msg.ID).Err(); err != nil {
-						log.Error().Err(err).Msgf("ack failed %s:%s", gsl.config.StreamName, msg.ID)
+						log.Error().Err(err).Stack().Msgf("ack failed %s:%s", gsl.config.StreamName, msg.ID)
 					}
 				}
 			}
@@ -206,7 +206,7 @@ LOOP:
 	defer cancelFunc()
 	err := gsl.redis.XGroupDelConsumer(delCtx, gsl.config.StreamName, gsl.config.ConsumerGroupName, gsl.ConsumerName).Err()
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to delete consumer %s:%s", gsl.config.StreamName, gsl.ConsumerName)
+		log.Error().Err(err).Stack().Msgf("failed to delete consumer %s:%s", gsl.config.StreamName, gsl.ConsumerName)
 	}
 }
 
@@ -236,12 +236,12 @@ func (gsl *GameListener) ReclaimPending(ctx context.Context) error {
 			}
 			err = gsl.handleMessage(ctx, gameId)
 			if err != nil {
-				log.Error().Err(err).Msgf("reclaim handler failed for %s:%s", gsl.config.StreamName, msg.ID)
+				log.Error().Err(err).Stack().Msgf("reclaim handler failed for %s:%s", gsl.config.StreamName, msg.ID)
 			}
 
 			err = gsl.redis.XAck(ctx, gsl.config.StreamName, gsl.config.ConsumerGroupName, msg.ID).Err()
 			if err != nil {
-				log.Error().Err(err).Msgf("reclaim ack failed %s:%s", gsl.config.StreamName, msg.ID)
+				log.Error().Err(err).Stack().Msgf("reclaim ack failed %s:%s", gsl.config.StreamName, msg.ID)
 			}
 		}
 	}

@@ -11,10 +11,10 @@ CREATE TABLE
 
 CREATE TABLE
     rounds (
+        theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
         round_n INT NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
-        theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (theme_id, round_n)
     );

@@ -99,9 +99,10 @@ func (ns NullPlayerGameMode) Value() (driver.Value, error) {
 }
 
 type Game struct {
-	ID        int64              `json:"id"`
-	ThemeID   int64              `json:"theme_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          int64              `json:"id"`
+	ThemeID     int64              `json:"theme_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
 }
 
 type GamePlayer struct {
@@ -114,11 +115,13 @@ type GamePlayer struct {
 
 type GameStatus struct {
 	GameID            int64              `json:"game_id"`
+	ThemeID           int64              `json:"theme_id"`
 	Stage             GameStage          `json:"stage"`
 	RoundN            int32              `json:"round_n"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
 	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
+	DueAt             pgtype.Timestamptz `json:"due_at"`
 }
 
 type GameVideo struct {
@@ -151,10 +154,10 @@ type PlayerVideo struct {
 }
 
 type Round struct {
+	ThemeID     int64              `json:"theme_id"`
 	RoundN      int32              `json:"round_n"`
 	Title       string             `json:"title"`
 	Description pgtype.Text        `json:"description"`
-	ThemeID     int64              `json:"theme_id"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 

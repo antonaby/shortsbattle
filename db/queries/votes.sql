@@ -1,8 +1,7 @@
 -- name: GetGameVideosForVote :one
-SELECT g.*
+SELECT gs.*
   FROM game_videos gv
-  JOIN games g ON g.id = gv.game_id
-  JOIN game_status gs ON gs.game_id = g.id
+  JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = sqlc.arg(game_video_id)
     AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
     AND gv.player_id <> sqlc.arg(player_id)
@@ -12,7 +11,7 @@ SELECT g.*
       WHERE gp.game_id = gv.game_id
         AND gp.player_id = sqlc.arg(player_id)
     ) 
-FOR SHARE OF g;
+FOR SHARE OF gs;
 
 -- name: VoteForVideo :one
 INSERT INTO game_votes (game_video_id, player_id, value)
@@ -24,11 +23,8 @@ SET value = EXCLUDED.value,
 RETURNING *;
 
 -- name: FetchVotesByPlayers :many
-SELECT gp.game_id, gp.player_id, gvd.id as game_video_id, gvd.video_id, gvt.value, gvt.voted_at
-FROM game_players gp
-LEFT JOIN game_votes gvt 
-  ON gp.player_id = gvt.player_id
-LEFT JOIN game_videos gvd 
-  ON gvt.game_video_id = gvd.id 
-  AND gvd.round_n = $2
-WHERE gp.game_id = $1;
+SELECT gvd.*, gvt.value, gvt.voted_at
+FROM game_videos gvd
+LEFT JOIN game_votes gvt ON gvd.id = gvt.game_video_id
+WHERE gvd.game_id = $1
+ORDER BY gvd.round_n;

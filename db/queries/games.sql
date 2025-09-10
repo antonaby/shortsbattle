@@ -13,9 +13,9 @@ SELECT join_game(
 WITH candidates AS (
     SELECT game_id, stage
     FROM game_status
-    WHERE (next_state_change_at <= now() OR next_enqueue_at <= now())
-      AND stage <> 'complete'::game_stage     
-    ORDER BY next_state_change_at ASC, game_id
+    WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
+      AND due_at <= now()
+    ORDER BY due_at ASC, game_id
     FOR UPDATE SKIP LOCKED
     LIMIT sqlc.arg(batch_size)
   ),
@@ -30,33 +30,30 @@ WITH candidates AS (
   SELECT * FROM upd;
 
 -- name: GetGameInStageLock :one
-SELECT g.*
+SELECT gs.*
 FROM game_players gp
-JOIN games g ON g.id = gp.game_id
-JOIN game_status gs ON gs.game_id = g.id
+JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
   AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
-FOR SHARE OF g;
+FOR SHARE OF gs;
 
 -- name: GetGameLock :one
-SELECT g.*, 
+SELECT gs.*, 
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
     0
   )::bigint AS remaining_ms
 FROM game_players gp
-JOIN games g ON g.id = gp.game_id
-JOIN game_status gs ON gs.game_id = g.id
+JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id  = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
-FOR SHARE OF g;
+FOR SHARE OF gs;
 
 -- name: GetGameStateLock :one
 SELECT 
-  g.id, 
-  g.theme_id,
-  g.created_at, 
+  gs.game_id, 
+  gs.theme_id,
   gs.stage,
   gs.round_n,
   gs.state_changed_at,
@@ -70,9 +67,8 @@ SELECT
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
-FROM games g 
-JOIN game_status gs ON gs.game_id = g.id
-WHERE g.id = $1 
+FROM game_status gs
+WHERE gs.game_id = $1 
 FOR UPDATE;
 
 -- name: CountPlayerInGame :one
