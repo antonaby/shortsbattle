@@ -90,6 +90,27 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
+func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
+		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageLobby), string(qg.GameStageSubmit)})
+		if err != nil {
+			return nil, err
+		}
+
+		gamePlayer, err := q.UpdateGameMode(ctx, qg.UpdateGameModeParams{
+			GameID:   gameId,
+			PlayerID: playerId,
+			Mode:     mode,
+		})
+
+		if err != nil {
+			return nil, gmDbError("failed to update player mode", err)
+		}
+
+		return &gamePlayer, nil
+	})
+}
+
 func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
@@ -154,7 +175,7 @@ func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playe
 
 	if err != nil {
 		if db.IsNoRows(err) {
-			return nil, gmError(common.ErrorForbidden, "player not in the game", err)
+			return nil, gmError(common.ErrorForbidden, "player not in the game or wrong game stage", err)
 		}
 
 		return nil, gmDbError("failed to fetch game", err)
@@ -214,7 +235,7 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 
 		if err != nil {
 			if db.IsNoRows(err) {
-				return nil, nil, gmError(common.ErrorForbidden, "player not in the game", err)
+				return nil, nil, gmError(common.ErrorForbidden, "player not in the game or wrong game stage", err)
 			}
 
 			return nil, nil, gmDbError("failed to vote", err)

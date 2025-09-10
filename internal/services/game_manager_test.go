@@ -217,6 +217,21 @@ func TestGameActions(t *testing.T) {
 		wrongModeServiceErr := wrongModeErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(wrongModeServiceErr.Code))
 
+		// chnage game mode for player 3
+		gamePlayer3, err := gm.UpdateGameMode(ctx, game1.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to update game mode (player 3): %v", err)
+		}
+		require.Equal(t, qg.PlayerGameModeSubmitAndVote, gamePlayer3.Mode)
+
+		// add video for player 3
+		_, player3GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl3, players[2].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to submit video (player 3): %v", err)
+		}
+		// should be added to the game
+		require.Equal(t, game1.ID, player3GameVideo1.GameID)
+
 		// player 4 not in the game, so it can't submit video
 		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[3].TgID, 1)
 		require.NotNil(t, forbiddenErr)
@@ -240,18 +255,20 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get videos to watch (player 1): %v", err)
 		}
-		// should be videos from player 2
-		require.Equal(t, 1, len(videosToWatchP1))
+		// should be videos from player 2 and 3
+		require.Equal(t, 2, len(videosToWatchP1))
 		require.Equal(t, player2GameVideo1.VideoID, videosToWatchP1[0].VideoID)
+		require.Equal(t, player3GameVideo1.VideoID, videosToWatchP1[1].VideoID)
 
 		// get videos for player 2
 		videosToWatchP2, err := gm.GetVideosToWatch(ctx, game1.ID, players[1].TgID, 1)
 		if err != nil {
 			t.Fatalf("failed to get videos to watch (player 1): %v", err)
 		}
-		// should be videos from player 1
-		require.Equal(t, 1, len(videosToWatchP2))
+		// should be videos from player 1 and 3
+		require.Equal(t, 2, len(videosToWatchP2))
 		require.Equal(t, player1GameVideo4.VideoID, videosToWatchP2[0].VideoID)
+		require.Equal(t, player3GameVideo1.VideoID, videosToWatchP2[1].VideoID)
 	})
 
 	t.Run("VoteForVideo", func(t *testing.T) {

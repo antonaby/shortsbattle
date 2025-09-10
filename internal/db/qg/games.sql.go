@@ -326,6 +326,32 @@ func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameI
 	return i, err
 }
 
+const updateGameMode = `-- name: UpdateGameMode :one
+UPDATE game_players 
+SET mode = $3
+WHERE game_id = $1 AND player_id = $2
+RETURNING game_id, player_id, mode, is_active, joined_at
+`
+
+type UpdateGameModeParams struct {
+	GameID   int64          `json:"game_id"`
+	PlayerID int64          `json:"player_id"`
+	Mode     PlayerGameMode `json:"mode"`
+}
+
+func (q *Queries) UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, updateGameMode, arg.GameID, arg.PlayerID, arg.Mode)
+	var i GamePlayer
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
+	)
+	return i, err
+}
+
 const updateGameStatus = `-- name: UpdateGameStatus :one
 UPDATE game_status SET 
   stage = $1, 

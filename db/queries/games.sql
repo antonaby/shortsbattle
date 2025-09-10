@@ -50,6 +50,12 @@ WHERE gp.game_id  = sqlc.arg(game_id)
   AND gp.player_id = sqlc.arg(player_id)
 FOR SHARE OF gs;
 
+-- name: UpdateGameMode :one
+UPDATE game_players 
+SET mode = $3
+WHERE game_id = $1 AND player_id = $2
+RETURNING *;
+
 -- name: GetGameStateLock :one
 SELECT 
   gs.game_id, 
