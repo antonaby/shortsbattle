@@ -3,8 +3,8 @@ SELECT gs.*
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = sqlc.arg(game_video_id)
-    AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
     AND gv.player_id <> sqlc.arg(player_id)
+    AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
     AND EXISTS (
       SELECT 1
       FROM game_players gp
