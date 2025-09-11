@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
@@ -33,11 +34,11 @@ type GameUpdate struct {
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	Theme             *qg.Theme          `json:"theme,omitempty"`
-	Result            *GameResult        `json:"result,omitempty"`
 }
 
-type GameResult struct {
-
+type TaskReschedule struct {
+	GameID    int64
+	ProcessIn time.Duration
 }
 
 func GetCfChannelName(gameId int64) string {

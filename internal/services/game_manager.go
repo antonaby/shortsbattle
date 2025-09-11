@@ -262,21 +262,21 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 		}
 
 		return &models.GameUpdate{
-			GameID:          game.GameID,
-			MsgType:         models.GameDetailsMsg,
-			Stage:           game.Stage,
-			RoundN:          game.RoundN,
-			StateChangedAt:  game.StateChangedAt,
-			Theme:           &theme,
+			GameID:         game.GameID,
+			MsgType:        models.GameDetailsMsg,
+			Stage:          game.Stage,
+			RoundN:         game.RoundN,
+			StateChangedAt: game.StateChangedAt,
+			Theme:          &theme,
 		}, nil
 	})
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
-	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.TaskReschedule, *models.GameUpdate, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.TaskReschedule, *models.GameUpdate, error) {
 		game, err := q.GetGameStateLock(ctx, gameId)
 		if err != nil {
-			return nil, gmDbError("fetch failed", err)
+			return nil, nil, gmDbError("fetch failed", err)
 		}
 
 		switch game.Stage {
@@ -287,7 +287,7 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 		// case qg.GameStateWatching:
 		// 	return gm.handleWathching(ctx, &game, q)
 		default:
-			return nil, gmError(
+			return nil, nil, gmError(
 				common.ErrorWrongGameStage,
 				fmt.Sprintf("wrong game stage, game_id=%d", game.GameID),
 				nil,
@@ -298,17 +298,17 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 
 // TODO: check only active users
 // TODO: add bots if nPlayers less than MaxPlayers
-func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.TaskReschedule, *models.GameUpdate, error) {
 	nPlayers, err := q.CountPlayersInGame(ctx, game.GameID)
 	if err != nil {
-		return nil, gmGameUpdError(game.GameID, err)
+		return nil, nil, gmGameUpdError(game.GameID, err)
 	}
 
 	isTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds()
 	if nPlayers >= int64(gm.config.MaxPlayers) || isTimeout {
 		status, err := gm.updateGameStage(ctx, q, game.GameID, qg.GameStageLobbyFull, game.RoundN)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		reason := models.ReasonLobbyFull
@@ -317,10 +317,10 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 		}
 
 		upd := statusToGameUpdate(status, reason)
-		return &upd, nil
+		return nil, &upd, nil
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId int64, stage qg.GameStage, roundN int32) (*qg.GameStatus, error) {

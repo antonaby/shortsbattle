@@ -32,7 +32,7 @@ func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
 }
 
 type GameManager interface {
-	AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error)
+	AdvanceGame(ctx context.Context, gameId int64) (*models.TaskReschedule, *models.GameUpdate, error)
 }
 
 type GameUpdatePublisher interface {
@@ -42,12 +42,14 @@ type GameUpdatePublisher interface {
 type AdvanceGameProcessor struct {
 	gameManager     GameManager
 	updatePublisher GameUpdatePublisher
+	watchdog        *WatchdogPublisher
 }
 
-func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher) *AdvanceGameProcessor {
+func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher, watchdog *WatchdogPublisher) *AdvanceGameProcessor {
 	return &AdvanceGameProcessor{
 		gameManager:     gameManager,
 		updatePublisher: updatePublisher,
+		watchdog:        watchdog,
 	}
 }
 
@@ -58,9 +60,13 @@ func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq
 	}
 
 	// TODO: add unique if needed
-	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
+	reschedule, upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
 	if err != nil {
 		return err
+	}
+
+	if reschedule != nil {
+		processor.watchdog.AdvanceGame(ctx, reschedule.GameID, reschedule.ProcessIn)
 	}
 
 	if upd != nil {
