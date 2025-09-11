@@ -2,6 +2,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 )
 
 type OkResponse struct {
@@ -38,7 +40,8 @@ type SubmitVideoRequest struct {
 }
 
 type JoinGameRequest struct {
-	ThemeID int64 `json:"theme_id" validate:"required"`
+	ThemeID int64             `json:"theme_id" validate:"required"`
+	Mode    qg.PlayerGameMode `json:"mode" validate:"required"`
 }
 
 type VoteForVideoRequest struct {

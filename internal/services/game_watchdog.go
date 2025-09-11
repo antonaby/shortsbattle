@@ -252,7 +252,7 @@ func (gsl *GameListener) handleMessage(ctx context.Context, gameId int64) error 
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbNotFound || sErr.Code == common.ErrorWrongGameStage {
+			if sErr.Code == common.ErrorNotFound || sErr.Code == common.ErrorWrongGameStage {
 				return nil
 			}
 		}

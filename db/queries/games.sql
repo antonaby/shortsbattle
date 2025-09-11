@@ -26,21 +26,16 @@ upd AS (
 )
 SELECT * FROM upd;
 
--- name: GetGameAndPlayerLock :one
-SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at
-FROM game_players gp
-JOIN game_status gs ON gs.game_id = gp.game_id
-WHERE gp.game_id = sqlc.arg(game_id)
-  AND gp.player_id = sqlc.arg(player_id)
-  AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
-FOR SHARE OF gs;
-
--- name: GetGameLock :one
-SELECT gs.*, 
+-- name: GetGameShareLock :one
+SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
     0
-  )::bigint AS remaining_ms
+  )::bigint AS remaining_ms,
+   GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
+    0
+  )::bigint AS past_ms
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id  = sqlc.arg(game_id)

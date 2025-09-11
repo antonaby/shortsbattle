@@ -11,10 +11,19 @@ import (
 
 var ErrorRedisHostNotDefined = errors.New("REDIS_HOST not defined")
 
-func NewRedisClient() (*redis.Client, error) {
+func GetRedisDSN() (string, error) {
 	redisHost := os.Getenv("REDIS_HOST")
 	if len(redisHost) == 0 {
-		return nil, ErrorRedisHostNotDefined
+		return "", ErrorRedisHostNotDefined
+	}
+
+	return redisHost, nil
+}
+
+func NewRedisClient() (*redis.Client, error) {
+	redisHost, err := GetRedisDSN()
+	if err != nil {
+		return nil, err
 	}
 
 	client := redis.NewClient(&redis.Options{
@@ -26,7 +35,7 @@ func NewRedisClient() (*redis.Client, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
-	_, err := client.Ping(ctx).Result()
+	_, err = client.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}

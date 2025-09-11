@@ -78,6 +78,12 @@ func TestGameActions(t *testing.T) {
 		require.NotNil(t, rawErr)
 		forbiddenErr := rawErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenErr.Code))
+
+		// can't join game with unknown theme
+		_, rawErr = gm.JoinGame(ctx, 10, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		require.NotNil(t, rawErr)
+		notFoundErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorNotFound, int(notFoundErr.Code))
 	})
 
 	t.Run("SubmitVideo", func(t *testing.T) {
@@ -189,7 +195,7 @@ func TestGameActions(t *testing.T) {
 		_, _, notFoundError := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[1].TgID, 1)
 		require.NotNil(t, notFoundError)
 		notFoundServiceErr := notFoundError.(common.ServiceError)
-		require.Equal(t, common.ErrorDbNotFound, int(notFoundServiceErr.Code))
+		require.Equal(t, common.ErrorNotFound, int(notFoundServiceErr.Code))
 
 		// player 3 can't add videos as it's in only watching mode
 		_, _, wrongModeErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[2].TgID, 1)

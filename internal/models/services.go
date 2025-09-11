@@ -32,11 +32,5 @@ type GameUpdate struct {
 	Result            *GameResult        `json:"result,omitempty"`
 }
 
-type ThemeDetails struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
 type GameResult struct {
 }

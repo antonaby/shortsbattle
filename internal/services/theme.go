@@ -26,7 +26,7 @@ func (ts *ThemeService) CreateTheme(ctx context.Context, title string, descripti
 		theme, err := q.CreateTheme(ctx, title, description)
 		if err != nil {
 			return nil, common.ServiceError{
-				Code:    common.ErrorDbUnknown,
+				Code:    common.ErrorUnknown,
 				Message: "failed to create a theme",
 				Cause:   err,
 			}
@@ -42,7 +42,7 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
 		themes, err := q.ListAllThemes(ctx)
 		if err != nil {
 			return nil, common.ServiceError{
-				Code:    common.ErrorDbUnknown,
+				Code:    common.ErrorUnknown,
 				Message: "failed to list all themes",
 				Cause:   err,
 			}

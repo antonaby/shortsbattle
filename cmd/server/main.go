@@ -11,6 +11,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/bot"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/antonaby/shortsbattle/game-server/internal/watchdog"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 
@@ -39,10 +40,10 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:                 2,
-		MaxLobbyStage:              60 * time.Second,
-		SubmittingState:            60 * time.Second,
-		WatchingState:              600 * time.Second,
+		MaxPlayers:      2,
+		MaxLobbyStage:   60 * time.Second,
+		SubmittingState: 60 * time.Second,
+		WatchingState:   600 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
@@ -82,39 +83,24 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
-	wathchdogConfig := services.GameWatchdogConfig{
-		CronStr:           "",
-		EnqueueInterval:   5 * time.Second,
-		WriteBatchSize:    30,
-		ReadBatchSize:     10,
-		StreamName:        "games",
-		ConsumerGroupName: "games-workers",
-		StreamMaxLean:     1000,
-		ReadWait:          1 * time.Second,
-		IdleDLQ:           10 * time.Second,
-	}
-
-	gameWatchdog := services.NewGameWatchdog(dbManager, redisClient, wathchdogConfig)
-	gameListener := services.NewGameListener(redisClient, gameManager, centrifugeServer, wathchdogConfig)
-	err = gameListener.EnsureStreamGroup()
+	redisHost, err := db.GetRedisDSN()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't create Redis Stream")
+		log.Fatal().Err(err).Msg("can't get redis host")
 	}
 
-	httpApi := api.NewHttpApi(authService, gameWatchdog, gameManager, themeService, videoService)
+	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager)
+	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceProcessor)
+	watchdogPublisher := watchdog.NewWatchdogPublisher(redisHost)
+	defer watchdogPublisher.Close()
+
+	httpApi := api.NewHttpApi(watchdogPublisher, authService, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	err = gameListener.ReclaimPending(ctx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't reclaim pending messages")
-	}
-
-	go gameListener.Listen(ctx)
-	go gameWatchdog.Run(ctx)
+	go watchdogWorker.Run()
 	go botManager.Start(ctx)
 
 	go func() {

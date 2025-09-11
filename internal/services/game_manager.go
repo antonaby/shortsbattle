@@ -36,10 +36,10 @@ func gmGameUpdError(id int64, err error) error {
 }
 
 type GameConfig struct {
-	MaxPlayers        int32
-	MaxLobbyStage     time.Duration
-	SubmittingState   time.Duration
-	WatchingState     time.Duration
+	MaxPlayers      int32
+	MaxLobbyStage   time.Duration
+	SubmittingState time.Duration
+	WatchingState   time.Duration
 }
 
 type GameManager struct {
@@ -57,16 +57,16 @@ func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64, mode qg.PlayerGameMode) (int64, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (int64, error) {
 		gameId, err := q.JoinGame(ctx, qg.JoinGameParams{
-			ThemeID:           themeId,
-			PlayerID:          playerId,
-			LobbyStage:        qg.GameStageLobby,
-			MaxPlayers:        gm.config.MaxPlayers,
-			Mode:              mode,
+			ThemeID:    themeId,
+			PlayerID:   playerId,
+			LobbyStage: qg.GameStageLobby,
+			MaxPlayers: gm.config.MaxPlayers,
+			Mode:       mode,
 		})
 
 		if err != nil {
 			if db.IsClass23(err) {
-				return 0, gmError(common.ErrorDbNotFound, "theme not found", err)
+				return 0, gmError(common.ErrorNotFound, "theme not found", err)
 			}
 
 			return 0, gmDbError("filed to join game", err)
@@ -79,7 +79,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 // TODO: add endpoint
 func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
-		stages := []string{string(qg.GameStageLobby), string(qg.GameStageLobbyFull), string(qg.GameStageSubmit)}
+		stages := []qg.GameStage{qg.GameStageLobby, qg.GameStageLobbyFull, qg.GameStageSubmit}
 		_, err := gm.findGame(ctx, q, gameId, playerId, stages)
 		if err != nil {
 			return nil, err
@@ -99,9 +99,9 @@ func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int6
 	})
 }
 
-func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
-		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
+func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -119,14 +119,14 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 	})
 }
 
-func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
+func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameAndPlayerLockRow, *qg.GameVideo, error) {
-		game, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageSubmit)})
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -154,22 +154,24 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	})
 }
 
-func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, states []string) (*qg.GetGameAndPlayerLockRow, error) {
-	game, err := q.GetGameAndPlayerLock(ctx, qg.GetGameAndPlayerLockParams{
-		GameID:   gameId,
-		PlayerID: playerId,
-		Stages:   states,
-	})
+func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playerId int64, stages []qg.GameStage) (*qg.GetGameShareLockRow, error) {
+	game, err := q.GetGameShareLock(ctx, gameId, playerId)
 
 	if err != nil {
 		if db.IsNoRows(err) {
-			return nil, gmError(common.ErrorForbidden, "player not in the game or wrong game stage", err)
+			return nil, gmError(common.ErrorForbidden, "player not in the game", err)
 		}
 
 		return nil, gmDbError("failed to fetch game", err)
 	}
 
-	return &game, nil
+	for _, stage := range stages {
+		if stage == game.Stage {
+			return &game, nil
+		}
+	}
+
+	return nil, gmError(common.ErrorForbidden, "wrong game stage", err)
 }
 
 func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId, videoId, playerId int64, roundN int32) (*qg.GameVideo, error) {
@@ -189,7 +191,7 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 
 func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.GetVideosToWatchRow, error) {
-		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageWatch)})
+		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageWatch})
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +247,7 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
-		game, err := q.GetGameLock(ctx, gameId, playerId)
+		game, err := q.GetGameShareLock(ctx, gameId, playerId)
 		if err != nil {
 			if db.IsNoRows(err) {
 				return nil, gmError(common.ErrorForbidden, "player not in the game", err)
@@ -265,7 +267,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 			Stage:           game.Stage,
 			RoundN:          game.RoundN,
 			StateChangedAt:  game.StateChangedAt,
-			RemainingTimeMs: game.RemainingMs,
+			RemainingTimeMs: game.RemainingMs, // TODO: change it to pastMs
 			Theme:           &theme,
 		}, nil
 	})

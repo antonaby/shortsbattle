@@ -9,15 +9,17 @@ import (
 type ErrorCode int
 
 const (
-	ErrorDbUnknown = iota
-	ErrorDbNotFound
-	ErrorDbData
+	ErrorUnknown = iota
+	ErrorNotFound
+	ErrorBadData
 	ErrorWrongGameStage
-	ErrorDbConstraintViolation
+	ErrorConstraintViolation
 	ErrorOEmbedFailed
 	ErrorRedisStream
 	ErrorRedis
 	ErrorParse
+	ErrorMarshal
+	ErrorEnqueue
 	ErrorTgInitData
 	ErrorJWT
 	ErrorJWK
@@ -43,14 +45,14 @@ func (e ServiceError) Unwrap() error {
 
 func GetDbErrorCode(err error) ErrorCode {
 	if db.IsClass23(err) {
-		return ErrorDbConstraintViolation
+		return ErrorConstraintViolation
 	}
 	if db.IsNoRows(err) {
-		return ErrorDbNotFound
+		return ErrorNotFound
 	}
 	if db.IsClass22(err) {
-		return ErrorDbData
+		return ErrorBadData
 	}
 
-	return ErrorDbUnknown
+	return ErrorUnknown
 }

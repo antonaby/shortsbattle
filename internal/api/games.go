@@ -1,42 +1,52 @@
 package api
 
+import (
+	"errors"
+	"net/http"
+	"time"
 
-// func (api *HttpApi) joinGame(c echo.Context) error {
-// 	tgId, err := tgId(c)
-// 	if err != nil {
-// 		return err
-// 	}
+	"github.com/antonaby/shortsbattle/game-server/internal/common"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/labstack/echo/v4"
+)
 
-// 	request, err := bindAndValidate[m.JoinGameRequest](c)
-// 	if err != nil {
-// 		return err
-// 	}
+func (api *HttpApi) joinGame(c echo.Context) error {
+	tgId, err := tgId(c)
+	if err != nil {
+		return err
+	}
 
-// 	ctx := c.Request().Context()
-// 	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId)
+	request, err := bindAndValidate[models.JoinGameRequest](c)
+	if err != nil {
+		return err
+	}
 
-// 	if err != nil {
-// 		var sErr common.ServiceError
-// 		if errors.As(err, &sErr) {
-// 			if sErr.Code == common.ErrorDbNotFound {
-// 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
-// 					Error: "theme not found",
-// 				})
-// 			}
-// 		}
+	ctx := c.Request().Context()
+	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId, request.Mode)
 
-// 		c.Echo().Logger.Errorf("failed to join game: %w", err)
-// 		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-// 			Error: SomethingWentWrongMsg,
-// 		})
-// 	}
+	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorNotFound {
+				return c.JSON(http.StatusNotFound, models.ErrorResponse{
+					Error: "theme not found",
+				})
+			}
+		}
 
-// 	api.watchdog.EnqueueGame(gameId)
-// 	return c.JSON(http.StatusOK, m.OkGameIdReposne{
-// 		Msg:    "game joined",
-// 		GameId: gameId,
-// 	})
-// }
+		c.Echo().Logger.Errorf("failed to join game: %w", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: SomethingWentWrongMsg,
+		})
+	}
+
+	api.watchdog.AdvanceGame(ctx, gameId, 1*time.Second)
+	
+	return c.JSON(http.StatusOK, models.OkGameIdReposne{
+		Msg:    "game joined",
+		GameId: gameId,
+	})
+}
 
 // func (api *HttpApi) submitVideo(c echo.Context) error {
 // 	tgId, err := tgId(c)

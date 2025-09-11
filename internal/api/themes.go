@@ -56,7 +56,7 @@ func (api *HttpApi) getTheme(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbNotFound {
+			if sErr.Code == common.ErrorNotFound {
 				return c.JSON(http.StatusNotFound, m.ErrorResponse{
 					Error: "theme not found",
 				})
@@ -122,7 +122,7 @@ func (api *HttpApi) createRound(c echo.Context) error {
 	if err != nil {
 		var sErr common.ServiceError
 		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorDbConstraintViolation {
+			if sErr.Code == common.ErrorConstraintViolation {
 				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
 					Error: "theme not found or round already exists",
 				})

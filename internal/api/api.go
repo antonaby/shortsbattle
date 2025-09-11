@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
@@ -11,26 +13,30 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type Watchdog interface {
+	AdvanceGame(ctx context.Context, gameId int64, processIn time.Duration) error
+}
+
 var JWTContextKey = "jwt"
 
 type HttpApi struct {
+	watchdog Watchdog
 	auth     *services.AuthService
-	watchdog *services.GameWatchdog
 	games    *services.GameManager
 	themes   *services.ThemeService
 	videos   *services.VideoService
 }
 
 func NewHttpApi(
+	watchdog Watchdog,
 	auth *services.AuthService,
-	gwd *services.GameWatchdog,
 	gm *services.GameManager,
 	ts *services.ThemeService,
 	vs *services.VideoService,
 ) *HttpApi {
 	return &HttpApi{
+		watchdog: watchdog,
 		auth:     auth,
-		watchdog: gwd,
 		games:    gm,
 		themes:   ts,
 		videos:   vs,
@@ -46,7 +52,8 @@ func (api *HttpApi) NewEchoServer() *echo.Echo {
 		LogStatus: true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Error != nil {
-				log.Error().Err(v.Error).
+				log.Error().
+					Err(v.Error).
 					Stack().
 					Str("URI", v.URI).
 					Int("status", v.Status).
@@ -87,7 +94,7 @@ func (api *HttpApi) addUnsecuredEndpoints(g *echo.Group) {
 func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	v1group := g.Group("/v1")
 
-	// v1group.PUT("/games/join", api.joinGame)
+	v1group.PUT("/games/join", api.joinGame)
 	// v1group.PUT("/games/:id/submit", api.submitVideo)
 	// v1group.GET("/games/:id/videos", api.getVideosForGame) // TODO: return DTOs intead of DB Models
 
