@@ -7,7 +7,6 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/antonaby/shortsbattle/game-server/internal/services"
 	"github.com/hibiken/asynq"
 )
 
@@ -32,33 +31,41 @@ func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
 	return asynq.NewTask(JobTypeAdvance, payload), nil
 }
 
+type GameManager interface {
+	AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error)
+}
+
 type GameUpdatePublisher interface {
 	PublishGameUpdate(upd models.GameUpdate) error
 }
 
 type AdvanceGameProcessor struct {
-	gameManager     *services.GameManager
+	gameManager     GameManager
 	updatePublisher GameUpdatePublisher
 }
 
-func NewAdvanceGameProcessor(gameManager *services.GameManager, updatePublisher GameUpdatePublisher) *AdvanceGameProcessor {
+func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher) *AdvanceGameProcessor {
 	return &AdvanceGameProcessor{
 		gameManager:     gameManager,
 		updatePublisher: updatePublisher,
 	}
 }
 
-// TODO: verify errors
 func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq.Task) error {
 	var payload AdvanceGamePayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshaling failed: %v: %w", err, asynq.SkipRetry)
 	}
 
+	// TODO: add unique if needed
 	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
 	if err != nil {
 		return err
 	}
 
-	return  processor.updatePublisher.PublishGameUpdate(*upd)
+	if upd != nil {
+		return processor.updatePublisher.PublishGameUpdate(*upd)
+	}
+
+	return nil
 }

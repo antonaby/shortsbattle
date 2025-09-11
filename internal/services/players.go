@@ -15,10 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type PlayerService interface {
-	CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error)
-}
-
 type CachedPlayerService struct {
 	txm db.TxManager
 	rc  *redis.Client

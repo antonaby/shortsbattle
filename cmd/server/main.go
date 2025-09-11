@@ -70,7 +70,7 @@ func main() {
 
 	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, wsConfig)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't create Centriguge server")
+		log.Fatal().Err(err).Send()
 	}
 
 	err = centrifugeServer.Run()

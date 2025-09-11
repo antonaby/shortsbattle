@@ -66,6 +66,10 @@ func (km *KeyManager) GetDefaultKey() (jwk.Key, error) {
 	return key, nil
 }
 
+type PlayerService interface {
+	CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error)
+}
+
 type AuthConfig struct {
 	TokenExpTime time.Duration
 	Issuer       string

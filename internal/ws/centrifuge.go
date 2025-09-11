@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"time"
 
@@ -15,6 +16,14 @@ import (
 	"github.com/centrifugal/centrifuge"
 	"github.com/rs/zerolog/log"
 )
+
+func cfError(code common.ErrorCode, msg string, err error) error {
+	return common.ServiceError{
+		Code:    code,
+		Message: fmt.Sprintf("centrifuge: %s", msg),
+		Cause:   err,
+	}
+}
 
 type WsConnectionConfig struct {
 	ConnectionExpTime time.Duration
@@ -30,7 +39,7 @@ type CentrifugeServer struct {
 func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, config WsConnectionConfig) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
-		return nil, err
+		return nil, cfError(common.ErrorInit, "failed to create server", err)
 	}
 
 	r := &CentrifugeServer{
@@ -58,7 +67,7 @@ func (r CentrifugeServer) Handler() http.Handler {
 
 func (cf *CentrifugeServer) Run() error {
 	if err := cf.node.Run(); err != nil {
-		return err
+		return cfError(common.ErrorInit, "failed to start server", err)
 	}
 
 	return nil
@@ -67,12 +76,16 @@ func (cf *CentrifugeServer) Run() error {
 func (cf *CentrifugeServer) PublishGameUpdate(upd models.GameUpdate) error {
 	jsonBytes, err := json.Marshal(upd)
 	if err != nil {
-		return err
+		return cfError(common.ErrorMarshal, "failed to marshal palyload", err)
 	}
 
 	channel := models.GetCfChannelName(upd.GameID)
 	_, err = cf.node.Publish(channel, jsonBytes)
-	return err
+	if err != nil {
+		return cfError(common.ErrorPublish, "failed to publish game update", err)
+	}
+
+	return nil
 }
 
 func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.ConnectEvent) (centrifuge.ConnectReply, error) {

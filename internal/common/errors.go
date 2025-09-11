@@ -10,13 +10,12 @@ type ErrorCode int
 
 const (
 	ErrorUnknown = iota
+	ErrorInit
 	ErrorNotFound
 	ErrorBadData
 	ErrorWrongGameStage
 	ErrorConstraintViolation
 	ErrorOEmbedFailed
-	ErrorRedisStream
-	ErrorRedis
 	ErrorParse
 	ErrorMarshal
 	ErrorEnqueue
@@ -24,6 +23,7 @@ const (
 	ErrorJWT
 	ErrorJWK
 	ErrorForbidden
+	ErrorPublish
 )
 
 type ServiceError struct {
@@ -34,9 +34,9 @@ type ServiceError struct {
 
 func (e ServiceError) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("Error %d: %s: %v", e.Code, e.Message, e.Cause)
+		return fmt.Sprintf("%d: %s: %v", e.Code, e.Message, e.Cause)
 	}
-	return fmt.Sprintf("Error %d: %s", e.Code, e.Message)
+	return fmt.Sprintf("%d: %s", e.Code, e.Message)
 }
 
 func (e ServiceError) Unwrap() error {
