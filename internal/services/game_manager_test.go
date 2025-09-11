@@ -14,6 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func fatalIfError(t *testing.T, err error, msg string) {
+	if err != nil {
+		t.Fatalf("%s: %v", msg, err)
+	}
+}
+
 func TestGameActions(t *testing.T) {
 	testUrl1 := "https://www.youtube.com/shorts/GkTZHFyHi1c"
 	testUrl2 := "https://www.youtube.com/shorts/zy7xd4zOl7s"
@@ -22,11 +28,10 @@ func TestGameActions(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:                 2,
-		MaxLobbyStage:              4 * time.Second,
-		LobbyClosedBefore:          2 * time.Second,
-		SubmittingState:            60 * time.Second,
-		WatchingState:              600 * time.Second,
+		MaxPlayers:      2,
+		MaxLobbyStage:   2 * time.Second,
+		SubmittingState: 60 * time.Second,
+		WatchingState:   600 * time.Second,
 	})
 
 	vs := NewVideosService(ts.DBManager)
@@ -35,69 +40,44 @@ func TestGameActions(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
+		// create theme and players
 		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
-		if err != nil {
-			t.Fatalf("failed to create test theme: %v", err)
-		}
-
+		fatalIfError(t, err, "failed to create test theme")
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 0)
-		if err != nil {
-			t.Fatalf("failed to create test theme: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test players")
 
-		// player 1 joins game
+		// player 1 joins the game
 		gameIdPlayer1Attempt1, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to join game (player 1): %v", err)
-		}
-		// player 1 should join same game
+		fatalIfError(t, err, "failed to join game (player 1)")
+		// player 1 should join the same game (as it's already in)
 		gameIdPlayer1Attempt2, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to join game (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to join game again (player 1)")
 		// check that the game is the same
 		require.Equal(t, gameIdPlayer1Attempt1, gameIdPlayer1Attempt2)
 
-		// player 2 should join same game
-		gameIdPlayer2, err := gm.JoinGame(ctx, theme.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to join game (player 2): %v", err)
-		}
+		// player 2 should join the same game
+		gameIdPlayer2Attempt1, err := gm.JoinGame(ctx, theme.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		fatalIfError(t, err, "failed to join game (player 2)")
 		// check that the game is the same
-		require.Equal(t, gameIdPlayer1Attempt2, gameIdPlayer2)
+		require.Equal(t, gameIdPlayer1Attempt2, gameIdPlayer2Attempt1)
 
-		// wait until lobby is closed (LobbyClosedBefore)
-		time.Sleep(2 * time.Second)
-		gameIdPlayer1Attempt3, err := gm.JoinGame(ctx, theme.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to join game (player 1): %v", err)
-		}
-		// should be the same game as player already in
-		require.Equal(t, gameIdPlayer1Attempt2, gameIdPlayer1Attempt3)
-
-		// player 3 should join new game
-		gameIdPlayer3, err := gm.JoinGame(ctx, theme.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to join game (player 2): %v", err)
-		}
+		// player 3 should join new game (MaxPlayers = 2 therefore it should create a new game)
+		gameIdPlayer3Attempt1, err := gm.JoinGame(ctx, theme.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
+		fatalIfError(t, err, "failed to join game (player 3)")
 		// should be new game as lobby closed (LobbyClosedBefore)
-		require.NotEqual(t, gameIdPlayer3, gameIdPlayer1Attempt3)
+		require.NotEqual(t, gameIdPlayer2Attempt1, gameIdPlayer3Attempt1)
 
-		// get game status for the previous game
-		gameSatatus, err := tests.GetGameStatus(ctx, ts.DBManager, gameIdPlayer1Attempt3)
-		if err != nil {
-			t.Fatalf("failed to get game status (player 1): %v", err)
-		}
-		// should still be in the lobby state
-		require.Equal(t, qg.GameStageLobby, gameSatatus.Stage)
-		require.Greater(t, gameSatatus.RemainingMs, int64(0))
-
-		gameDetails, err := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer1Attempt3, players[0].TgID)
-		if err != nil {
-			t.Fatalf("failed to get game details (player 1): %v", err)
-		}
+		// get game status for game 1 (player 1)
+		gameDetails, err := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer1Attempt2, players[0].TgID)
+		fatalIfError(t, err, "failed to get game details (player 1)")
 		require.Equal(t, qg.GameStageLobby, gameDetails.Stage)
 		require.Less(t, gameDetails.RemainingTimeMs, int64(2000))
+
+		// player can't get game details for game it's not joined in (player 1 -> game 2)
+		_, rawErr := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer3Attempt1, players[0].TgID)
+		require.NotNil(t, rawErr)
+		forbiddenErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(forbiddenErr.Code))
 	})
 
 	t.Run("SubmitVideo", func(t *testing.T) {
@@ -349,11 +329,10 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:                 2,
-		MaxLobbyStage:              2 * time.Second,
-		LobbyClosedBefore:          5 * time.Second,
-		SubmittingState:            60 * time.Second,
-		WatchingState:              600 * time.Second,
+		MaxPlayers:      2,
+		MaxLobbyStage:   2 * time.Second,
+		SubmittingState: 60 * time.Second,
+		WatchingState:   600 * time.Second,
 	})
 
 	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {

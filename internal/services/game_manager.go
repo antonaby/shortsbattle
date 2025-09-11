@@ -38,7 +38,6 @@ func gmGameUpdError(id int64, err error) error {
 type GameConfig struct {
 	MaxPlayers        int32
 	MaxLobbyStage     time.Duration
-	LobbyClosedBefore time.Duration
 	SubmittingState   time.Duration
 	WatchingState     time.Duration
 }
@@ -61,9 +60,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 			ThemeID:           themeId,
 			PlayerID:          playerId,
 			LobbyStage:        qg.GameStageLobby,
-			LobbyStageClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
 			MaxPlayers:        gm.config.MaxPlayers,
-			NextStageChangeIn: db.ToPgInterval(gm.config.MaxLobbyStage),
 			Mode:              mode,
 		})
 
@@ -268,7 +265,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 			Stage:           game.Stage,
 			RoundN:          game.RoundN,
 			StateChangedAt:  game.StateChangedAt,
-			RemainingTimeMs: &game.RemainingMs,
+			RemainingTimeMs: game.RemainingMs,
 			Theme:           &theme,
 		}, nil
 	})
@@ -318,7 +315,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 			reason = models.ReasonLobbyTimeout
 		}
 
-		upd := statusToGameUpdate(status, reason, nil)
+		upd := statusToGameUpdate(status, reason, 0)
 		return &upd, nil
 	}
 
@@ -339,7 +336,7 @@ func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId
 	return &status, nil
 }
 
-func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason, remainingTimeMs *int64) models.GameUpdate {
+func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason, remainingTimeMs int64) models.GameUpdate {
 	return models.GameUpdate{
 		GameID:            status.GameID,
 		MsgType:           models.GameUpdateMsg,

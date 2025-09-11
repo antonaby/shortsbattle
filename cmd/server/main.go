@@ -41,7 +41,6 @@ func main() {
 	gameConfig := services.GameConfig{
 		MaxPlayers:                 2,
 		MaxLobbyStage:              60 * time.Second,
-		LobbyClosedBefore:          5 * time.Second,
 		SubmittingState:            60 * time.Second,
 		WatchingState:              600 * time.Second,
 	}

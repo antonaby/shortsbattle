@@ -6,9 +6,7 @@ CREATE OR REPLACE FUNCTION join_game(
   p_theme_id              BIGINT,
   p_player_id             BIGINT,
   p_lobby_stage           game_stage,
-  p_lobby_stage_closed    INTERVAL,
   p_max_players           INT,
-  p_next_stage_change_in  INTERVAL,
   p_mode                  player_game_mode
 ) RETURNS BIGINT
 LANGUAGE plpgsql
@@ -41,7 +39,6 @@ BEGIN
   LEFT JOIN game_players gp ON gp.game_id = gs.game_id
   WHERE gs.stage = p_lobby_stage
     AND gs.theme_id = p_theme_id
-    AND gs.next_state_change_at >= now() + p_lobby_stage_closed
   GROUP BY gs.game_id, gs.state_changed_at
   HAVING COUNT(gp.player_id) < p_max_players
   ORDER BY COUNT(gp.player_id) DESC, gs.state_changed_at ASC
@@ -55,13 +52,11 @@ BEGIN
     )
     RETURNING id INTO v_game_id;
     
-    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
+    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at)
     VALUES (
       v_game_id, 
       p_theme_id,
       p_lobby_stage, 
-      now(), 
-      now() + p_next_stage_change_in,
       now()
     );
   END IF;

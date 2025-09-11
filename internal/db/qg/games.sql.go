@@ -268,20 +268,16 @@ SELECT join_game(
   $2, 
   $3, 
   $4, 
-  $5, 
-  $6,
-  $7
+  $5
 ) AS game_id
 `
 
 type JoinGameParams struct {
-	ThemeID           int64           `json:"theme_id"`
-	PlayerID          int64           `json:"player_id"`
-	LobbyStage        GameStage       `json:"lobby_stage"`
-	LobbyStageClosed  pgtype.Interval `json:"lobby_stage_closed"`
-	MaxPlayers        int32           `json:"max_players"`
-	NextStageChangeIn pgtype.Interval `json:"next_stage_change_in"`
-	Mode              PlayerGameMode  `json:"mode"`
+	ThemeID    int64          `json:"theme_id"`
+	PlayerID   int64          `json:"player_id"`
+	LobbyStage GameStage      `json:"lobby_stage"`
+	MaxPlayers int32          `json:"max_players"`
+	Mode       PlayerGameMode `json:"mode"`
 }
 
 func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, error) {
@@ -289,9 +285,7 @@ func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, erro
 		arg.ThemeID,
 		arg.PlayerID,
 		arg.LobbyStage,
-		arg.LobbyStageClosed,
 		arg.MaxPlayers,
-		arg.NextStageChangeIn,
 		arg.Mode,
 	)
 	var game_id int64

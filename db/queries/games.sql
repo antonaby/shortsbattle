@@ -3,9 +3,7 @@ SELECT join_game(
   sqlc.arg(theme_id), 
   sqlc.arg(player_id), 
   sqlc.arg(lobby_stage), 
-  sqlc.arg(lobby_stage_closed), 
   sqlc.arg(max_players), 
-  sqlc.arg(next_stage_change_in),
   sqlc.arg(mode)
 ) AS game_id;
 
