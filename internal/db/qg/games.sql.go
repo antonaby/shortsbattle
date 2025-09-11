@@ -11,66 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const advanceGames = `-- name: AdvanceGames :many
-WITH candidates AS (
-  SELECT game_id, stage
-  FROM game_status
-  WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
-    AND due_at <= now()
-  ORDER BY due_at ASC, game_id
-  FOR UPDATE SKIP LOCKED
-  LIMIT $1
-),
-upd AS (
-  UPDATE game_status gs
-  SET next_enqueue_at = now() + ($2::interval)
-  FROM candidates c
-  WHERE gs.game_id = c.game_id
-  RETURNING gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at
-)
-SELECT game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at FROM upd
-`
-
-type AdvanceGamesRow struct {
-	GameID            int64              `json:"game_id"`
-	ThemeID           int64              `json:"theme_id"`
-	Stage             GameStage          `json:"stage"`
-	RoundN            int32              `json:"round_n"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
-	DueAt             pgtype.Timestamptz `json:"due_at"`
-}
-
-func (q *Queries) AdvanceGames(ctx context.Context, batchSize int32, enqueueInterval pgtype.Interval) ([]AdvanceGamesRow, error) {
-	rows, err := q.db.Query(ctx, advanceGames, batchSize, enqueueInterval)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []AdvanceGamesRow
-	for rows.Next() {
-		var i AdvanceGamesRow
-		if err := rows.Scan(
-			&i.GameID,
-			&i.ThemeID,
-			&i.Stage,
-			&i.RoundN,
-			&i.StateChangedAt,
-			&i.NextStateChangeAt,
-			&i.NextEnqueueAt,
-			&i.DueAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const countPlayersInGame = `-- name: CountPlayersInGame :one
 SELECT COUNT(*) AS player_count
 FROM game_players
@@ -119,12 +59,8 @@ func (q *Queries) GetGameRounds(ctx context.Context, id int64) ([]Round, error) 
 }
 
 const getGameShareLock = `-- name: GetGameShareLock :one
-SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
+SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
-    0
-  )::bigint AS remaining_ms,
-   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
@@ -136,20 +72,16 @@ FOR SHARE OF gs
 `
 
 type GetGameShareLockRow struct {
-	GameID            int64              `json:"game_id"`
-	ThemeID           int64              `json:"theme_id"`
-	Stage             GameStage          `json:"stage"`
-	RoundN            int32              `json:"round_n"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
-	DueAt             pgtype.Timestamptz `json:"due_at"`
-	PlayerID          int64              `json:"player_id"`
-	Mode              PlayerGameMode     `json:"mode"`
-	IsActive          pgtype.Bool        `json:"is_active"`
-	JoinedAt          pgtype.Timestamptz `json:"joined_at"`
-	RemainingMs       int64              `json:"remaining_ms"`
-	PastMs            int64              `json:"past_ms"`
+	GameID         int64              `json:"game_id"`
+	ThemeID        int64              `json:"theme_id"`
+	Stage          GameStage          `json:"stage"`
+	RoundN         int32              `json:"round_n"`
+	StateChangedAt pgtype.Timestamptz `json:"state_changed_at"`
+	PlayerID       int64              `json:"player_id"`
+	Mode           PlayerGameMode     `json:"mode"`
+	IsActive       pgtype.Bool        `json:"is_active"`
+	JoinedAt       pgtype.Timestamptz `json:"joined_at"`
+	PastMs         int64              `json:"past_ms"`
 }
 
 func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error) {
@@ -161,14 +93,10 @@ func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID i
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.NextEnqueueAt,
-		&i.DueAt,
 		&i.PlayerID,
 		&i.Mode,
 		&i.IsActive,
 		&i.JoinedAt,
-		&i.RemainingMs,
 		&i.PastMs,
 	)
 	return i, err
@@ -181,12 +109,6 @@ SELECT
   gs.stage,
   gs.round_n,
   gs.state_changed_at,
-  gs.next_state_change_at,
-  gs.next_enqueue_at,
-  GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
-    0
-  )::bigint AS remaining_ms,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
@@ -197,15 +119,12 @@ FOR UPDATE
 `
 
 type GetGameStateLockRow struct {
-	GameID            int64              `json:"game_id"`
-	ThemeID           int64              `json:"theme_id"`
-	Stage             GameStage          `json:"stage"`
-	RoundN            int32              `json:"round_n"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
-	RemainingMs       int64              `json:"remaining_ms"`
-	PastMs            int64              `json:"past_ms"`
+	GameID         int64              `json:"game_id"`
+	ThemeID        int64              `json:"theme_id"`
+	Stage          GameStage          `json:"stage"`
+	RoundN         int32              `json:"round_n"`
+	StateChangedAt pgtype.Timestamptz `json:"state_changed_at"`
+	PastMs         int64              `json:"past_ms"`
 }
 
 func (q *Queries) GetGameStateLock(ctx context.Context, gameID int64) (GetGameStateLockRow, error) {
@@ -217,9 +136,6 @@ func (q *Queries) GetGameStateLock(ctx context.Context, gameID int64) (GetGameSt
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.NextEnqueueAt,
-		&i.RemainingMs,
 		&i.PastMs,
 	)
 	return i, err
@@ -263,7 +179,7 @@ UPDATE game_status SET
   next_enqueue_at = NULL,
   round_n = 0
 WHERE game_id = $2 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at
 `
 
 func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
@@ -275,9 +191,6 @@ func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameI
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.NextEnqueueAt,
-		&i.DueAt,
 	)
 	return i, err
 }
@@ -314,7 +227,7 @@ UPDATE game_status SET
   state_changed_at = now(),
   round_n = $2
 WHERE game_id = $3 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at
 `
 
 type UpdateGameStatusParams struct {
@@ -332,9 +245,6 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.NextEnqueueAt,
-		&i.DueAt,
 	)
 	return i, err
 }

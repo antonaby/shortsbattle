@@ -7,8 +7,8 @@ INSERT INTO games (
 RETURNING *;
 
 -- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_state_change_at, next_enqueue_at)
-VALUES ($1, $2, $3, now(), now(), now())
+INSERT INTO game_status (game_id, theme_id, stage, state_changed_at)
+VALUES ($1, $2, $3, now())
 RETURNING *;
 
 -- name: TestUpdateGameStage :one
@@ -33,8 +33,8 @@ SELECT * FROM games WHERE id = $1;
 -- name: TestGetGameStatusById :one
 SELECT *,  
   GREATEST(
-    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint, 
+    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
-  )::bigint AS remaining_ms
+  )::bigint AS past_ms
 FROM game_status 
 WHERE game_id = $1;

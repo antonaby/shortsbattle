@@ -7,32 +7,9 @@ SELECT join_game(
   sqlc.arg(mode)
 ) AS game_id;
 
--- name: AdvanceGames :many
-WITH candidates AS (
-  SELECT game_id, stage
-  FROM game_status
-  WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
-    AND due_at <= now()
-  ORDER BY due_at ASC, game_id
-  FOR UPDATE SKIP LOCKED
-  LIMIT sqlc.arg(batch_size)
-),
-upd AS (
-  UPDATE game_status gs
-  SET next_enqueue_at = now() + (sqlc.arg(enqueue_interval)::interval)
-  FROM candidates c
-  WHERE gs.game_id = c.game_id
-  RETURNING gs.*
-)
-SELECT * FROM upd;
-
 -- name: GetGameShareLock :one
 SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
-    0
-  )::bigint AS remaining_ms,
-   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
@@ -55,12 +32,6 @@ SELECT
   gs.stage,
   gs.round_n,
   gs.state_changed_at,
-  gs.next_state_change_at,
-  gs.next_enqueue_at,
-  GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (gs.next_state_change_at - now())) * 1000)::bigint, 0),
-    0
-  )::bigint AS remaining_ms,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0

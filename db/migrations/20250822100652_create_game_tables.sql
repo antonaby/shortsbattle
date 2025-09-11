@@ -17,20 +17,10 @@ CREATE TABLE
     stage game_stage NOT NULL DEFAULT 'lobby',
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
-    next_state_change_at TIMESTAMPTZ, -- TODO: remove next_state_change_at, add change_stage_next_tick (bool)
-    next_enqueue_at TIMESTAMPTZ,
-    due_at TIMESTAMPTZ
-    GENERATED ALWAYS AS (
-      LEAST(
-        COALESCE(next_state_change_at, 'infinity'::timestamptz),
-        COALESCE(next_enqueue_at,      'infinity'::timestamptz)
-      )
-    ) STORED,
     PRIMARY KEY (game_id)
   );
 
 CREATE INDEX game_status_stage ON game_status (stage, theme_id);
-CREATE INDEX game_status_due_at ON game_status (stage, due_at);
 
 CREATE TYPE player_game_mode AS ENUM ('submit_and_vote', 'only_vote');
 

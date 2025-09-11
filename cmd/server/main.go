@@ -100,7 +100,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	go watchdogWorker.Run()
+	err = watchdogWorker.Run()
+	if err != nil {
+		log.Fatal().Err(err).Msg("can't run asyncq server")
+	}
+	defer watchdogWorker.Shutdown()
 	go botManager.Start(ctx)
 
 	go func() {

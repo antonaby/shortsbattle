@@ -117,14 +117,11 @@ type GamePlayer struct {
 }
 
 type GameStatus struct {
-	GameID            int64              `json:"game_id"`
-	ThemeID           int64              `json:"theme_id"`
-	Stage             GameStage          `json:"stage"`
-	RoundN            int32              `json:"round_n"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
-	DueAt             pgtype.Timestamptz `json:"due_at"`
+	GameID         int64              `json:"game_id"`
+	ThemeID        int64              `json:"theme_id"`
+	Stage          GameStage          `json:"stage"`
+	RoundN         int32              `json:"round_n"`
+	StateChangedAt pgtype.Timestamptz `json:"state_changed_at"`
 }
 
 type GameVideo struct {

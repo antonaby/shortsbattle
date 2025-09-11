@@ -60,10 +60,16 @@ func NewWatchdogWorker(redisHost string, advanceProcessor *AdvanceGameProcessor)
 	}
 }
 
-func (worker *WatchdogWorker) Run() {
-	if err := worker.server.Run(worker.mux); err != nil {
-		log.Fatal().Err(err).Stack().Msg("could not run server")
+func (worker *WatchdogWorker) Run() error {
+	if err := worker.server.Start(worker.mux); err != nil {
+		return err
 	}
+
+	return nil
+}
+
+func (worker *WatchdogWorker) Shutdown() {
+	worker.server.Shutdown()
 }
 
 type WatchdogPublisher struct {

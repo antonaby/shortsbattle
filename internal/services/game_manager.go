@@ -267,7 +267,6 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 			Stage:           game.Stage,
 			RoundN:          game.RoundN,
 			StateChangedAt:  game.StateChangedAt,
-			RemainingTimeMs: game.RemainingMs, // TODO: change it to pastMs
 			Theme:           &theme,
 		}, nil
 	})
@@ -317,7 +316,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 			reason = models.ReasonLobbyTimeout
 		}
 
-		upd := statusToGameUpdate(status, reason, 0)
+		upd := statusToGameUpdate(status, reason)
 		return &upd, nil
 	}
 
@@ -338,7 +337,7 @@ func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId
 	return &status, nil
 }
 
-func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason, remainingTimeMs int64) models.GameUpdate {
+func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) models.GameUpdate {
 	return models.GameUpdate{
 		GameID:            status.GameID,
 		MsgType:           models.GameUpdateMsg,
@@ -346,7 +345,6 @@ func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason, 
 		StateChangeReason: &reason,
 		RoundN:            status.RoundN,
 		StateChangedAt:    status.StateChangedAt,
-		RemainingTimeMs:   remainingTimeMs,
 	}
 }
 

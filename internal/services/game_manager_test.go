@@ -71,7 +71,6 @@ func TestGameActions(t *testing.T) {
 		gameDetails, err := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer1Attempt2, players[0].TgID)
 		fatalIfError(t, err, "failed to get game details (player 1)")
 		require.Equal(t, qg.GameStageLobby, gameDetails.Stage)
-		require.Less(t, gameDetails.RemainingTimeMs, int64(2000))
 
 		// player can't get game details for game it's not joined in (player 1 -> game 2)
 		_, rawErr := gm.GetGameDetailsForPlayer(ctx, gameIdPlayer3Attempt1, players[0].TgID)
@@ -391,12 +390,6 @@ func TestAdvanceGame(t *testing.T) {
 		// 6) No time to change state, nPlayer = 2, but minLobbyTime not exceeded
 		require.Nil(t, upd, "update not nil")
 
-		// 7) Fetch game again and check that remaning time reduced
-		gameSatatus, err := tests.GetGameStatus(ctx, ts.DBManager, game.ID)
-		if err != nil {
-			t.Fatalf("failed to fetcg game status: %v", err)
-		}
-		assert.Less(t, gameSatatus.NextStateChangeAt.Time.Sub(gameSatatus.StateChangedAt.Time), gm.config.MaxLobbyStage)
 
 		// 8) Wait and Advance
 		time.Sleep(1 * time.Second)
