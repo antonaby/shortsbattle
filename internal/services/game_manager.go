@@ -10,16 +10,6 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
-	"github.com/jackc/pgx/v5/pgtype"
-)
-
-const (
-	ReasonLobbyFullPlayers = "lobby_full_players"
-	ReasonLobbyTimeout     = "lobby_timeout"
-	ReasonSubmitAll        = "submit_all"
-	ReasonSubmitTimeout    = "submit_timeout"
-	ReasonWatchAll         = "watch_all"
-	ReasonWatchTimeout     = "watch_timeout"
 )
 
 func gmError(code common.ErrorCode, msg string, err error) error {
@@ -46,13 +36,11 @@ func gmGameUpdError(id int64, err error) error {
 }
 
 type GameConfig struct {
-	MaxPlayers                 int32
-	MinRemainingBeforeChangeMs int64
-	MinLobbyState              time.Duration
-	MaxLobbyState              time.Duration
-	LobbyClosedBefore          time.Duration
-	SubmittingState            time.Duration
-	WatchingState              time.Duration
+	MaxPlayers        int32
+	MaxLobbyStage     time.Duration
+	LobbyClosedBefore time.Duration
+	SubmittingState   time.Duration
+	WatchingState     time.Duration
 }
 
 type GameManager struct {
@@ -75,7 +63,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 			LobbyStage:        qg.GameStageLobby,
 			LobbyStageClosed:  db.ToPgInterval(gm.config.LobbyClosedBefore),
 			MaxPlayers:        gm.config.MaxPlayers,
-			NextStageChangeIn: db.ToPgInterval(gm.config.MaxLobbyState),
+			NextStageChangeIn: db.ToPgInterval(gm.config.MaxLobbyStage),
 			Mode:              mode,
 		})
 
@@ -94,7 +82,8 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 // TODO: add endpoint
 func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
-		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageLobby), string(qg.GameStageLobbyFull), string(qg.GameStageSubmit)})
+		stages := []string{string(qg.GameStageLobby), string(qg.GameStageLobbyFull), string(qg.GameStageSubmit)}
+		_, err := gm.findGame(ctx, q, gameId, playerId, stages)
 		if err != nil {
 			return nil, err
 		}
@@ -274,14 +263,13 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 		}
 
 		return &models.GameUpdate{
-			GameID:            game.GameID,
-			MsgType:           models.GameDetailsMsg,
-			Stage:             game.Stage,
-			RoundN:            game.RoundN,
-			StateChangedAt:    game.StateChangedAt,
-			NextStateChangeAt: game.NextStateChangeAt,
-			RamaningTimeMs:    game.RemainingMs,
-			Theme:             &theme,
+			GameID:          game.GameID,
+			MsgType:         models.GameDetailsMsg,
+			Stage:           game.Stage,
+			RoundN:          game.RoundN,
+			StateChangedAt:  game.StateChangedAt,
+			RemainingTimeMs: &game.RemainingMs,
+			Theme:           &theme,
 		}, nil
 	})
 }
@@ -310,61 +298,91 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.G
 	})
 }
 
+// TODO: check only active users
+// TODO: add bots if nPlayers less than MaxPlayers
 func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	nPlayers, err := q.CountPlayersInGame(ctx, game.GameID)
 	if err != nil {
 		return nil, gmGameUpdError(game.GameID, err)
 	}
 
-	if nPlayers >= int64(gm.config.MaxPlayers) {
-		if game.PastMs >= gm.config.MinLobbyState.Milliseconds() {
-			return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyFullPlayers)
+	isTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds()
+	if nPlayers >= int64(gm.config.MaxPlayers) || isTimeout {
+		status, err := gm.updateGameStage(ctx, q, game.GameID, qg.GameStageLobbyFull, game.RoundN)
+		if err != nil {
+			return nil, err
 		}
 
-		remainingMicro := (gm.config.MinLobbyState.Milliseconds() - game.PastMs) * 1000
-		return gm.updateRemainingTime(ctx, game, q, remainingMicro)
-	}
+		reason := models.ReasonLobbyFull
+		if isTimeout {
+			reason = models.ReasonLobbyTimeout
+		}
 
-	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
-		return nil, nil
-	}
-
-	// TODO: add bots if nPlayers less than MaxPlayers
-	return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyTimeout)
-}
-
-func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
-	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-		GameID:      game.GameID,
-		Stage:       qg.GameStageSubmit,
-		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
-		RoundN:      1,
-	})
-
-	if err != nil {
-		return nil, gmGameUpdError(game.GameID, err)
-	}
-
-	upd := statusRowToGameUpdate(status, reason)
-	return &upd, nil
-}
-
-func (gm *GameManager) updateRemainingTime(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, remainingMicro int64) (*models.GameUpdate, error) {
-	nextStageIn := pgtype.Interval{
-		Microseconds: remainingMicro,
-		Days:         0,
-		Months:       0,
-		Valid:        true,
-	}
-
-	_, err := q.UpdateRemainingTime(ctx, nextStageIn, game.GameID)
-
-	if err != nil {
-		return nil, gmGameUpdError(game.GameID, err)
+		upd := statusToGameUpdate(status, reason, nil)
+		return &upd, nil
 	}
 
 	return nil, nil
 }
+
+func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId int64, stage qg.GameStage, roundN int32) (*qg.GameStatus, error) {
+	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+		GameID: gameId,
+		Stage:  stage,
+		RoundN: roundN,
+	})
+
+	if err != nil {
+		return nil, gmDbError("failed to update game stage", err)
+	}
+
+	return &status, nil
+}
+
+func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason, remainingTimeMs *int64) models.GameUpdate {
+	return models.GameUpdate{
+		GameID:            status.GameID,
+		MsgType:           models.GameUpdateMsg,
+		Stage:             status.Stage,
+		StateChangeReason: &reason,
+		RoundN:            status.RoundN,
+		StateChangedAt:    status.StateChangedAt,
+		RemainingTimeMs:   remainingTimeMs,
+	}
+}
+
+// func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
+// 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+// 		GameID:      game.GameID,
+// 		Stage:       qg.GameStageSubmit,
+// 		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+// 		RoundN:      1,
+// 	})
+
+// 	if err != nil {
+// 		return nil, gmGameUpdError(game.GameID, err)
+// 	}
+
+// 	upd := statusRowToGameUpdate(status, reason)
+// 	return &upd, nil
+// }
+
+// func (gm *GameManager) updateRemainingTime(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, remainingMicro int64) (*models.GameUpdate, error) {
+// 	nextStageIn := pgtype.Interval{
+// 		Microseconds: remainingMicro,
+// 		Days:         0,
+// 		Months:       0,
+// 		Valid:        true,
+// 	}
+
+// 	_, err := q.UpdateRemainingTime(ctx, nextStageIn, game.GameID)
+
+// 	if err != nil {
+// 		return nil, gmGameUpdError(game.GameID, err)
+// 	}
+
+// 	return nil, nil
+// }
 
 // func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 // 	videos, err := q.FetchSubmittedVideosByPlayers(ctx, qg.FetchSubmittedVideosByPlayersParams{
@@ -492,16 +510,3 @@ func (gm *GameManager) updateRemainingTime(ctx context.Context, game qg.GetGameS
 // 		Result:            &models.GameResult{},
 // 	}, nil
 // }
-
-func statusRowToGameUpdate(row qg.UpdateGameStatusRow, reason string) models.GameUpdate {
-	return models.GameUpdate{
-		GameID:            row.GameID,
-		MsgType:           models.GameUpdateMsg,
-		Stage:             row.Stage,
-		StateChangeReason: &reason,
-		RoundN:            row.RoundN,
-		StateChangedAt:    row.StateChangedAt,
-		NextStateChangeAt: row.NextStateChangeAt,
-		RamaningTimeMs:    row.RemainingMs,
-	}
-}

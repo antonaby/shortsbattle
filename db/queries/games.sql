@@ -84,18 +84,8 @@ WHERE game_id = $1;
 -- name: UpdateGameStatus :one
 UPDATE game_status SET 
   stage = sqlc.arg(stage), 
-  next_state_change_at = now() + (sqlc.arg(next_state_in)::interval),
+  state_changed_at = now(),
   round_n = sqlc.arg(round_n)
-WHERE game_id = sqlc.arg(game_id) 
-RETURNING *, 
-  GREATEST(
-    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
-    0
-  )::bigint AS remaining_ms;
-
--- name: UpdateRemainingTime :one
-UPDATE game_status SET 
-  next_state_change_at = now() + (sqlc.arg(next_state_in)::interval)
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 

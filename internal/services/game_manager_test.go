@@ -8,6 +8,7 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,9 +23,7 @@ func TestGameActions(t *testing.T) {
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
 		MaxPlayers:                 2,
-		MinRemainingBeforeChangeMs: 300,
-		MinLobbyState:              1 * time.Second,
-		MaxLobbyState:              4 * time.Second,
+		MaxLobbyStage:              4 * time.Second,
 		LobbyClosedBefore:          2 * time.Second,
 		SubmittingState:            60 * time.Second,
 		WatchingState:              600 * time.Second,
@@ -98,7 +97,7 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to get game details (player 1): %v", err)
 		}
 		require.Equal(t, qg.GameStageLobby, gameDetails.Stage)
-		require.Less(t, gameDetails.RamaningTimeMs, int64(2000))
+		require.Less(t, gameDetails.RemainingTimeMs, int64(2000))
 	})
 
 	t.Run("SubmitVideo", func(t *testing.T) {
@@ -351,9 +350,7 @@ func TestAdvanceGame(t *testing.T) {
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
 		MaxPlayers:                 2,
-		MinRemainingBeforeChangeMs: 300,
-		MinLobbyState:              1 * time.Second,
-		MaxLobbyState:              2 * time.Second,
+		MaxLobbyStage:              2 * time.Second,
 		LobbyClosedBefore:          5 * time.Second,
 		SubmittingState:            60 * time.Second,
 		WatchingState:              600 * time.Second,
@@ -414,7 +411,7 @@ func TestAdvanceGame(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to fetcg game status: %v", err)
 		}
-		assert.Less(t, gameSatatus.NextStateChangeAt.Time.Sub(gameSatatus.StateChangedAt.Time), gm.config.MaxLobbyState)
+		assert.Less(t, gameSatatus.NextStateChangeAt.Time.Sub(gameSatatus.StateChangedAt.Time), gm.config.MaxLobbyStage)
 
 		// 8) Wait and Advance
 		time.Sleep(1 * time.Second)
@@ -426,7 +423,7 @@ func TestAdvanceGame(t *testing.T) {
 		// 9) Game state changed to submitting
 		require.NotNil(t, upd)
 		assert.Equal(t, qg.GameStageSubmit, upd.Stage)
-		assert.Equal(t, upd.StateChangeReason, ReasonLobbyFullPlayers)
+		assert.Equal(t, upd.StateChangeReason, models.ReasonLobbyFull)
 	})
 
 	// t.Run("LobbyTimeout", func(t *testing.T) {

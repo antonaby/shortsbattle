@@ -13,15 +13,21 @@ const (
 	GameCompleteMsg MessageType = "complete"
 )
 
+type StageChangeReason string
+
+const (
+	ReasonLobbyFull    StageChangeReason = "lobby-full"
+	ReasonLobbyTimeout StageChangeReason = "lobby-timeout"
+)
+
 type GameUpdate struct {
 	GameID            int64              `json:"id"`
 	MsgType           MessageType        `json:"msg_type"`
 	Stage             qg.GameStage       `json:"state"`
-	StateChangeReason *string            `json:"state_change_reason,omitempty"`
+	StateChangeReason *StageChangeReason `json:"state_change_reason,omitempty"`
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	RamaningTimeMs    int64              `json:"remaning_time_ms"`
+	RemainingTimeMs   *int64             `json:"remaning_time_ms,omitempty"`
 	Theme             *qg.Theme          `json:"theme,omitempty"`
 	Result            *GameResult        `json:"result,omitempty"`
 }

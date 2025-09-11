@@ -354,66 +354,20 @@ func (q *Queries) UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) 
 const updateGameStatus = `-- name: UpdateGameStatus :one
 UPDATE game_status SET 
   stage = $1, 
-  next_state_change_at = now() + ($2::interval),
-  round_n = $3
-WHERE game_id = $4 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at, 
-  GREATEST(
-    (EXTRACT(EPOCH FROM (next_state_change_at - now())) * 1000)::bigint,
-    0
-  )::bigint AS remaining_ms
-`
-
-type UpdateGameStatusParams struct {
-	Stage       GameStage       `json:"stage"`
-	NextStateIn pgtype.Interval `json:"next_state_in"`
-	RoundN      int32           `json:"round_n"`
-	GameID      int64           `json:"game_id"`
-}
-
-type UpdateGameStatusRow struct {
-	GameID            int64              `json:"game_id"`
-	ThemeID           int64              `json:"theme_id"`
-	Stage             GameStage          `json:"stage"`
-	RoundN            int32              `json:"round_n"`
-	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
-	NextStateChangeAt pgtype.Timestamptz `json:"next_state_change_at"`
-	NextEnqueueAt     pgtype.Timestamptz `json:"next_enqueue_at"`
-	DueAt             pgtype.Timestamptz `json:"due_at"`
-	RemainingMs       int64              `json:"remaining_ms"`
-}
-
-func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error) {
-	row := q.db.QueryRow(ctx, updateGameStatus,
-		arg.Stage,
-		arg.NextStateIn,
-		arg.RoundN,
-		arg.GameID,
-	)
-	var i UpdateGameStatusRow
-	err := row.Scan(
-		&i.GameID,
-		&i.ThemeID,
-		&i.Stage,
-		&i.RoundN,
-		&i.StateChangedAt,
-		&i.NextStateChangeAt,
-		&i.NextEnqueueAt,
-		&i.DueAt,
-		&i.RemainingMs,
-	)
-	return i, err
-}
-
-const updateRemainingTime = `-- name: UpdateRemainingTime :one
-UPDATE game_status SET 
-  next_state_change_at = now() + ($1::interval)
-WHERE game_id = $2 
+  state_changed_at = now(),
+  round_n = $2
+WHERE game_id = $3 
 RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at
 `
 
-func (q *Queries) UpdateRemainingTime(ctx context.Context, nextStateIn pgtype.Interval, gameID int64) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, updateRemainingTime, nextStateIn, gameID)
+type UpdateGameStatusParams struct {
+	Stage  GameStage `json:"stage"`
+	RoundN int32     `json:"round_n"`
+	GameID int64     `json:"game_id"`
+}
+
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, updateGameStatus, arg.Stage, arg.RoundN, arg.GameID)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,
