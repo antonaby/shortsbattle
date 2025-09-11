@@ -21,14 +21,11 @@ type AdvanceGamePayload struct {
 func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
 	payload, err := json.Marshal(AdvanceGamePayload{GameID: gameId})
 	if err != nil {
-		return nil, common.ServiceError{
-			Code:    common.ErrorMarshal,
-			Message: "failed to marshal palyload",
-			Cause:   err,
-		}
+		return nil, wdError(common.ErrorMarshal, "failed to marshal palyload", err)
 	}
 
-	return asynq.NewTask(JobTypeAdvance, payload), nil
+	// TODO: set max retry if needed
+	return asynq.NewTask(JobTypeAdvance, payload, asynq.MaxRetry(10)), nil
 }
 
 type GameManager interface {
@@ -42,10 +39,10 @@ type GameUpdatePublisher interface {
 type AdvanceGameProcessor struct {
 	gameManager     GameManager
 	updatePublisher GameUpdatePublisher
-	watchdog        *WatchdogPublisher
+	watchdog        *WatchdogClient
 }
 
-func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher, watchdog *WatchdogPublisher) *AdvanceGameProcessor {
+func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher, watchdog *WatchdogClient) *AdvanceGameProcessor {
 	return &AdvanceGameProcessor{
 		gameManager:     gameManager,
 		updatePublisher: updatePublisher,
@@ -59,14 +56,16 @@ func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq
 		return fmt.Errorf("unmarshaling failed: %v: %w", err, asynq.SkipRetry)
 	}
 
-	// TODO: add unique if needed
-	reschedule, upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
+	res, upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
 	if err != nil {
 		return err
 	}
 
-	if reschedule != nil {
-		processor.watchdog.AdvanceGame(ctx, reschedule.GameID, reschedule.ProcessIn)
+	if res != nil {
+		err = processor.watchdog.AdvanceGame(ctx, res.GameID, res.ProcessIn)
+		if err != nil {
+			return err
+		}
 	}
 
 	if upd != nil {

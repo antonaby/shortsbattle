@@ -17,10 +17,13 @@ CREATE TABLE
     stage game_stage NOT NULL DEFAULT 'lobby',
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
+    next_game_update_at TIMESTAMPTZ,
+    enqueued_at TIMESTAMPTZ,
     PRIMARY KEY (game_id)
   );
 
-CREATE INDEX game_status_stage ON game_status (stage, theme_id);
+CREATE INDEX idx_game_status_stage ON game_status (stage, theme_id);
+CREATE INDEX idx_game_status_enqueued_at_null ON game_status (enqueued_at) WHERE enqueued_at IS NULL;
 
 CREATE TYPE player_game_mode AS ENUM ('submit_and_vote', 'only_vote');
 

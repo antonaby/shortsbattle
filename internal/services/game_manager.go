@@ -36,10 +36,12 @@ func gmGameUpdError(id int64, err error) error {
 }
 
 type GameConfig struct {
-	MaxPlayers      int32
-	MaxLobbyStage   time.Duration
-	SubmittingState time.Duration
-	WatchingState   time.Duration
+	DefaultRescheduleInterval time.Duration
+	MaxPlayers                int32
+	MaxLobbyStage             time.Duration
+	MaxLobbyFullStage         time.Duration
+	SubmittingState           time.Duration
+	WatchingState             time.Duration
 }
 
 type GameManager struct {
@@ -276,22 +278,20 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.T
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.TaskReschedule, *models.GameUpdate, error) {
 		game, err := q.GetGameStateLock(ctx, gameId)
 		if err != nil {
+			if db.IsNoRows(err) {
+				return nil, nil, nil
+			}
+
 			return nil, nil, gmDbError("fetch failed", err)
 		}
 
 		switch game.Stage {
 		case qg.GameStageLobby:
 			return gm.handleLobby(ctx, game, q)
-		// case qg.GameStateSubmitting:
-		// 	return gm.handleSubmitting(ctx, &game, q)
-		// case qg.GameStateWatching:
-		// 	return gm.handleWathching(ctx, &game, q)
+		case qg.GameStageLobbyFull:
+			return gm.handleLobbyFull(ctx, game, q)
 		default:
-			return nil, nil, gmError(
-				common.ErrorWrongGameStage,
-				fmt.Sprintf("wrong game stage, game_id=%d", game.GameID),
-				nil,
-			)
+			return gm.defaultReschedule(gameId), nil, nil
 		}
 	})
 }
@@ -317,10 +317,25 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 		}
 
 		upd := statusToGameUpdate(status, reason)
-		return nil, &upd, nil
+		return gm.defaultReschedule(game.GameID), &upd, nil
 	}
 
-	return nil, nil, nil
+	return gm.defaultReschedule(game.GameID), nil, nil
+}
+
+func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.TaskReschedule, *models.GameUpdate, error) {
+	isTimeout := game.PastMs >= gm.config.MaxLobbyFullStage.Milliseconds()
+	if isTimeout {
+		status, err := gm.updateGameStage(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		upd := statusToGameUpdate(status, models.ReasonLobbyFull)
+		return gm.defaultReschedule(game.GameID), &upd, nil
+	}
+
+	return nil, nil, nil	
 }
 
 func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId int64, stage qg.GameStage, roundN int32) (*qg.GameStatus, error) {
@@ -335,6 +350,13 @@ func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId
 	}
 
 	return &status, nil
+}
+
+func (gm *GameManager) defaultReschedule(gameId int64) *models.TaskReschedule {
+	return &models.TaskReschedule{
+		GameID:    gameId,
+		ProcessIn: gm.config.DefaultRescheduleInterval,
+	}
 }
 
 func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) models.GameUpdate {

@@ -16,6 +16,7 @@ type Querier interface {
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, title string, description pgtype.Text) (Theme, error)
+	EnqueueGames(ctx context.Context) ([]GameStatus, error)
 	FetchVotesByPlayers(ctx context.Context, gameID int64) ([]FetchVotesByPlayersRow, error)
 	GetGameRounds(ctx context.Context, id int64) ([]Round, error)
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)

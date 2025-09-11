@@ -334,10 +334,11 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:      2,
-		MaxLobbyStage:   2 * time.Second,
-		SubmittingState: 60 * time.Second,
-		WatchingState:   600 * time.Second,
+		DefaultRescheduleInterval: 10 * time.Second,
+		MaxPlayers:                2,
+		MaxLobbyStage:             2 * time.Second,
+		SubmittingState:           60 * time.Second,
+		WatchingState:             600 * time.Second,
 	})
 
 	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {
@@ -389,7 +390,6 @@ func TestAdvanceGame(t *testing.T) {
 		}
 		// 6) No time to change state, nPlayer = 2, but minLobbyTime not exceeded
 		require.Nil(t, upd, "update not nil")
-
 
 		// 8) Wait and Advance
 		time.Sleep(1 * time.Second)

@@ -20,12 +20,7 @@ func GetRedisDSN() (string, error) {
 	return redisHost, nil
 }
 
-func NewRedisClient() (*redis.Client, error) {
-	redisHost, err := GetRedisDSN()
-	if err != nil {
-		return nil, err
-	}
-
+func NewRedisClient(redisHost string) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     redisHost,
 		Password: "",
@@ -35,7 +30,7 @@ func NewRedisClient() (*redis.Client, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
-	_, err = client.Ping(ctx).Result()
+	_, err := client.Ping(ctx).Result()
 	if err != nil {
 		return nil, err
 	}

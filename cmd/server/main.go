@@ -33,17 +33,23 @@ func main() {
 	}
 	defer dbManager.Close()
 
-	redisClient, err := db.NewRedisClient()
+	redisHost, err := db.GetRedisDSN()
+	if err != nil {
+		log.Fatal().Err(err).Msg("can't get redis host")
+	}
+
+	redisClient, err := db.NewRedisClient(redisHost)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can't connect to Redis")
 	}
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:      2,
-		MaxLobbyStage:   60 * time.Second,
-		SubmittingState: 60 * time.Second,
-		WatchingState:   600 * time.Second,
+		DefaultRescheduleInterval: 10 * time.Second,
+		MaxPlayers:                2,
+		MaxLobbyStage:             60 * time.Second,
+		SubmittingState:           60 * time.Second,
+		WatchingState:             600 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
@@ -83,18 +89,14 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't start TG Bot")
 	}
 
-	redisHost, err := db.GetRedisDSN()
-	if err != nil {
-		log.Fatal().Err(err).Msg("can't get redis host")
-	}
+	watchdogClient := watchdog.NewWatchdogClient(redisHost)
+	defer watchdogClient.Close()
 
-	watchdogPublisher := watchdog.NewWatchdogPublisher(redisHost)
-	defer watchdogPublisher.Close()
-
-	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager, centrifugeServer, watchdogPublisher)
+	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager, centrifugeServer, watchdogClient)
 	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceProcessor)
+	dbWatchdog := watchdog.NewDBWatchdog(dbManager, watchdogClient, 1*time.Second)
 
-	httpApi := api.NewHttpApi(watchdogPublisher, authService, gameManager, themeService, videoService)
+	httpApi := api.NewHttpApi(watchdogClient, authService, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
 	e.GET("/api/v1/games/updates", echo.WrapHandler(centrifugeServer.Handler()))
 
@@ -107,6 +109,7 @@ func main() {
 	}
 	defer watchdogWorker.Shutdown()
 	go botManager.Start(ctx)
+	go dbWatchdog.Run(ctx)
 
 	go func() {
 		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {

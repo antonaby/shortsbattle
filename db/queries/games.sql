@@ -7,6 +7,12 @@ SELECT join_game(
   sqlc.arg(mode)
 ) AS game_id;
 
+-- name: EnqueueGames :many
+UPDATE game_status
+SET enqueued_at = now()
+WHERE enqueued_at IS NULL
+RETURNING *;
+
 -- name: GetGameShareLock :one
 SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
