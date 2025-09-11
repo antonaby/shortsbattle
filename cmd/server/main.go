@@ -88,7 +88,7 @@ func main() {
 		log.Fatal().Err(err).Msg("can't get redis host")
 	}
 
-	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager)
+	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager, centrifugeServer)
 	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceProcessor)
 	watchdogPublisher := watchdog.NewWatchdogPublisher(redisHost)
 	defer watchdogPublisher.Close()

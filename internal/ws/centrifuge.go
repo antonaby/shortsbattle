@@ -64,12 +64,13 @@ func (cf *CentrifugeServer) Run() error {
 	return nil
 }
 
-func (cf *CentrifugeServer) PublishGameUpdate(channel string, upd models.GameUpdate) error {
+func (cf *CentrifugeServer) PublishGameUpdate(upd models.GameUpdate) error {
 	jsonBytes, err := json.Marshal(upd)
 	if err != nil {
 		return err
 	}
 
+	channel := models.GetCfChannelName(upd.GameID)
 	_, err = cf.node.Publish(channel, jsonBytes)
 	return err
 }
@@ -101,7 +102,7 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		gameId, err := services.ParseCfChannelName(e.Channel)
+		gameId, err := models.ParseCfChannelName(e.Channel)
 		if err != nil {
 			log.Error().Err(err).Stack().Msgf("can't parse channel name: %s", e.Channel)
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
