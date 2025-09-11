@@ -15,10 +15,13 @@ import (
 type GameStage string
 
 const (
-	GameStageLobby    GameStage = "lobby"
-	GameStageSubmit   GameStage = "submit"
-	GameStageWatch    GameStage = "watch"
-	GameStageComplete GameStage = "complete"
+	GameStageLobby          GameStage = "lobby"
+	GameStageLobbyFull      GameStage = "lobby-full"
+	GameStageSubmit         GameStage = "submit"
+	GameStageSubmitComplete GameStage = "submit-complete"
+	GameStageWatch          GameStage = "watch"
+	GameStageWatchComplete  GameStage = "watch-complete"
+	GameStageComplete       GameStage = "complete"
 )
 
 func (e *GameStage) Scan(src interface{}) error {

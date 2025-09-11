@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -191,7 +192,6 @@ LOOP:
 
 					if err := gsl.handleMessage(ctx, gameId); err != nil {
 						log.Error().Err(err).Stack().Msgf("handler failed for %s:%s", gsl.config.StreamName, msg.ID)
-						continue
 					}
 
 					if err := gsl.redis.XAck(ctx, gsl.config.StreamName, gsl.config.ConsumerGroupName, msg.ID).Err(); err != nil {
@@ -247,16 +247,22 @@ func (gsl *GameListener) ReclaimPending(ctx context.Context) error {
 	}
 }
 
-// TODO: restore
 func (gsl *GameListener) handleMessage(ctx context.Context, gameId int64) error {
-	// upd, err := gsl.manager.AdvanceGame(ctx, gameId)
-	// if err != nil {
-	// 	return err
-	// }
+	upd, err := gsl.manager.AdvanceGame(ctx, gameId)
+	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorDbNotFound || sErr.Code == common.ErrorWrongGameStage {
+				return nil
+			}
+		}
 
-	// if upd != nil {
-	// 	return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), *upd)
-	// }
+		return err
+	}
+
+	if upd != nil {
+		return gsl.updatePublisher.PublishGameUpdate(GetCfChannelName(gameId), *upd)
+	}
 
 	return nil
 }

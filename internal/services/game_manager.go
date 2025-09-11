@@ -10,6 +10,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const (
@@ -90,9 +91,10 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 	})
 }
 
+// TODO: add endpoint
 func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
-		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageLobby), string(qg.GameStageSubmit)})
+		_, err := gm.findGame(ctx, q, gameId, playerId, []string{string(qg.GameStageLobby), string(qg.GameStageLobbyFull), string(qg.GameStageSubmit)})
 		if err != nil {
 			return nil, err
 		}
@@ -284,89 +286,85 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-// func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
-// 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
-// 		game, err := q.FetchGameAndLock(ctx, qg.FetchGameAndLockParams{ID: gameId})
-// 		if err != nil {
-// 			return nil, gmDbError("fetch failed", err)
-// 		}
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
+		game, err := q.GetGameStateLock(ctx, gameId)
+		if err != nil {
+			return nil, gmDbError("fetch failed", err)
+		}
 
-// 		switch game.State {
-// 		case qg.GameStateLobby:
-// 			return gm.handleLobby(ctx, &game, q)
-// 		case qg.GameStateSubmitting:
-// 			return gm.handleSubmitting(ctx, &game, q)
-// 		case qg.GameStateWatching:
-// 			return gm.handleWathching(ctx, &game, q)
-// 		default:
-// 			return nil, gmError(
-// 				common.ErrorWrongGameState,
-// 				fmt.Sprintf("wrong game state, game_id=%d", game.ID),
-// 				nil,
-// 			)
-// 		}
-// 	})
-// }
+		switch game.Stage {
+		case qg.GameStageLobby:
+			return gm.handleLobby(ctx, game, q)
+		// case qg.GameStateSubmitting:
+		// 	return gm.handleSubmitting(ctx, &game, q)
+		// case qg.GameStateWatching:
+		// 	return gm.handleWathching(ctx, &game, q)
+		default:
+			return nil, gmError(
+				common.ErrorWrongGameStage,
+				fmt.Sprintf("wrong game stage, game_id=%d", game.GameID),
+				nil,
+			)
+		}
+	})
+}
 
-// func (gm *GameManager) handleLobby(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
-// 	nPlayers, err := q.CountPlayerInGame(ctx, qg.CountPlayerInGameParams{GameID: game.ID})
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
+	nPlayers, err := q.CountPlayersInGame(ctx, game.GameID)
+	if err != nil {
+		return nil, gmGameUpdError(game.GameID, err)
+	}
 
-// 	if nPlayers >= int64(gm.config.MaxPlayers) {
-// 		if game.PastMs >= gm.config.MinLobbyState.Milliseconds() {
-// 			return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyFullPlayers)
-// 		}
+	if nPlayers >= int64(gm.config.MaxPlayers) {
+		if game.PastMs >= gm.config.MinLobbyState.Milliseconds() {
+			return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyFullPlayers)
+		}
 
-// 		remainingMicro := (gm.config.MinLobbyState.Milliseconds() - game.PastMs) * 1000
-// 		return gm.updateRemainingTime(ctx, game, q, remainingMicro)
-// 	}
+		remainingMicro := (gm.config.MinLobbyState.Milliseconds() - game.PastMs) * 1000
+		return gm.updateRemainingTime(ctx, game, q, remainingMicro)
+	}
 
-// 	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
-// 		return nil, nil
-// 	}
+	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
+		return nil, nil
+	}
 
-// 	// TODO: add bots if nPlayers less than MaxPlayers
-// 	return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyTimeout)
-// }
+	// TODO: add bots if nPlayers less than MaxPlayers
+	return gm.fromLobbyToSubmitting(ctx, game, q, ReasonLobbyTimeout)
+}
 
-// func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
-// 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-// 		ID:          game.ID,
-// 		State:       qg.GameStateSubmitting,
-// 		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
-// 		RoundN: pgtype.Int4{
-// 			Int32: 1,
-// 			Valid: true,
-// 		},
-// 	})
+func (gm *GameManager) fromLobbyToSubmitting(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
+	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+		GameID:      game.GameID,
+		Stage:       qg.GameStageSubmit,
+		NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
+		RoundN:      1,
+	})
 
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+	if err != nil {
+		return nil, gmGameUpdError(game.GameID, err)
+	}
 
-// 	upd := statusRowToGameUpdate(status, reason)
-// 	return &upd, nil
-// }
+	upd := statusRowToGameUpdate(status, reason)
+	return &upd, nil
+}
 
-// func (gm *GameManager) updateRemainingTime(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, remainingMicro int64) (*models.GameUpdate, error) {
-// 	_, err := q.ChangeRemainingTime(ctx, qg.ChangeRemainingTimeParams{
-// 		ID: game.ID,
-// 		NextStateIn: pgtype.Interval{
-// 			Microseconds: remainingMicro,
-// 			Days:         0,
-// 			Months:       0,
-// 			Valid:        true,
-// 		},
-// 	})
+func (gm *GameManager) updateRemainingTime(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier, remainingMicro int64) (*models.GameUpdate, error) {
+	nextStageIn := pgtype.Interval{
+		Microseconds: remainingMicro,
+		Days:         0,
+		Months:       0,
+		Valid:        true,
+	}
 
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+	_, err := q.UpdateRemainingTime(ctx, nextStageIn, game.GameID)
 
-// 	return nil, nil
-// }
+	if err != nil {
+		return nil, gmGameUpdError(game.GameID, err)
+	}
+
+	return nil, nil
+}
 
 // func (gm *GameManager) handleSubmitting(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
 // 	videos, err := q.FetchSubmittedVideosByPlayers(ctx, qg.FetchSubmittedVideosByPlayersParams{
@@ -495,15 +493,15 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 // 	}, nil
 // }
 
-// func statusRowToGameUpdate(row qg.UpdateGameStatusRow, reason string) models.GameUpdate {
-// 	return models.GameUpdate{
-// 		GameID:            row.ID,
-// 		MsgType:           models.GameUpdateMsg,
-// 		State:             row.State,
-// 		StateChangeReason: reason,
-// 		RoundN:            row.RoundN.Int32,
-// 		StateChangedAt:    row.StateChangedAt,
-// 		NextStateChangeAt: row.NextStateChangeAt,
-// 		RamaningTimeMs:    row.RemainingMs,
-// 	}
-// }
+func statusRowToGameUpdate(row qg.UpdateGameStatusRow, reason string) models.GameUpdate {
+	return models.GameUpdate{
+		GameID:            row.GameID,
+		MsgType:           models.GameUpdateMsg,
+		Stage:             row.Stage,
+		StateChangeReason: &reason,
+		RoundN:            row.RoundN,
+		StateChangedAt:    row.StateChangedAt,
+		NextStateChangeAt: row.NextStateChangeAt,
+		RamaningTimeMs:    row.RemainingMs,
+	}
+}

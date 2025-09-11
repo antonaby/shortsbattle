@@ -25,7 +25,8 @@ BEGIN
   JOIN game_players gp ON gp.game_id = gs.game_id AND gp.player_id = p_player_id
   WHERE gs.stage = p_lobby_stage  
     AND gs.theme_id = p_theme_id       
-  LIMIT 1;
+  LIMIT 1
+  FOR SHARE OF gs;
 
   IF v_game_id IS NOT NULL THEN
     RETURN v_game_id;

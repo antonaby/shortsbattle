@@ -13,23 +13,22 @@ import (
 
 const advanceGames = `-- name: AdvanceGames :many
 WITH candidates AS (
-    SELECT game_id, stage
-    FROM game_status
-    WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
-      AND due_at <= now()
-    ORDER BY due_at ASC, game_id
-    FOR UPDATE SKIP LOCKED
-    LIMIT $1
-  ),
-  upd AS (
-    UPDATE game_status gs
-    SET
-      next_enqueue_at = now() + ($2::interval)
-    FROM candidates c
-    WHERE gs.game_id = c.game_id
-    RETURNING gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at
-  )
-  SELECT game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at FROM upd
+  SELECT game_id, stage
+  FROM game_status
+  WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
+    AND due_at <= now()
+  ORDER BY due_at ASC, game_id
+  FOR UPDATE SKIP LOCKED
+  LIMIT $1
+),
+upd AS (
+  UPDATE game_status gs
+  SET next_enqueue_at = now() + ($2::interval)
+  FROM candidates c
+  WHERE gs.game_id = c.game_id
+  RETURNING gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_state_change_at, gs.next_enqueue_at, gs.due_at
+)
+SELECT game_id, theme_id, stage, round_n, state_changed_at, next_state_change_at, next_enqueue_at, due_at FROM upd
 `
 
 type AdvanceGamesRow struct {
@@ -72,14 +71,14 @@ func (q *Queries) AdvanceGames(ctx context.Context, batchSize int32, enqueueInte
 	return items, nil
 }
 
-const countPlayerInGame = `-- name: CountPlayerInGame :one
+const countPlayersInGame = `-- name: CountPlayersInGame :one
 SELECT COUNT(*) AS player_count
 FROM game_players
 WHERE game_id = $1
 `
 
-func (q *Queries) CountPlayerInGame(ctx context.Context, gameID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, countPlayerInGame, gameID)
+func (q *Queries) CountPlayersInGame(ctx context.Context, gameID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countPlayersInGame, gameID)
 	var player_count int64
 	err := row.Scan(&player_count)
 	return player_count, err

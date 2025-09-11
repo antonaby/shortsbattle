@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TYPE game_stage AS ENUM ('lobby', 'submit', 'watch', 'complete');
+CREATE TYPE game_stage AS ENUM ('lobby', 'lobby-full', 'submit', 'submit-complete', 'watch', 'watch-complete', 'complete');
 
 CREATE TABLE
   games (
@@ -17,7 +17,7 @@ CREATE TABLE
     stage game_stage NOT NULL DEFAULT 'lobby',
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
-    next_state_change_at TIMESTAMPTZ,
+    next_state_change_at TIMESTAMPTZ, -- TODO: remove next_state_change_at, add change_stage_next_tick (bool)
     next_enqueue_at TIMESTAMPTZ,
     due_at TIMESTAMPTZ
     GENERATED ALWAYS AS (

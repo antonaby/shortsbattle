@@ -13,7 +13,7 @@ import (
 type Querier interface {
 	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error)
 	AdvanceGames(ctx context.Context, batchSize int32, enqueueInterval pgtype.Interval) ([]AdvanceGamesRow, error)
-	CountPlayerInGame(ctx context.Context, gameID int64) (int64, error)
+	CountPlayersInGame(ctx context.Context, gameID int64) (int64, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, title string, description pgtype.Text) (Theme, error)

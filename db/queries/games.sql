@@ -11,23 +11,22 @@ SELECT join_game(
 
 -- name: AdvanceGames :many
 WITH candidates AS (
-    SELECT game_id, stage
-    FROM game_status
-    WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
-      AND due_at <= now()
-    ORDER BY due_at ASC, game_id
-    FOR UPDATE SKIP LOCKED
-    LIMIT sqlc.arg(batch_size)
-  ),
-  upd AS (
-    UPDATE game_status gs
-    SET
-      next_enqueue_at = now() + (sqlc.arg(enqueue_interval)::interval)
-    FROM candidates c
-    WHERE gs.game_id = c.game_id
-    RETURNING gs.*
-  )
-  SELECT * FROM upd;
+  SELECT game_id, stage
+  FROM game_status
+  WHERE (stage = 'lobby' OR stage = 'submit' OR stage = 'watch')
+    AND due_at <= now()
+  ORDER BY due_at ASC, game_id
+  FOR UPDATE SKIP LOCKED
+  LIMIT sqlc.arg(batch_size)
+),
+upd AS (
+  UPDATE game_status gs
+  SET next_enqueue_at = now() + (sqlc.arg(enqueue_interval)::interval)
+  FROM candidates c
+  WHERE gs.game_id = c.game_id
+  RETURNING gs.*
+)
+SELECT * FROM upd;
 
 -- name: GetGameAndPlayerLock :one
 SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at
@@ -77,7 +76,7 @@ FROM game_status gs
 WHERE gs.game_id = $1 
 FOR UPDATE;
 
--- name: CountPlayerInGame :one
+-- name: CountPlayersInGame :one
 SELECT COUNT(*) AS player_count
 FROM game_players
 WHERE game_id = $1;
