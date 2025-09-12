@@ -279,19 +279,25 @@ UPDATE game_status SET
   stage = $1, 
   state_changed_at = now(),
   round_n = $2,
-  enqueued_at = NULL
-WHERE game_id = $3 
+  next_game_update_at = now() + $3::interval
+WHERE game_id = $4 
 RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
 `
 
 type UpdateGameStatusParams struct {
-	Stage  GameStage `json:"stage"`
-	RoundN int32     `json:"round_n"`
-	GameID int64     `json:"game_id"`
+	Stage            GameStage       `json:"stage"`
+	RoundN           int32           `json:"round_n"`
+	NextGameUpdateIn pgtype.Interval `json:"next_game_update_in"`
+	GameID           int64           `json:"game_id"`
 }
 
 func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, updateGameStatus, arg.Stage, arg.RoundN, arg.GameID)
+	row := q.db.QueryRow(ctx, updateGameStatus,
+		arg.Stage,
+		arg.RoundN,
+		arg.NextGameUpdateIn,
+		arg.GameID,
+	)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,

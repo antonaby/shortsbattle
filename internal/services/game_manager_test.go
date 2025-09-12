@@ -28,10 +28,10 @@ func TestGameActions(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:      2,
-		MaxLobbyStage:   2 * time.Second,
-		SubmittingState: 60 * time.Second,
-		WatchingState:   600 * time.Second,
+		MaxPlayers:     2,
+		MaxLobbyStage:  2 * time.Second,
+		MaxSubmitState: 60 * time.Second,
+		MaxWatchState:  600 * time.Second,
 	})
 
 	vs := NewVideosService(ts.DBManager)
@@ -140,7 +140,7 @@ func TestGameActions(t *testing.T) {
 		// add new video
 		_, player1GameVideo3, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl3, players[0].TgID, 1)
 		fatalIfError(t, err, "failed to submit video (player 1)")
-		// check that video has been updated not added
+		// check that video has been added as it's new
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo3.ID)
 		require.NotEqual(t, player1GameVideo1.VideoID, player1GameVideo3.VideoID)
 
@@ -275,10 +275,10 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:                2,
-		MaxLobbyStage:             2 * time.Second,
-		SubmittingState:           60 * time.Second,
-		WatchingState:             600 * time.Second,
+		MaxPlayers:     2,
+		MaxLobbyStage:  2 * time.Second,
+		MaxSubmitState: 60 * time.Second,
+		MaxWatchState:  600 * time.Second,
 	})
 
 	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {

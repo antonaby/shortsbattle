@@ -39,8 +39,8 @@ type GameConfig struct {
 	MaxPlayers        int32
 	MaxLobbyStage     time.Duration
 	MaxLobbyFullStage time.Duration
-	SubmittingState   time.Duration
-	WatchingState     time.Duration
+	MaxSubmitState    time.Duration
+	MaxWatchState     time.Duration
 }
 
 type GameManager struct {
@@ -306,7 +306,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 
 	isTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds()
 	if nPlayers >= int64(gm.config.MaxPlayers) || isTimeout {
-		status, err := gm.updateGameStage(ctx, q, game.GameID, qg.GameStageLobbyFull, game.RoundN)
+		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageLobbyFull, game.RoundN, gm.config.MaxLobbyFullStage)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +326,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	isTimeout := game.PastMs >= gm.config.MaxLobbyFullStage.Milliseconds()
 	if isTimeout {
-		status, err := gm.updateGameStage(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN)
+		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN, gm.config.MaxSubmitState)
 		if err != nil {
 			return nil, err
 		}
@@ -338,11 +338,14 @@ func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameState
 	return nil, nil
 }
 
-func (gm *GameManager) updateGameStage(ctx context.Context, q qg.Querier, gameId int64, stage qg.GameStage, roundN int32) (*qg.GameStatus, error) {
+func (gm *GameManager) updateGameStatus(
+	ctx context.Context, q qg.Querier, gameId int64,
+	stage qg.GameStage, roundN int32, nextGameChangeIn time.Duration) (*qg.GameStatus, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-		GameID: gameId,
-		Stage:  stage,
-		RoundN: roundN,
+		GameID:           gameId,
+		Stage:            stage,
+		RoundN:           roundN,
+		NextGameUpdateIn: db.ToPgInterval(nextGameChangeIn),
 	})
 
 	if err != nil {

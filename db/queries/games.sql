@@ -73,7 +73,7 @@ UPDATE game_status SET
   stage = sqlc.arg(stage), 
   state_changed_at = now(),
   round_n = sqlc.arg(round_n),
-  enqueued_at = NULL
+  next_game_update_at = now() + sqlc.arg(next_game_update_in)::interval
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 
