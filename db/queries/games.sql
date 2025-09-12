@@ -55,7 +55,8 @@ SELECT
     0
   )::bigint AS past_ms
 FROM game_status gs
-WHERE gs.game_id = $1 AND gs.update_key = $2
+WHERE gs.game_id = sqlc.arg(game_id) 
+  AND (sqlc.arg(update_key)::UUID IS NULL OR gs.update_key = sqlc.arg(update_key)::UUID)
 FOR UPDATE;
 
 -- name: CountPlayersInGame :one

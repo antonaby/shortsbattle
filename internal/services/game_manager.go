@@ -276,7 +276,23 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID, isTimeout bool) (*models.GameUpdate, error) {
+func (gm *GameManager) AdvanceGameNow(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
+		pgUUID := pgtype.UUID{Valid: false}
+		game, err := q.GetGameLock(ctx, gameId, pgUUID)
+		if err != nil {
+			if db.IsNoRows(err) {
+				return nil, nil
+			}
+
+			return nil, gmDbError("fetch failed", err)
+		}
+
+		return gm.advanceGame(ctx, q, game, false)
+	})
+}
+
+func (gm *GameManager) AdvanceGameAt(ctx context.Context, gameId int64, updateKey uuid.UUID, isTimeout bool) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		pgUUID := pgtype.UUID{Bytes: updateKey, Valid: true}
 		game, err := q.GetGameLock(ctx, gameId, pgUUID)
@@ -288,27 +304,31 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, updateKey 
 			return nil, gmDbError("fetch failed", err)
 		}
 
-		switch game.Stage {
-		case qg.GameStageLobby:
-			return gm.handleLobby(ctx, game, q)
-		case qg.GameStageLobbyFull:
-			return gm.handleLobbyFull(ctx, game, q)
-		default:
-			return nil, nil
-		}
+		return gm.advanceGame(ctx, q, game, isTimeout)
 	})
+}
+
+func (gm *GameManager) advanceGame(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
+	switch game.Stage {
+	case qg.GameStageLobby:
+		return gm.handleLobby(ctx, q, game, isTimeout)
+	case qg.GameStageLobbyFull:
+		return gm.handleLobbyFull(ctx, q, game, isTimeout)
+	default:
+		return nil, nil
+	}
 }
 
 // TODO: check only active users
 // TODO: add bots if nPlayers less than MaxPlayers
-func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleLobby(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	nPlayers, err := q.CountPlayersInGame(ctx, game.GameID)
 	if err != nil {
 		return nil, gmGameUpdError(game.GameID, err)
 	}
 
-	isTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds()
-	if nPlayers >= int64(gm.config.MaxPlayers) || isTimeout {
+	probablyTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds() || isTimeout
+	if nPlayers >= int64(gm.config.MaxPlayers) || probablyTimeout {
 		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageLobbyFull, game.RoundN, gm.config.MaxLobbyFullStage)
 		if err != nil {
 			return nil, err
@@ -326,9 +346,9 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameLockRow, 
 	return nil, nil
 }
 
-func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameLockRow, q qg.Querier) (*models.GameUpdate, error) {
-	isTimeout := game.PastMs >= gm.config.MaxLobbyFullStage.Milliseconds()
-	if isTimeout {
+func (gm *GameManager) handleLobbyFull(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
+	probablyTimeout := game.PastMs >= gm.config.MaxLobbyFullStage.Milliseconds() || isTimeout
+	if probablyTimeout {
 		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN, gm.config.MaxSubmitState)
 		if err != nil {
 			return nil, err

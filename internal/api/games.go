@@ -39,7 +39,7 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 		})
 	}
 
-	//api.watchdog.AdvanceGame(ctx, gameId)
+	api.watchdog.AdvanceGameNow(ctx, gameId)
 
 	return c.JSON(http.StatusOK, models.OkGameIdReposne{
 		Msg:    "game joined",

@@ -48,8 +48,8 @@ func main() {
 		MaxPlayers:        2,
 		MaxLobbyStage:     60 * time.Second,
 		MaxLobbyFullStage: 10 * time.Second,
-		SubmittingState:   60 * time.Second,
-		WatchingState:     600 * time.Second,
+		MaxSubmitState:    60 * time.Second,
+		MaxWatchState:     600 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
@@ -92,8 +92,9 @@ func main() {
 	watchdogClient := watchdog.NewWatchdogClient(redisHost)
 	defer watchdogClient.Close()
 
-	advanceProcessor := watchdog.NewAdvanceGameProcessor(gameManager, centrifugeServer, watchdogClient)
-	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceProcessor)
+	advanceAtProcessor := watchdog.NewAdvanceGameAtProcessor(gameManager, centrifugeServer)
+	advanceNowProcessor := watchdog.NewAdvanceGameNowProcessor(gameManager, centrifugeServer)
+	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceAtProcessor, advanceNowProcessor)
 	dbWatchdog := watchdog.NewDBWatchdog(dbManager, watchdogClient, 1*time.Second)
 
 	httpApi := api.NewHttpApi(watchdogClient, authService, gameManager, themeService, videoService)

@@ -51,7 +51,7 @@ type WatchdogWorker struct {
 	mux    *asynq.ServeMux
 }
 
-func NewWatchdogWorker(redisHost string, advanceProcessor *AdvanceGameProcessor) *WatchdogWorker {
+func NewWatchdogWorker(redisHost string, advanceAtProcessor *AdvanceGameAtProcessor, advanceNowProcessor *AdvanceGameNowProcessor) *WatchdogWorker {
 	server := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisHost},
 		asynq.Config{
@@ -64,7 +64,8 @@ func NewWatchdogWorker(redisHost string, advanceProcessor *AdvanceGameProcessor)
 	)
 
 	mux := asynq.NewServeMux()
-	mux.Handle(JobTypeAdvance, advanceProcessor)
+	mux.Handle(JobTypeAdvanceAt, advanceAtProcessor)
+	mux.Handle(JobTypeAdvanceNow, advanceNowProcessor)
 
 	return &WatchdogWorker{
 		server: server,
@@ -105,8 +106,8 @@ func (publisher *WatchdogClient) Close() error {
 	return nil
 }
 
-func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID) error {
-	task, err := NewAdvanceGameTask(gameId, updateKey, false)
+func (publisher *WatchdogClient) AdvanceGameNow(ctx context.Context, gameId int64) error {
+	task, err := NewAdvanceGameNowTask(gameId)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
@@ -116,12 +117,12 @@ func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64, 
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
 
-	log.Debug().Msgf("watchdog: enqueued advance game task: %s", info.ID)
+	log.Debug().Msgf("watchdog: enqueued AdvanceGameNow task: %s", info.ID)
 	return nil
 }
 
 func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt time.Time, gameId int64, updateKey uuid.UUID, isTimeout bool) error {
-	task, err := NewAdvanceGameTask(gameId, updateKey, isTimeout)
+	task, err := NewAdvanceGameAtTask(gameId, updateKey, isTimeout)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
@@ -131,7 +132,7 @@ func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt ti
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
 
-	log.Debug().Msgf("watchdog: enqueued advance game task: %s", info.ID)
+	log.Debug().Msgf("watchdog: enqueued AdvanceGameAt task: %s", info.ID)
 	return nil
 }
 
