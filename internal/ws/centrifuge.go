@@ -73,6 +73,18 @@ func (cf *CentrifugeServer) Run() error {
 	return nil
 }
 
+// TODO: apply shutdown logic in web-app
+func (cf *CentrifugeServer) Shutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := cf.node.Shutdown(ctx); err != nil {
+		return cfError(common.ErrorInit, "failed to stop server", err)
+	}
+
+	return nil
+}
+
 func (cf *CentrifugeServer) PublishGameUpdate(upd models.GameUpdate) error {
 	jsonBytes, err := json.Marshal(upd)
 	if err != nil {

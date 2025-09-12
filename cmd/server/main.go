@@ -27,20 +27,25 @@ func main() {
 		log.Error().Err(err).Msg(".env file not loaded")
 	}
 
-	dbManager, err := db.NewDbManager(nil)
+	dbHost, err := db.GetDbDSN()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't connect to Postgres")
+		log.Fatal().Err(err).Send()
+	}
+
+	dbManager, err := db.NewDbManager(dbHost)
+	if err != nil {
+		log.Fatal().Err(err).Send()
 	}
 	defer dbManager.Close()
 
 	redisHost, err := db.GetRedisDSN()
 	if err != nil {
-		log.Fatal().Err(err).Msg("can't get redis host")
+		log.Fatal().Err(err).Send()
 	}
 
 	redisClient, err := db.NewRedisClient(redisHost)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't connect to Redis")
+		log.Fatal().Err(err).Send()
 	}
 	defer redisClient.Close()
 
@@ -65,7 +70,7 @@ func main() {
 
 	keyManager, err := services.NewKeyManager()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't load JWK")
+		log.Fatal().Err(err).Send()
 	}
 
 	authService := services.NewAuthService(keyManager, playerService, authConfig)
@@ -81,12 +86,13 @@ func main() {
 
 	err = centrifugeServer.Run()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't run Centriguge server")
+		log.Fatal().Err(err).Send()
 	}
+	defer centrifugeServer.Shutdown()
 
 	botManager, err := bot.NewTgBotManager(playerService, videoService)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't start TG Bot")
+		log.Fatal().Err(err).Send()
 	}
 
 	watchdogClient := watchdog.NewWatchdogClient(redisHost)
@@ -95,7 +101,10 @@ func main() {
 	advanceAtProcessor := watchdog.NewAdvanceGameAtProcessor(gameManager, centrifugeServer)
 	advanceNowProcessor := watchdog.NewAdvanceGameNowProcessor(gameManager, centrifugeServer)
 	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceAtProcessor, advanceNowProcessor)
-	dbWatchdog := watchdog.NewDBWatchdog(dbManager, watchdogClient, 1*time.Second)
+	dbWatchdog, err := watchdog.NewDBWatchdog(dbManager, watchdogClient, dbHost, 1*time.Second)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
 
 	httpApi := api.NewHttpApi(watchdogClient, authService, gameManager, themeService, videoService)
 	e := httpApi.NewEchoServer()
@@ -106,7 +115,7 @@ func main() {
 
 	err = watchdogWorker.Run()
 	if err != nil {
-		log.Fatal().Err(err).Msg("can't run asyncq server")
+		log.Fatal().Err(err).Send()
 	}
 	defer watchdogWorker.Shutdown()
 	go botManager.Start(ctx)

@@ -18,6 +18,15 @@ import (
 
 var ErrorDbUrlNotDefined = errors.New("DATABASE_URL not defined")
 
+func GetDbDSN() (string, error) {
+	dbUrl := os.Getenv("DATABASE_URL")
+	if len(dbUrl) == 0 {
+		return "", ErrorDbUrlNotDefined
+	}
+
+	return dbUrl, nil
+}
+
 type TxManager interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 	Querier(pgx.Tx) qg.Querier
@@ -28,28 +37,19 @@ type DbManager struct {
 	DSN  string
 }
 
-func NewDbManager(dsn *string) (*DbManager, error) {
-	var dbUrl string
-	if dsn != nil {
-		dbUrl = *dsn
-	} else {
-		dbUrl = os.Getenv("DATABASE_URL")
-		if len(dbUrl) == 0 {
-			return nil, ErrorDbUrlNotDefined
-		}
-	}
-
+func NewDbManager(dsn string) (*DbManager, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
-	pool, err := pgxpool.New(ctx, dbUrl)
+	// TODO: add connection params, like max/min connections
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, err
 	}
 
 	manager := &DbManager{
 		Pool: pool,
-		DSN:  dbUrl,
+		DSN:  dsn,
 	}
 
 	return manager, nil

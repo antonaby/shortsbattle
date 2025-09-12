@@ -12,6 +12,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+func NewSinglePgConn(dsn string) (*pgx.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
 /*
 PostgreSQL Error Class 23 — Integrity Constraint Violation
 Reference: https://www.postgresql.org/docs/current/errcodes-appendix.html

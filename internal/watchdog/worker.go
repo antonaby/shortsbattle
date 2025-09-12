@@ -10,6 +10,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -138,16 +139,23 @@ func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt ti
 
 type DBWatchdog struct {
 	txm            db.TxManager
+	pgConn         *pgx.Conn
 	updateInterval time.Duration
 	client         *WatchdogClient
 }
 
-func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, updateInterval time.Duration) *DBWatchdog {
+func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, pgDSN string, updateInterval time.Duration) (*DBWatchdog, error) {
+	conn, err := db.NewSinglePgConn(pgDSN)
+	if err != nil {
+		return nil, wdError(common.ErrorInit, "failed to create single pg conn", err)
+	}
+
 	return &DBWatchdog{
 		txm:            txm,
+		pgConn:         conn,
 		client:         client,
 		updateInterval: updateInterval,
-	}
+	}, nil
 }
 
 func (watchdog DBWatchdog) Run(ctx context.Context) error {
