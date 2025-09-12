@@ -2,12 +2,14 @@ package watchdog
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
@@ -137,6 +139,13 @@ func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt ti
 	return nil
 }
 
+type GameUpdateEvent struct {
+	Event            string    `json:"event"`
+	GameID           int64     `json:"game_id"`
+	UpdateKey        string    `json:"update_key"`
+	NextGameUpdateAt time.Time `json:"next_game_update_at"`
+}
+
 type DBWatchdog struct {
 	txm     db.TxManager
 	pgConn  *pgx.Conn
@@ -158,7 +167,7 @@ func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, pgDSN string, chann
 	}, nil
 }
 
-// TODO: handle disconnections
+// TODO: handle disconnections and errors
 func (watchdog *DBWatchdog) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 
@@ -172,6 +181,7 @@ func (watchdog *DBWatchdog) Run(ctx context.Context) error {
 	}
 }
 
+// TODO: figure out why it's iterates over and over
 func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 	if _, err := watchdog.pgConn.Exec(ctx, fmt.Sprintf("LISTEN %s", watchdog.channel)); err != nil {
 		return wdError(common.ErrorInit, "failed to start listening", err)
@@ -191,8 +201,35 @@ func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 			}
 		}
 
-		fmt.Printf("Received: %s\n", notification.Payload)
+		var event GameUpdateEvent
+		if err := json.Unmarshal([]byte(notification.Payload), &event); err != nil {
+			return err
+		}
+
+		if err := watchdog.handleMessage(ctx, event); err != nil {
+			return err
+		}
 	}
+}
+
+func (watchdog DBWatchdog) handleMessage(ctx context.Context, event GameUpdateEvent) error {
+	return db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
+		game, err := q.EnqueueGame(ctx, event.GameID)
+		if err != nil {
+			if db.IsNoRows(err) {
+				return nil
+			}
+		}
+
+		if game.NextGameUpdateAt.Valid {
+			err := watchdog.client.AdvanceGameAt(ctx, game.NextGameUpdateAt.Time, game.GameID, game.UpdateKey.Bytes, true)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 // func (watchdog DBWatchdog) Run(ctx context.Context) error {

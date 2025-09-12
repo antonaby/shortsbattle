@@ -21,6 +21,19 @@ FROM cte
 WHERE g.game_id = cte.game_id
 RETURNING g.*;
 
+-- name: EnqueueGame :one
+WITH cte AS (
+  SELECT gu.game_id
+  FROM game_updates gu
+  WHERE gu.game_id = $1
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE game_updates g
+SET enqueued_at = now()
+FROM cte
+WHERE g.game_id = cte.game_id
+RETURNING g.*;
+
 -- name: GetGameShareLock :one
 SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(

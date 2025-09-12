@@ -24,6 +24,32 @@ func (q *Queries) CountPlayersInGame(ctx context.Context, gameID int64) (int64, 
 	return player_count, err
 }
 
+const enqueueGame = `-- name: EnqueueGame :one
+WITH cte AS (
+  SELECT gu.game_id
+  FROM game_updates gu
+  WHERE gu.game_id = $1
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE game_updates g
+SET enqueued_at = now()
+FROM cte
+WHERE g.game_id = cte.game_id
+RETURNING g.game_id, g.update_key, g.next_game_update_at, g.enqueued_at
+`
+
+func (q *Queries) EnqueueGame(ctx context.Context, gameID int64) (GameUpdate, error) {
+	row := q.db.QueryRow(ctx, enqueueGame, gameID)
+	var i GameUpdate
+	err := row.Scan(
+		&i.GameID,
+		&i.UpdateKey,
+		&i.NextGameUpdateAt,
+		&i.EnqueuedAt,
+	)
+	return i, err
+}
+
 const enqueueGames = `-- name: EnqueueGames :many
 WITH cte AS (
   SELECT game_id

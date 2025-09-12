@@ -35,7 +35,7 @@ CREATE TABLE
 
 CREATE INDEX idx_game_updates_enqueue ON game_updates (game_id) WHERE enqueued_at is NULL;
 
-CREATE OR REPLACE FUNCTION trg_sync_game_updates()
+CREATE OR REPLACE FUNCTION sync_game_updates()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
@@ -77,12 +77,34 @@ BEGIN
 END;
 $$;
 
--- Trigger
-DROP TRIGGER IF EXISTS trg_game_status__sync_updates ON game_status;
-CREATE TRIGGER trg_game_status__sync_updates
+DROP TRIGGER IF EXISTS trg_game_status_updates_sync ON game_status;
+CREATE TRIGGER trg_game_status_updates_sync
 AFTER INSERT OR UPDATE OF next_game_update_at, stage ON game_status
 FOR EACH ROW
-EXECUTE FUNCTION trg_sync_game_updates();
+EXECUTE FUNCTION sync_game_updates();
+
+CREATE OR REPLACE FUNCTION notify_game_updates()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_notify(
+    'status_updates',
+    json_build_object(
+      'event', TG_OP,                       -- 'INSERT' or 'UPDATE'
+      'game_id', NEW.game_id,
+      'update_key', NEW.update_key,
+      'next_game_update_at', NEW.next_game_update_at
+    )::text
+  );
+  RETURN NULL;  -- AFTER trigger; return value ignored
+END
+$$;
+
+DROP TRIGGER IF EXISTS trg_game_updates_notify ON game_updates;
+CREATE TRIGGER trg_game_updates_notify
+AFTER INSERT OR UPDATE ON game_updates
+FOR EACH ROW
+EXECUTE FUNCTION notify_game_updates();
 
 CREATE TYPE player_game_mode AS ENUM ('submit_and_vote', 'only_vote');
 
