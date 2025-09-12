@@ -90,37 +90,24 @@ func TestGameActions(t *testing.T) {
 		defer cancelFunc()
 
 		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
-		if err != nil {
-			t.Fatalf("failed to create test theme: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test theme")
 
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 4, 10)
-		if err != nil {
-			t.Fatalf("failed to create test theme: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test players")
 
-		// add 3 video to player 1
+		// add 3 videos to player 1
 		player1video1, err := vs.AddVideo(ctx, players[0].TgID, testUrl1)
-		if err != nil {
-			t.Fatalf("failed to add video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to add video (player 1)")
 		// add the same url
 		player1video2, err := vs.AddVideo(ctx, players[0].TgID, testUrl1)
-		if err != nil {
-			t.Fatalf("failed to add video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to add video (player 1)")
 		// so it should return the same video
 		require.Equal(t, player1video1.ID, player1video2.ID)
-
 		player1video3, err := vs.AddVideo(ctx, players[0].TgID, testUrl2)
-		if err != nil {
-			t.Fatalf("failed to add video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to add video (player 1)")
 
 		videos, err := vs.GetVideosByPlayer(ctx, players[0].TgID)
-		if err != nil {
-			t.Fatalf("failed to get videos (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to get videos (player 1)")
 		// check that 2 video has been added (as 1 and 2 video are the same)
 		require.Equal(t, 2, len(videos))
 		require.Equal(t, player1video1.ID, videos[0].ID)
@@ -128,118 +115,92 @@ func TestGameActions(t *testing.T) {
 
 		// create game and add player to it
 		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit)
-		if err != nil {
-			t.Fatalf("failed to create game: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test game")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to add player to game (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to add player to game (player 1)")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to add player to game (player 2): %v", err)
-		}
+		fatalIfError(t, err, "failed to add player to game (player 2)")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[2].TgID, qg.PlayerGameModeOnlyVote)
-		if err != nil {
-			t.Fatalf("failed to add player to game (player 3): %v", err)
-		}
+		fatalIfError(t, err, "failed to add player to game (player 3)")
 
 		// add existing video 1
 		_, player1GameVideo1, err := gm.SubmitExistingVideo(ctx, game1.ID, player1video1.ID, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been added to the same game and player
 		require.Equal(t, game1.ID, player1GameVideo1.GameID)
 		require.Equal(t, players[0].TgID, player1GameVideo1.PlayerID)
 
 		// add existing video 3
 		_, player1GameVideo2, err := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been updated not added
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo2.ID)
 		require.NotEqual(t, player1GameVideo1.VideoID, player1GameVideo2.VideoID)
 
 		// add new video
 		_, player1GameVideo3, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl3, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been updated not added
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo3.ID)
 		require.NotEqual(t, player1GameVideo1.VideoID, player1GameVideo3.VideoID)
 
 		// add new video, but the one that already exist in DB
 		_, player1GameVideo4, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been updated not added, the video is the same as video 1
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo4.ID)
 		require.Equal(t, player1video1.ID, player1GameVideo4.VideoID)
 
 		// add video for player 2
 		_, player2GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[1].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 2): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 2)")
 		// should be different game vidoes but the same video
 		require.NotEqual(t, player1GameVideo4.ID, player2GameVideo1.ID)
 		require.NotEqual(t, player1GameVideo4.PlayerID, player2GameVideo1.PlayerID)
 		require.Equal(t, player1GameVideo4.VideoID, player2GameVideo1.VideoID)
 
 		// player 2 can't submit video owned by player 1
-		_, _, notFoundError := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[1].TgID, 1)
-		require.NotNil(t, notFoundError)
-		notFoundServiceErr := notFoundError.(common.ServiceError)
-		require.Equal(t, common.ErrorNotFound, int(notFoundServiceErr.Code))
+		_, _, rawErr := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[1].TgID, 1)
+		require.NotNil(t, rawErr)
+		notFoundErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorNotFound, int(notFoundErr.Code))
 
 		// player 3 can't add videos as it's in only watching mode
-		_, _, wrongModeErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[2].TgID, 1)
-		require.NotNil(t, wrongModeErr)
-		wrongModeServiceErr := wrongModeErr.(common.ServiceError)
-		require.Equal(t, common.ErrorForbidden, int(wrongModeServiceErr.Code))
+		_, _, rawErr = gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[2].TgID, 1)
+		require.NotNil(t, rawErr)
+		wrongModeErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(wrongModeErr.Code))
 
 		// chnage game mode for player 3
 		gamePlayer3, err := gm.UpdateGameMode(ctx, game1.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to update game mode (player 3): %v", err)
-		}
+		fatalIfError(t, err, "failed to update game mode (player 3)")
 		require.Equal(t, qg.PlayerGameModeSubmitAndVote, gamePlayer3.Mode)
 
 		// add video for player 3
 		_, player3GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl3, players[2].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 3): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 3)")
 		// should be added to the game
 		require.Equal(t, game1.ID, player3GameVideo1.GameID)
 
 		// player 4 not in the game, so it can't submit video
-		_, _, forbiddenErr := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[3].TgID, 1)
-		require.NotNil(t, forbiddenErr)
-		forbiddenServiceErr := forbiddenErr.(common.ServiceError)
-		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
+		_, _, rawErr = gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[3].TgID, 1)
+		require.NotNil(t, rawErr)
+		forbiddenErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(forbiddenErr.Code))
 
 		// chnage game stage to watch to be able to get videos to watch
 		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game1.ID, qg.GameStageWatch)
-		if err != nil {
-			t.Fatalf("failed to chnage game stage: %v", err)
-		}
+		fatalIfError(t, err, "failed to chnage game stage")
 
 		// can't submit in the wrong game stage
-		_, _, wrongGameSatgeErr := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[0].TgID, 1)
-		require.NotNil(t, wrongGameSatgeErr)
-		wrongGameSatgeServiceErr := wrongGameSatgeErr.(common.ServiceError)
-		require.Equal(t, common.ErrorForbidden, int(wrongGameSatgeServiceErr.Code))
+		_, _, rawErr = gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[0].TgID, 1)
+		require.NotNil(t, rawErr)
+		wrongGameSatgeErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorForbidden, int(wrongGameSatgeErr.Code))
 
 		// get videos for player 1
 		videosToWatchP1, err := gm.GetVideosToWatch(ctx, game1.ID, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to get videos to watch (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to get videos to watch (player 1)")
 		// should be videos from player 2 and 3
 		require.Equal(t, 2, len(videosToWatchP1))
 		require.Equal(t, player2GameVideo1.VideoID, videosToWatchP1[0].VideoID)
@@ -247,9 +208,7 @@ func TestGameActions(t *testing.T) {
 
 		// get videos for player 2
 		videosToWatchP2, err := gm.GetVideosToWatch(ctx, game1.ID, players[1].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to get videos to watch (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to get videos to watch (player 2)")
 		// should be videos from player 1 and 3
 		require.Equal(t, 2, len(videosToWatchP2))
 		require.Equal(t, player1GameVideo4.VideoID, videosToWatchP2[0].VideoID)
