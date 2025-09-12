@@ -90,19 +90,19 @@ BEGIN
   PERFORM pg_notify(
     'status_updates',
     json_build_object(
-      'event', TG_OP,                       -- 'INSERT' or 'UPDATE'
+      'event', TG_OP, 
       'game_id', NEW.game_id,
       'update_key', NEW.update_key,
       'next_game_update_at', NEW.next_game_update_at
     )::text
   );
-  RETURN NULL;  -- AFTER trigger; return value ignored
+  RETURN NEW;
 END
 $$;
 
 DROP TRIGGER IF EXISTS trg_game_updates_notify ON game_updates;
 CREATE TRIGGER trg_game_updates_notify
-AFTER INSERT OR UPDATE ON game_updates
+AFTER INSERT OR UPDATE OF update_key, next_game_update_at ON game_updates
 FOR EACH ROW
 EXECUTE FUNCTION notify_game_updates();
 

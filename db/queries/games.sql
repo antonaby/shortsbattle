@@ -25,7 +25,8 @@ RETURNING g.*;
 WITH cte AS (
   SELECT gu.game_id
   FROM game_updates gu
-  WHERE gu.game_id = $1
+  WHERE gu.game_id = $1 
+    AND enqueued_at IS NULL
   FOR UPDATE SKIP LOCKED
 )
 UPDATE game_updates g

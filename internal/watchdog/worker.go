@@ -181,7 +181,6 @@ func (watchdog *DBWatchdog) Run(ctx context.Context) error {
 	}
 }
 
-// TODO: figure out why it's iterates over and over
 func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 	if _, err := watchdog.pgConn.Exec(ctx, fmt.Sprintf("LISTEN %s", watchdog.channel)); err != nil {
 		return wdError(common.ErrorInit, "failed to start listening", err)
@@ -209,6 +208,8 @@ func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 		if err := watchdog.handleMessage(ctx, event); err != nil {
 			return err
 		}
+
+		log.Debug().Msgf("processed message for: %d, key: %s", event.GameID, event.UpdateKey)
 	}
 }
 
