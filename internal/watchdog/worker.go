@@ -104,13 +104,13 @@ func (publisher *WatchdogClient) Close() error {
 	return nil
 }
 
-func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64, processIn time.Duration) error {
+func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64) error {
 	task, err := NewAdvanceGameTask(gameId)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
 
-	info, err := publisher.client.EnqueueContext(ctx, task, asynq.ProcessIn(processIn))
+	info, err := publisher.client.EnqueueContext(ctx, task)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
@@ -158,7 +158,9 @@ func (watchdog DBWatchdog) enqueueGames() {
 		}
 
 		for _, g := range games {
-			log.Info().Msgf("gameId: %d", g.GameID)
+			if g.NextGameUpdateAt.Valid {
+				watchdog.client.AdvanceGame(ctx, g.GameID)
+			}
 		}
 
 		return nil

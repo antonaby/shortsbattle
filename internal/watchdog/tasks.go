@@ -29,7 +29,7 @@ func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
 }
 
 type GameManager interface {
-	AdvanceGame(ctx context.Context, gameId int64) (*models.TaskReschedule, *models.GameUpdate, error)
+	AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error)
 }
 
 type GameUpdatePublisher interface {
@@ -56,16 +56,9 @@ func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq
 		return fmt.Errorf("unmarshaling failed: %v: %w", err, asynq.SkipRetry)
 	}
 
-	res, upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
+	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
 	if err != nil {
 		return err
-	}
-
-	if res != nil {
-		err = processor.watchdog.AdvanceGame(ctx, res.GameID, res.ProcessIn)
-		if err != nil {
-			return err
-		}
 	}
 
 	if upd != nil {

@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
@@ -40,8 +39,8 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 		})
 	}
 
-	api.watchdog.AdvanceGame(ctx, gameId, 1*time.Second)
-	
+	api.watchdog.AdvanceGame(ctx, gameId)
+
 	return c.JSON(http.StatusOK, models.OkGameIdReposne{
 		Msg:    "game joined",
 		GameId: gameId,

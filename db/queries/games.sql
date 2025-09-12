@@ -3,18 +3,31 @@ SELECT join_game(
   sqlc.arg(theme_id), 
   sqlc.arg(player_id), 
   sqlc.arg(lobby_stage), 
+  sqlc.arg(next_game_update_in),
   sqlc.arg(max_players), 
   sqlc.arg(mode)
 ) AS game_id;
 
 -- name: EnqueueGames :many
-UPDATE game_updates
+WITH cte AS (
+  SELECT game_id
+  FROM game_updates
+  WHERE enqueued_at IS NULL 
+    AND next_game_update_at <= now()
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE game_updates g
 SET enqueued_at = now()
-WHERE enqueued_at IS NULL
-RETURNING *;
+FROM cte
+WHERE g.game_id = cte.game_id
+RETURNING g.*;
 
 -- name: GetGameShareLock :one
 SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
@@ -39,6 +52,10 @@ SELECT
   gs.round_n,
   gs.state_changed_at,
   GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
@@ -55,7 +72,8 @@ WHERE game_id = $1;
 UPDATE game_status SET 
   stage = sqlc.arg(stage), 
   state_changed_at = now(),
-  round_n = sqlc.arg(round_n)
+  round_n = sqlc.arg(round_n),
+  enqueued_at = NULL
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 

@@ -334,7 +334,6 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		DefaultRescheduleInterval: 10 * time.Second,
 		MaxPlayers:                2,
 		MaxLobbyStage:             2 * time.Second,
 		SubmittingState:           60 * time.Second,
@@ -360,7 +359,7 @@ func TestAdvanceGame(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
-		_, upd, err := gm.AdvanceGame(ctx, game.ID)
+		upd, err := gm.AdvanceGame(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
@@ -372,7 +371,7 @@ func TestAdvanceGame(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to add player to game (player 1): %v", err)
 		}
-		_, upd, err = gm.AdvanceGame(ctx, game.ID)
+		upd, err = gm.AdvanceGame(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
@@ -384,7 +383,7 @@ func TestAdvanceGame(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to add player to game (player 1): %v", err)
 		}
-		_, upd, err = gm.AdvanceGame(ctx, game.ID)
+		upd, err = gm.AdvanceGame(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
@@ -393,7 +392,7 @@ func TestAdvanceGame(t *testing.T) {
 
 		// 8) Wait and Advance
 		time.Sleep(1 * time.Second)
-		_, upd, err = gm.AdvanceGame(ctx, game.ID)
+		upd, err = gm.AdvanceGame(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}

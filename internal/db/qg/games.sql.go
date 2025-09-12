@@ -25,10 +25,18 @@ func (q *Queries) CountPlayersInGame(ctx context.Context, gameID int64) (int64, 
 }
 
 const enqueueGames = `-- name: EnqueueGames :many
-UPDATE game_updates
+WITH cte AS (
+  SELECT game_id
+  FROM game_updates
+  WHERE enqueued_at IS NULL 
+    AND next_game_update_at <= now()
+  FOR UPDATE SKIP LOCKED
+)
+UPDATE game_updates g
 SET enqueued_at = now()
-WHERE enqueued_at IS NULL
-RETURNING game_id, next_game_update_at, enqueued_at
+FROM cte
+WHERE g.game_id = cte.game_id
+RETURNING g.game_id, g.next_game_update_at, g.enqueued_at
 `
 
 func (q *Queries) EnqueueGames(ctx context.Context) ([]GameUpdate, error) {
@@ -88,6 +96,10 @@ func (q *Queries) GetGameRounds(ctx context.Context, id int64) ([]Round, error) 
 const getGameShareLock = `-- name: GetGameShareLock :one
 SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_game_update_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
   )::bigint AS past_ms
@@ -109,6 +121,7 @@ type GetGameShareLockRow struct {
 	Mode             PlayerGameMode     `json:"mode"`
 	IsActive         pgtype.Bool        `json:"is_active"`
 	JoinedAt         pgtype.Timestamptz `json:"joined_at"`
+	RemainingMs      int64              `json:"remaining_ms"`
 	PastMs           int64              `json:"past_ms"`
 }
 
@@ -126,6 +139,7 @@ func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID i
 		&i.Mode,
 		&i.IsActive,
 		&i.JoinedAt,
+		&i.RemainingMs,
 		&i.PastMs,
 	)
 	return i, err
@@ -138,6 +152,10 @@ SELECT
   gs.stage,
   gs.round_n,
   gs.state_changed_at,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
@@ -153,6 +171,7 @@ type GetGameStateLockRow struct {
 	Stage          GameStage          `json:"stage"`
 	RoundN         int32              `json:"round_n"`
 	StateChangedAt pgtype.Timestamptz `json:"state_changed_at"`
+	RemainingMs    int64              `json:"remaining_ms"`
 	PastMs         int64              `json:"past_ms"`
 }
 
@@ -165,6 +184,7 @@ func (q *Queries) GetGameStateLock(ctx context.Context, gameID int64) (GetGameSt
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
+		&i.RemainingMs,
 		&i.PastMs,
 	)
 	return i, err
@@ -175,17 +195,19 @@ SELECT join_game(
   $1, 
   $2, 
   $3, 
-  $4, 
-  $5
+  $4,
+  $5, 
+  $6
 ) AS game_id
 `
 
 type JoinGameParams struct {
-	ThemeID    int64          `json:"theme_id"`
-	PlayerID   int64          `json:"player_id"`
-	LobbyStage GameStage      `json:"lobby_stage"`
-	MaxPlayers int32          `json:"max_players"`
-	Mode       PlayerGameMode `json:"mode"`
+	ThemeID          int64           `json:"theme_id"`
+	PlayerID         int64           `json:"player_id"`
+	LobbyStage       GameStage       `json:"lobby_stage"`
+	NextGameUpdateIn pgtype.Interval `json:"next_game_update_in"`
+	MaxPlayers       int32           `json:"max_players"`
+	Mode             PlayerGameMode  `json:"mode"`
 }
 
 func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, error) {
@@ -193,6 +215,7 @@ func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, erro
 		arg.ThemeID,
 		arg.PlayerID,
 		arg.LobbyStage,
+		arg.NextGameUpdateIn,
 		arg.MaxPlayers,
 		arg.Mode,
 	)
@@ -255,7 +278,8 @@ const updateGameStatus = `-- name: UpdateGameStatus :one
 UPDATE game_status SET 
   stage = $1, 
   state_changed_at = now(),
-  round_n = $2
+  round_n = $2,
+  enqueued_at = NULL
 WHERE game_id = $3 
 RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
 `

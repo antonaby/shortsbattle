@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
@@ -14,7 +13,7 @@ import (
 )
 
 type Watchdog interface {
-	AdvanceGame(ctx context.Context, gameId int64, processIn time.Duration) error
+	AdvanceGame(ctx context.Context, gameId int64) error
 }
 
 var JWTContextKey = "jwt"

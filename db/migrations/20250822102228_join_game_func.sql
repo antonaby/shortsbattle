@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION join_game(
   p_theme_id              BIGINT,
   p_player_id             BIGINT,
   p_lobby_stage           game_stage,
+  p_next_game_update_in   INTERVAL,
   p_max_players           INT,
   p_mode                  player_game_mode
 ) RETURNS BIGINT
@@ -52,12 +53,13 @@ BEGIN
     )
     RETURNING id INTO v_game_id;
     
-    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at)
+    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_game_update_at)
     VALUES (
       v_game_id, 
       p_theme_id,
       p_lobby_stage, 
-      now()
+      now(),
+      now() + p_next_game_update_in
     );
   END IF;
 
