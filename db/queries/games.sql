@@ -8,7 +8,7 @@ SELECT join_game(
 ) AS game_id;
 
 -- name: EnqueueGames :many
-UPDATE game_status
+UPDATE game_updates
 SET enqueued_at = now()
 WHERE enqueued_at IS NULL
 RETURNING *;

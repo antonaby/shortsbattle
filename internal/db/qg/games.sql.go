@@ -25,30 +25,22 @@ func (q *Queries) CountPlayersInGame(ctx context.Context, gameID int64) (int64, 
 }
 
 const enqueueGames = `-- name: EnqueueGames :many
-UPDATE game_status
+UPDATE game_updates
 SET enqueued_at = now()
 WHERE enqueued_at IS NULL
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at, enqueued_at
+RETURNING game_id, next_game_update_at, enqueued_at
 `
 
-func (q *Queries) EnqueueGames(ctx context.Context) ([]GameStatus, error) {
+func (q *Queries) EnqueueGames(ctx context.Context) ([]GameUpdate, error) {
 	rows, err := q.db.Query(ctx, enqueueGames)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GameStatus
+	var items []GameUpdate
 	for rows.Next() {
-		var i GameStatus
-		if err := rows.Scan(
-			&i.GameID,
-			&i.ThemeID,
-			&i.Stage,
-			&i.RoundN,
-			&i.StateChangedAt,
-			&i.NextGameUpdateAt,
-			&i.EnqueuedAt,
-		); err != nil {
+		var i GameUpdate
+		if err := rows.Scan(&i.GameID, &i.NextGameUpdateAt, &i.EnqueuedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -94,7 +86,7 @@ func (q *Queries) GetGameRounds(ctx context.Context, id int64) ([]Round, error) 
 }
 
 const getGameShareLock = `-- name: GetGameShareLock :one
-SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_game_update_at, gs.enqueued_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
+SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_game_update_at, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
@@ -113,7 +105,6 @@ type GetGameShareLockRow struct {
 	RoundN           int32              `json:"round_n"`
 	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
 	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
-	EnqueuedAt       pgtype.Timestamptz `json:"enqueued_at"`
 	PlayerID         int64              `json:"player_id"`
 	Mode             PlayerGameMode     `json:"mode"`
 	IsActive         pgtype.Bool        `json:"is_active"`
@@ -131,7 +122,6 @@ func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID i
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextGameUpdateAt,
-		&i.EnqueuedAt,
 		&i.PlayerID,
 		&i.Mode,
 		&i.IsActive,
@@ -218,7 +208,7 @@ UPDATE game_status SET
   next_enqueue_at = NULL,
   round_n = 0
 WHERE game_id = $2 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at, enqueued_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
 `
 
 func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
@@ -231,7 +221,6 @@ func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameI
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextGameUpdateAt,
-		&i.EnqueuedAt,
 	)
 	return i, err
 }
@@ -268,7 +257,7 @@ UPDATE game_status SET
   state_changed_at = now(),
   round_n = $2
 WHERE game_id = $3 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at, enqueued_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
 `
 
 type UpdateGameStatusParams struct {
@@ -287,7 +276,6 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		&i.RoundN,
 		&i.StateChangedAt,
 		&i.NextGameUpdateAt,
-		&i.EnqueuedAt,
 	)
 	return i, err
 }

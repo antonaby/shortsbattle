@@ -7,6 +7,7 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
+	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -147,5 +148,23 @@ func (watchdog DBWatchdog) Run(ctx context.Context) error {
 }
 
 func (watchdog DBWatchdog) enqueueGames() {
-	log.Debug().Msg("Test")
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancelFunc()
+
+	err := db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
+		games, err := q.EnqueueGames(ctx)
+		if err != nil {
+			return wdError(common.GetDbErrorCode(err), "failed to enquque games", err)
+		}
+
+		for _, g := range games {
+			log.Info().Msgf("gameId: %d", g.GameID)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Error().Err(err).Stack().Send()
+	}
 }

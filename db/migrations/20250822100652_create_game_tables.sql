@@ -18,12 +18,66 @@ CREATE TABLE
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
     next_game_update_at TIMESTAMPTZ,
-    enqueued_at TIMESTAMPTZ,
     PRIMARY KEY (game_id)
   );
 
 CREATE INDEX idx_game_status_stage ON game_status (stage, theme_id);
-CREATE INDEX idx_game_status_enqueued_at_null ON game_status (enqueued_at) WHERE enqueued_at IS NULL;
+
+CREATE TABLE 
+  game_updates (
+    game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
+    next_game_update_at TIMESTAMPTZ,
+    enqueued_at TIMESTAMPTZ,
+    PRIMARY KEY (game_id)
+  );
+
+CREATE INDEX idx_game_updates_enqueue ON game_updates (game_id) WHERE enqueued_at is NULL;
+
+CREATE OR REPLACE FUNCTION trg_sync_game_updates()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.stage = 'complete' THEN
+      -- ensure no queued update remains if inserted already complete
+      DELETE FROM game_updates WHERE game_id = NEW.game_id;
+    ELSE
+      INSERT INTO game_updates (game_id, next_game_update_at, enqueued_at)
+      VALUES (NEW.game_id, NEW.next_game_update_at, NULL)
+      ON CONFLICT (game_id) DO UPDATE
+        SET next_game_update_at = EXCLUDED.next_game_update_at;
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- TG_OP = 'UPDATE'
+  -- If stage is complete, remove any pending update
+  IF NEW.stage = 'complete' THEN
+    DELETE FROM game_updates WHERE game_id = NEW.game_id;
+    RETURN NEW;
+  END IF;
+
+  -- Otherwise, keep game_updates in sync when next_game_update_at changes
+  IF NEW.next_game_update_at IS DISTINCT FROM OLD.next_game_update_at THEN
+    INSERT INTO game_updates (game_id, next_game_update_at, enqueued_at)
+    VALUES (NEW.game_id, NEW.next_game_update_at, NULL)
+    ON CONFLICT (game_id) DO UPDATE
+      SET next_game_update_at = EXCLUDED.next_game_update_at,
+          enqueued_at = NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger
+DROP TRIGGER IF EXISTS trg_game_status__sync_updates ON game_status;
+CREATE TRIGGER trg_game_status__sync_updates
+AFTER INSERT OR UPDATE OF next_game_update_at, stage ON game_status
+FOR EACH ROW
+EXECUTE FUNCTION trg_sync_game_updates();
 
 CREATE TYPE player_game_mode AS ENUM ('submit_and_vote', 'only_vote');
 
