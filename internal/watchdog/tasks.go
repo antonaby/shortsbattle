@@ -15,11 +15,12 @@ const (
 )
 
 type AdvanceGamePayload struct {
-	GameID int64
+	GameID    int64
+	IsTimeout bool
 }
 
-func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
-	payload, err := json.Marshal(AdvanceGamePayload{GameID: gameId})
+func NewAdvanceGameTask(gameId int64, isTimeout bool) (*asynq.Task, error) {
+	payload, err := json.Marshal(AdvanceGamePayload{GameID: gameId, IsTimeout: isTimeout})
 	if err != nil {
 		return nil, wdError(common.ErrorMarshal, "failed to marshal palyload", err)
 	}
@@ -29,7 +30,7 @@ func NewAdvanceGameTask(gameId int64) (*asynq.Task, error) {
 }
 
 type GameManager interface {
-	AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error)
+	AdvanceGame(ctx context.Context, gameId int64, isTimeout bool) (*models.GameUpdate, error)
 }
 
 type GameUpdatePublisher interface {
@@ -39,14 +40,12 @@ type GameUpdatePublisher interface {
 type AdvanceGameProcessor struct {
 	gameManager     GameManager
 	updatePublisher GameUpdatePublisher
-	watchdog        *WatchdogClient
 }
 
-func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher, watchdog *WatchdogClient) *AdvanceGameProcessor {
+func NewAdvanceGameProcessor(gameManager GameManager, updatePublisher GameUpdatePublisher) *AdvanceGameProcessor {
 	return &AdvanceGameProcessor{
 		gameManager:     gameManager,
 		updatePublisher: updatePublisher,
-		watchdog:        watchdog,
 	}
 }
 
@@ -56,7 +55,7 @@ func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq
 		return fmt.Errorf("unmarshaling failed: %v: %w", err, asynq.SkipRetry)
 	}
 
-	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID)
+	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID, payload.IsTimeout)
 	if err != nil {
 		return err
 	}

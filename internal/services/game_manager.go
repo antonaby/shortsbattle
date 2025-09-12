@@ -274,7 +274,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, isTimeout bool) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		game, err := q.GetGameStateLock(ctx, gameId)
 		if err != nil {

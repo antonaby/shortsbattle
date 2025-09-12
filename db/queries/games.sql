@@ -12,8 +12,7 @@ SELECT join_game(
 WITH cte AS (
   SELECT game_id
   FROM game_updates
-  WHERE enqueued_at IS NULL 
-    AND next_game_update_at <= now()
+  WHERE enqueued_at IS NULL
   FOR UPDATE SKIP LOCKED
 )
 UPDATE game_updates g

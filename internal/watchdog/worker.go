@@ -105,12 +105,29 @@ func (publisher *WatchdogClient) Close() error {
 }
 
 func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64) error {
-	task, err := NewAdvanceGameTask(gameId)
+	task, err := NewAdvanceGameTask(gameId, false)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
 
-	info, err := publisher.client.EnqueueContext(ctx, task)
+	taskId := fmt.Sprintf("advance_%d", gameId)
+	info, err := publisher.client.EnqueueContext(ctx, task, asynq.TaskID(taskId))
+	if err != nil {
+		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
+	}
+
+	log.Debug().Msgf("watchdog: enqueued advance game task: %s", info.ID)
+	return nil
+}
+
+func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, gameId int64, processAt time.Time, isTimeout bool) error {
+	task, err := NewAdvanceGameTask(gameId, isTimeout)
+	if err != nil {
+		return wdError(common.ErrorEnqueue, "failed to create task", err)
+	}
+
+	taskId := fmt.Sprintf("advance_%d_timeout", gameId)
+	info, err := publisher.client.EnqueueContext(ctx, task, asynq.TaskID(taskId), asynq.ProcessAt(processAt))
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
@@ -159,7 +176,7 @@ func (watchdog DBWatchdog) enqueueGames() {
 
 		for _, g := range games {
 			if g.NextGameUpdateAt.Valid {
-				watchdog.client.AdvanceGame(ctx, g.GameID)
+				watchdog.client.AdvanceGameAt(ctx, g.GameID, g.NextGameUpdateAt.Time, true)
 			}
 		}
 
