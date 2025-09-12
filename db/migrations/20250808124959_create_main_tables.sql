@@ -1,5 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
+-- enable UUID ext
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- games table
 CREATE TABLE
     themes (

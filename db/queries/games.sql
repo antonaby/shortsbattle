@@ -43,13 +43,9 @@ SET mode = $3
 WHERE game_id = $1 AND player_id = $2
 RETURNING *;
 
--- name: GetGameStateLock :one
+-- name: GetGameLock :one
 SELECT 
-  gs.game_id, 
-  gs.theme_id,
-  gs.stage,
-  gs.round_n,
-  gs.state_changed_at,
+  gs.*,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
     0
@@ -59,7 +55,7 @@ SELECT
     0
   )::bigint AS past_ms
 FROM game_status gs
-WHERE gs.game_id = $1 
+WHERE gs.game_id = $1 AND gs.update_key = $2
 FOR UPDATE;
 
 -- name: CountPlayersInGame :one
@@ -72,7 +68,8 @@ UPDATE game_status SET
   stage = sqlc.arg(stage), 
   state_changed_at = now(),
   round_n = sqlc.arg(round_n),
-  next_game_update_at = now() + sqlc.arg(next_game_update_in)::interval
+  next_game_update_at = now() + sqlc.arg(next_game_update_in)::interval,
+  update_key = uuid_generate_v1mc()
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 

@@ -122,11 +122,13 @@ type GameStatus struct {
 	Stage            GameStage          `json:"stage"`
 	RoundN           int32              `json:"round_n"`
 	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
+	UpdateKey        pgtype.UUID        `json:"update_key"`
 	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
 }
 
 type GameUpdate struct {
 	GameID           int64              `json:"game_id"`
+	UpdateKey        pgtype.UUID        `json:"update_key"`
 	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
 	EnqueuedAt       pgtype.Timestamptz `json:"enqueued_at"`
 }

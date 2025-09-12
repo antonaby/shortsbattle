@@ -17,6 +17,7 @@ CREATE TABLE
     stage game_stage NOT NULL DEFAULT 'lobby',
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
+    update_key UUID NOT NULL,
     next_game_update_at TIMESTAMPTZ,
     PRIMARY KEY (game_id)
   );
@@ -26,6 +27,7 @@ CREATE INDEX idx_game_status_stage ON game_status (stage, theme_id);
 CREATE TABLE 
   game_updates (
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
+    update_key UUID NOT NULL,
     next_game_update_at TIMESTAMPTZ,
     enqueued_at TIMESTAMPTZ,
     PRIMARY KEY (game_id)
@@ -43,10 +45,12 @@ BEGIN
       -- ensure no queued update remains if inserted already complete
       DELETE FROM game_updates WHERE game_id = NEW.game_id;
     ELSE
-      INSERT INTO game_updates (game_id, next_game_update_at, enqueued_at)
-      VALUES (NEW.game_id, NEW.next_game_update_at, NULL)
+      INSERT INTO game_updates (game_id, update_key, next_game_update_at, enqueued_at)
+      VALUES (NEW.game_id, NEW.update_key, NEW.next_game_update_at, NULL)
       ON CONFLICT (game_id) DO UPDATE
-        SET next_game_update_at = EXCLUDED.next_game_update_at;
+        SET next_game_update_at = EXCLUDED.next_game_update_at,
+            update_key = EXCLUDED.update_key,
+            enqueued_at = NULL;
     END IF;
 
     RETURN NEW;
@@ -61,10 +65,11 @@ BEGIN
 
   -- Otherwise, keep game_updates in sync when next_game_update_at changes
   IF NEW.next_game_update_at IS DISTINCT FROM OLD.next_game_update_at THEN
-    INSERT INTO game_updates (game_id, next_game_update_at, enqueued_at)
-    VALUES (NEW.game_id, NEW.next_game_update_at, NULL)
+    INSERT INTO game_updates (game_id, update_key, next_game_update_at, enqueued_at)
+    VALUES (NEW.game_id, NEW.update_key, NEW.next_game_update_at, NULL)
     ON CONFLICT (game_id) DO UPDATE
       SET next_game_update_at = EXCLUDED.next_game_update_at,
+          update_key = EXCLUDED.update_key,
           enqueued_at = NULL;
   END IF;
 

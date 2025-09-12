@@ -7,8 +7,8 @@ INSERT INTO games (
 RETURNING *;
 
 -- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, theme_id, stage, state_changed_at)
-VALUES ($1, $2, $3, now())
+INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, update_key)
+VALUES ($1, $2, $3, now(), uuid_generate_v1mc())
 RETURNING *;
 
 -- name: TestUpdateGameStage :one

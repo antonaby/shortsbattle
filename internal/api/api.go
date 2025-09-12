@@ -7,13 +7,14 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
 )
 
 type Watchdog interface {
-	AdvanceGame(ctx context.Context, gameId int64) error
+	AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID) error
 }
 
 var JWTContextKey = "jwt"

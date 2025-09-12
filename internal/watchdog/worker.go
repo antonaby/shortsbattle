@@ -2,13 +2,13 @@ package watchdog
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -105,14 +105,13 @@ func (publisher *WatchdogClient) Close() error {
 	return nil
 }
 
-func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64) error {
-	task, err := NewAdvanceGameTask(gameId, false)
+func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID) error {
+	task, err := NewAdvanceGameTask(gameId, updateKey, false)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
 
-	taskId := fmt.Sprintf("advance_%d", gameId)
-	info, err := publisher.client.EnqueueContext(ctx, task, asynq.TaskID(taskId))
+	info, err := publisher.client.EnqueueContext(ctx, task)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
@@ -121,14 +120,13 @@ func (publisher *WatchdogClient) AdvanceGame(ctx context.Context, gameId int64) 
 	return nil
 }
 
-func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, gameId int64, processAt time.Time, isTimeout bool) error {
-	task, err := NewAdvanceGameTask(gameId, isTimeout)
+func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt time.Time, gameId int64, updateKey uuid.UUID, isTimeout bool) error {
+	task, err := NewAdvanceGameTask(gameId, updateKey, isTimeout)
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to create task", err)
 	}
 
-	taskId := fmt.Sprintf("advance_%d_timeout", gameId)
-	info, err := publisher.client.EnqueueContext(ctx, task, asynq.TaskID(taskId), asynq.ProcessAt(processAt))
+	info, err := publisher.client.EnqueueContext(ctx, task, asynq.ProcessAt(processAt))
 	if err != nil {
 		return wdError(common.ErrorEnqueue, "failed to enqueue task", err)
 	}
@@ -177,7 +175,7 @@ func (watchdog DBWatchdog) enqueueGames() {
 
 		for _, g := range games {
 			if g.NextGameUpdateAt.Valid {
-				err = watchdog.createTask(ctx, g)
+				err := watchdog.client.AdvanceGameAt(ctx, g.NextGameUpdateAt.Time, g.GameID, g.UpdateKey.Bytes, true)
 				if err != nil {
 					return err
 				}
@@ -190,17 +188,4 @@ func (watchdog DBWatchdog) enqueueGames() {
 	if err != nil {
 		log.Error().Err(err).Stack().Send()
 	}
-}
-
-func (watchdog DBWatchdog) createTask(ctx context.Context, game qg.GameUpdate) error {
-	err := watchdog.client.AdvanceGameAt(ctx, game.GameID, game.NextGameUpdateAt.Time, true)
-	if err != nil {
-		if errors.Is(err, asynq.ErrTaskIDConflict) {
-			return nil
-		}
-
-		return err
-	}
-
-	return nil
 }

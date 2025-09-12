@@ -63,9 +63,9 @@ func (q *Queries) TestCreateGame(ctx context.Context, themeID int64) (Game, erro
 }
 
 const testCreateGameStatus = `-- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, theme_id, stage, state_changed_at)
-VALUES ($1, $2, $3, now())
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
+INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, update_key)
+VALUES ($1, $2, $3, now(), uuid_generate_v1mc())
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
 `
 
 type TestCreateGameStatusParams struct {
@@ -83,6 +83,7 @@ func (q *Queries) TestCreateGameStatus(ctx context.Context, arg TestCreateGameSt
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
+		&i.UpdateKey,
 		&i.NextGameUpdateAt,
 	)
 	return i, err
@@ -105,7 +106,7 @@ func (q *Queries) TestGetGameById(ctx context.Context, id int64) (Game, error) {
 }
 
 const testGetGameStatusById = `-- name: TestGetGameStatusById :one
-SELECT game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at,  
+SELECT game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at,  
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
     0
@@ -120,6 +121,7 @@ type TestGetGameStatusByIdRow struct {
 	Stage            GameStage          `json:"stage"`
 	RoundN           int32              `json:"round_n"`
 	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
+	UpdateKey        pgtype.UUID        `json:"update_key"`
 	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
 	PastMs           int64              `json:"past_ms"`
 }
@@ -133,6 +135,7 @@ func (q *Queries) TestGetGameStatusById(ctx context.Context, gameID int64) (Test
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
+		&i.UpdateKey,
 		&i.NextGameUpdateAt,
 		&i.PastMs,
 	)
@@ -143,7 +146,7 @@ const testUpdateGameStage = `-- name: TestUpdateGameStage :one
 UPDATE game_status
 SET stage = $1
 WHERE game_id = $2
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, next_game_update_at
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
 `
 
 func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
@@ -155,6 +158,7 @@ func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, game
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
+		&i.UpdateKey,
 		&i.NextGameUpdateAt,
 	)
 	return i, err

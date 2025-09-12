@@ -61,7 +61,7 @@ func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64) ([]Fetc
 }
 
 const getGameVideosForVote = `-- name: GetGameVideosForVote :one
-SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.next_game_update_at
+SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = $1
@@ -91,6 +91,7 @@ func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosFor
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,
+		&i.UpdateKey,
 		&i.NextGameUpdateAt,
 	)
 	return i, err

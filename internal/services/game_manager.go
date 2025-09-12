@@ -10,6 +10,8 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func gmError(code common.ErrorCode, msg string, err error) error {
@@ -274,9 +276,10 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, isTimeout bool) (*models.GameUpdate, error) {
+func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID, isTimeout bool) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
-		game, err := q.GetGameStateLock(ctx, gameId)
+		pgUUID := pgtype.UUID{Bytes: updateKey, Valid: true}
+		game, err := q.GetGameLock(ctx, gameId, pgUUID)
 		if err != nil {
 			if db.IsNoRows(err) {
 				return nil, nil
@@ -298,7 +301,7 @@ func (gm *GameManager) AdvanceGame(ctx context.Context, gameId int64, isTimeout 
 
 // TODO: check only active users
 // TODO: add bots if nPlayers less than MaxPlayers
-func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	nPlayers, err := q.CountPlayersInGame(ctx, game.GameID)
 	if err != nil {
 		return nil, gmGameUpdError(game.GameID, err)
@@ -323,7 +326,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, game qg.GetGameStateLock
 	return nil, nil
 }
 
-func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameStateLockRow, q qg.Querier) (*models.GameUpdate, error) {
+func (gm *GameManager) handleLobbyFull(ctx context.Context, game qg.GetGameLockRow, q qg.Querier) (*models.GameUpdate, error) {
 	isTimeout := game.PastMs >= gm.config.MaxLobbyFullStage.Milliseconds()
 	if isTimeout {
 		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN, gm.config.MaxSubmitState)

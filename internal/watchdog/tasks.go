@@ -7,6 +7,7 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )
 
@@ -16,11 +17,16 @@ const (
 
 type AdvanceGamePayload struct {
 	GameID    int64
+	UpdateKey uuid.UUID
 	IsTimeout bool
 }
 
-func NewAdvanceGameTask(gameId int64, isTimeout bool) (*asynq.Task, error) {
-	payload, err := json.Marshal(AdvanceGamePayload{GameID: gameId, IsTimeout: isTimeout})
+func NewAdvanceGameTask(gameId int64, updateKey uuid.UUID, isTimeout bool) (*asynq.Task, error) {
+	payload, err := json.Marshal(AdvanceGamePayload{
+		GameID:    gameId,
+		UpdateKey: updateKey,
+		IsTimeout: isTimeout,
+	})
 	if err != nil {
 		return nil, wdError(common.ErrorMarshal, "failed to marshal palyload", err)
 	}
@@ -30,7 +36,7 @@ func NewAdvanceGameTask(gameId int64, isTimeout bool) (*asynq.Task, error) {
 }
 
 type GameManager interface {
-	AdvanceGame(ctx context.Context, gameId int64, isTimeout bool) (*models.GameUpdate, error)
+	AdvanceGame(ctx context.Context, gameId int64, updateKey uuid.UUID, isTimeout bool) (*models.GameUpdate, error)
 }
 
 type GameUpdatePublisher interface {
@@ -55,7 +61,7 @@ func (processor *AdvanceGameProcessor) ProcessTask(ctx context.Context, t *asynq
 		return fmt.Errorf("unmarshaling failed: %v: %w", err, asynq.SkipRetry)
 	}
 
-	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID, payload.IsTimeout)
+	upd, err := processor.gameManager.AdvanceGame(ctx, payload.GameID, payload.UpdateKey, payload.IsTimeout)
 	if err != nil {
 		return err
 	}
