@@ -220,71 +220,53 @@ func TestGameActions(t *testing.T) {
 		defer cancelFunc()
 
 		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
-		if err != nil {
-			t.Fatalf("failed to create test theme: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test theme")
 
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 20)
-		if err != nil {
-			t.Fatalf("failed to create test players: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test players")
 
 		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit)
-		if err != nil {
-			t.Fatalf("failed to create game: %v", err)
-		}
+		fatalIfError(t, err, "failed to create test game")
+
+		// add players to the game
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to add player to game (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to add player to game (player 1)")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
-		if err != nil {
-			t.Fatalf("failed to add player to game (player 2): %v", err)
-		}
+		fatalIfError(t, err, "failed to add player to game (player 2)")
 
 		// add new video (player 1)
 		_, player1GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[0].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 1)")
 		// add new video (player 2)
 		_, player2GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl2, players[1].TgID, 1)
-		if err != nil {
-			t.Fatalf("failed to submit video (player 2): %v", err)
-		}
+		fatalIfError(t, err, "failed to submit video (player 2)")
 
 		// chnage game state to watch
 		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game1.ID, qg.GameStageWatch)
-		if err != nil {
-			t.Fatalf("failed to chnage game stage: %v", err)
-		}
+		fatalIfError(t, err, "failed to chnage game stage")
 
 		// player 1 vote
 		player1VoteData := []byte(`{"value": "like"}`)
 		_, player1Vote1, err := gm.VoteForVideo(ctx, player2GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
-		if err != nil {
-			t.Fatalf("failed to vote (player 1): %v", err)
-		}
+		fatalIfError(t, err, "failed to vote (player 1)")
 		require.Equal(t, player2GameVideo1.ID, player1Vote1.GameVideoID)
 
 		// player 2 vote
 		player2VoteData := []byte(`{"value": "like"}`)
 		_, player1Vote2, err := gm.VoteForVideo(ctx, player1GameVideo1.ID, players[1].TgID, json.RawMessage(player2VoteData))
-		if err != nil {
-			t.Fatalf("failed to vote (player 2): %v", err)
-		}
+		fatalIfError(t, err, "failed to vote (player 2)")
 		require.Equal(t, player1GameVideo1.ID, player1Vote2.GameVideoID)
 
 		// player can't vote for it's own video (palyer 1)
-		_, _, forbiddenErr := gm.VoteForVideo(ctx, player1GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
-		require.NotNil(t, forbiddenErr)
-		forbiddenServiceErr := forbiddenErr.(common.ServiceError)
+		_, _, rawErr := gm.VoteForVideo(ctx, player1GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
+		require.NotNil(t, rawErr)
+		forbiddenServiceErr := rawErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
 
 		// player can't vote for video if not in the game (player 3)
-		_, _, forbiddenErr = gm.VoteForVideo(ctx, player1GameVideo1.ID, players[2].TgID, json.RawMessage(player1VoteData))
-		require.NotNil(t, forbiddenErr)
-		forbiddenServiceErr = forbiddenErr.(common.ServiceError)
+		_, _, rawErr = gm.VoteForVideo(ctx, player1GameVideo1.ID, players[2].TgID, json.RawMessage(player1VoteData))
+		require.NotNil(t, rawErr)
+		forbiddenServiceErr = rawErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
 	})
 }
