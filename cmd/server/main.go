@@ -101,7 +101,7 @@ func main() {
 	advanceAtProcessor := watchdog.NewAdvanceGameAtProcessor(gameManager, centrifugeServer)
 	advanceNowProcessor := watchdog.NewAdvanceGameNowProcessor(gameManager, centrifugeServer)
 	watchdogWorker := watchdog.NewWatchdogWorker(redisHost, advanceAtProcessor, advanceNowProcessor)
-	dbWatchdog, err := watchdog.NewDBWatchdog(dbManager, watchdogClient, dbHost, 1*time.Second)
+	dbWatchdog, err := watchdog.NewDBWatchdog(dbManager, watchdogClient, dbHost, "status_updates")
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}

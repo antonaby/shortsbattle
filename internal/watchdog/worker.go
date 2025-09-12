@@ -2,12 +2,12 @@ package watchdog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
-	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
@@ -138,63 +138,100 @@ func (publisher *WatchdogClient) AdvanceGameAt(ctx context.Context, processAt ti
 }
 
 type DBWatchdog struct {
-	txm            db.TxManager
-	pgConn         *pgx.Conn
-	updateInterval time.Duration
-	client         *WatchdogClient
+	txm     db.TxManager
+	pgConn  *pgx.Conn
+	channel string
+	client  *WatchdogClient
 }
 
-func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, pgDSN string, updateInterval time.Duration) (*DBWatchdog, error) {
+func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, pgDSN string, channel string) (*DBWatchdog, error) {
 	conn, err := db.NewSinglePgConn(pgDSN)
 	if err != nil {
 		return nil, wdError(common.ErrorInit, "failed to create single pg conn", err)
 	}
 
 	return &DBWatchdog{
-		txm:            txm,
-		pgConn:         conn,
-		client:         client,
-		updateInterval: updateInterval,
+		txm:     txm,
+		pgConn:  conn,
+		channel: channel,
+		client:  client,
 	}, nil
 }
 
-func (watchdog DBWatchdog) Run(ctx context.Context) error {
-	t := time.NewTicker(watchdog.updateInterval)
-	defer t.Stop()
+// TODO: handle disconnections
+func (watchdog *DBWatchdog) Run(ctx context.Context) error {
+	errCh := make(chan error, 1)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-t.C:
-			watchdog.enqueueGames()
-		}
+	go func() { errCh <- watchdog.listen(ctx) }()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
 	}
 }
 
-func (watchdog DBWatchdog) enqueueGames() {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancelFunc()
+func (watchdog *DBWatchdog) listen(ctx context.Context) error {
+	if _, err := watchdog.pgConn.Exec(ctx, fmt.Sprintf("LISTEN %s", watchdog.channel)); err != nil {
+		return wdError(common.ErrorInit, "failed to start listening", err)
+	}
 
-	err := db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
-		games, err := q.EnqueueGames(ctx)
+	for {
+		innetCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		notification, err := watchdog.pgConn.WaitForNotification(innetCtx)
+		cancel()
+
 		if err != nil {
-			return wdError(common.GetDbErrorCode(err), "failed to enquque games", err)
-		}
-
-		for _, g := range games {
-			if g.NextGameUpdateAt.Valid {
-				err := watchdog.client.AdvanceGameAt(ctx, g.NextGameUpdateAt.Time, g.GameID, g.UpdateKey.Bytes, true)
-				if err != nil {
-					return err
-				}
+			if errors.Is(err, context.DeadlineExceeded) {
+				continue
+			}
+			if errors.Is(err, context.Canceled) {
+				return nil
 			}
 		}
 
-		return nil
-	})
-
-	if err != nil {
-		log.Error().Err(err).Stack().Send()
+		fmt.Printf("Received: %s\n", notification.Payload)
 	}
 }
+
+// func (watchdog DBWatchdog) Run(ctx context.Context) error {
+// 	t := time.NewTicker(watchdog.updateInterval)
+// 	defer t.Stop()
+
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			return ctx.Err()
+// 		case <-t.C:
+// 			watchdog.enqueueGames()
+// 		}
+// 	}
+// }
+
+// func (watchdog DBWatchdog) enqueueGames() {
+// 	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
+// 	defer cancelFunc()
+
+// 	err := db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
+// 		games, err := q.EnqueueGames(ctx)
+// 		if err != nil {
+// 			return wdError(common.GetDbErrorCode(err), "failed to enquque games", err)
+// 		}
+
+// 		for _, g := range games {
+// 			if g.NextGameUpdateAt.Valid {
+// 				err := watchdog.client.AdvanceGameAt(ctx, g.NextGameUpdateAt.Time, g.GameID, g.UpdateKey.Bytes, true)
+// 				if err != nil {
+// 					return err
+// 				}
+// 			}
+// 		}
+
+// 		return nil
+// 	})
+
+// 	if err != nil {
+// 		log.Error().Err(err).Stack().Send()
+// 	}
+// }
