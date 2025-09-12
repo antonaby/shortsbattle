@@ -34,9 +34,9 @@ type ServiceError struct {
 
 func (e ServiceError) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("%d: %s: %v", e.Code, e.Message, e.Cause)
+		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 	}
-	return fmt.Sprintf("%d: %s", e.Code, e.Message)
+	return e.Message
 }
 
 func (e ServiceError) Unwrap() error {

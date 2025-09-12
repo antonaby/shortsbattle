@@ -2,6 +2,7 @@ package watchdog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -176,7 +177,10 @@ func (watchdog DBWatchdog) enqueueGames() {
 
 		for _, g := range games {
 			if g.NextGameUpdateAt.Valid {
-				watchdog.client.AdvanceGameAt(ctx, g.GameID, g.NextGameUpdateAt.Time, true)
+				err = watchdog.createTask(ctx, g)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -186,4 +190,17 @@ func (watchdog DBWatchdog) enqueueGames() {
 	if err != nil {
 		log.Error().Err(err).Stack().Send()
 	}
+}
+
+func (watchdog DBWatchdog) createTask(ctx context.Context, game qg.GameUpdate) error {
+	err := watchdog.client.AdvanceGameAt(ctx, game.GameID, game.NextGameUpdateAt.Time, true)
+	if err != nil {
+		if errors.Is(err, asynq.ErrTaskIDConflict) {
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
 }
