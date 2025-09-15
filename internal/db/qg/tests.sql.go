@@ -63,8 +63,8 @@ func (q *Queries) TestCreateGame(ctx context.Context, themeID int64) (Game, erro
 }
 
 const testCreateGameStatus = `-- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, update_key)
-VALUES ($1, $2, $3, now(), uuid_generate_v1mc())
+INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, update_key, round_n)
+VALUES ($1, $2, $3, now(), uuid_generate_v1mc(), $4)
 RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
 `
 
@@ -72,10 +72,16 @@ type TestCreateGameStatusParams struct {
 	GameID  int64     `json:"game_id"`
 	ThemeID int64     `json:"theme_id"`
 	Stage   GameStage `json:"stage"`
+	RoundN  int32     `json:"round_n"`
 }
 
 func (q *Queries) TestCreateGameStatus(ctx context.Context, arg TestCreateGameStatusParams) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, testCreateGameStatus, arg.GameID, arg.ThemeID, arg.Stage)
+	row := q.db.QueryRow(ctx, testCreateGameStatus,
+		arg.GameID,
+		arg.ThemeID,
+		arg.Stage,
+		arg.RoundN,
+	)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,

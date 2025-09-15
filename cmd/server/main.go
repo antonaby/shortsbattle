@@ -50,11 +50,12 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:        2,
-		MaxLobbyStage:     60 * time.Second,
-		MaxLobbyFullStage: 10 * time.Second,
-		MaxSubmitState:    60 * time.Second,
-		MaxWatchState:     600 * time.Second,
+		MaxPlayers:             2,
+		MaxLobbyStage:          60 * time.Second,
+		MaxLobbyFullStage:      10 * time.Second,
+		MaxSubmitStage:         60 * time.Second,
+		MaxSubmitCompleteStage: 5 * time.Second,
+		MaxWatchState:          600 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
@@ -120,7 +121,7 @@ func main() {
 	defer watchdogWorker.Shutdown()
 
 	go botManager.Start(ctx)
-	
+
 	go dbWatchdog.Listen(ctx)
 	err = dbWatchdog.ReprocessMissed(ctx)
 	if err != nil {

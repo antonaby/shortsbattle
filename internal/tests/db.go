@@ -171,7 +171,7 @@ func GetGameStatus(ctx context.Context, txm db.TxManager, gameId int64) (qg.Test
 	})
 }
 
-func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, stage qg.GameStage) (*qg.Game, error) {
+func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, stage qg.GameStage, roundN int32) (*qg.Game, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Game, error) {
 		game, err := q.TestCreateGame(ctx, themeId)
 		if err != nil {
@@ -182,6 +182,7 @@ func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, s
 			GameID:  game.ID,
 			Stage:   stage,
 			ThemeID: game.ThemeID,
+			RoundN:  roundN,
 		})
 		if err != nil {
 			return nil, err

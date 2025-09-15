@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	testUrl1 = "https://www.youtube.com/shorts/GkTZHFyHi1c"
+	testUrl2 = "https://www.youtube.com/shorts/zy7xd4zOl7s"
+	testUrl3 = "https://www.youtube.com/shorts/wHZyy_G0aYU"
+)
+
 func fatalIfError(t *testing.T, err error, msg string) {
 	if err != nil {
 		t.Fatalf("%s: %v", msg, err)
@@ -20,16 +26,12 @@ func fatalIfError(t *testing.T, err error, msg string) {
 }
 
 func TestGameActions(t *testing.T) {
-	testUrl1 := "https://www.youtube.com/shorts/GkTZHFyHi1c"
-	testUrl2 := "https://www.youtube.com/shorts/zy7xd4zOl7s"
-	testUrl3 := "https://www.youtube.com/shorts/wHZyy_G0aYU"
-
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
 		MaxPlayers:     2,
 		MaxLobbyStage:  2 * time.Second,
-		MaxSubmitState: 60 * time.Second,
+		MaxSubmitStage: 60 * time.Second,
 		MaxWatchState:  600 * time.Second,
 	})
 
@@ -113,7 +115,7 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, player1video3.ID, videos[1].ID)
 
 		// create game and add player to it
-		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit)
+		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
 		fatalIfError(t, err, "failed to create test game")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
 		fatalIfError(t, err, "failed to add player to game (player 1)")
@@ -224,7 +226,7 @@ func TestGameActions(t *testing.T) {
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 20)
 		fatalIfError(t, err, "failed to create test players")
 
-		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit)
+		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
 		fatalIfError(t, err, "failed to create test game")
 
 		// add players to the game
@@ -274,11 +276,12 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:        2,
-		MaxLobbyStage:     2 * time.Second,
-		MaxLobbyFullStage: 1 * time.Second,
-		MaxSubmitState:    60 * time.Second,
-		MaxWatchState:     600 * time.Second,
+		MaxPlayers:             2,
+		MaxLobbyStage:          2 * time.Second,
+		MaxLobbyFullStage:      1 * time.Second,
+		MaxSubmitStage:         2 * time.Second,
+		MaxSubmitCompleteStage: 1 * time.Second,
+		MaxWatchState:          600 * time.Second,
 	})
 
 	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {
@@ -296,7 +299,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -345,7 +348,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -367,6 +370,8 @@ func TestAdvanceGame(t *testing.T) {
 		require.NotNil(t, upd)
 		require.Equal(t, qg.GameStageLobbyFull, upd.Stage)
 		require.Equal(t, *upd.StateChangeReason, models.ReasonLobbyTimeout)
+		// 5) should be round 0 as game not started
+		require.Equal(t, upd.RoundN, int32(0))
 	})
 
 	t.Run("LobbyFullTimeout", func(t *testing.T) {
@@ -379,7 +384,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobbyFull)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobbyFull, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -401,5 +406,140 @@ func TestAdvanceGame(t *testing.T) {
 		require.NotNil(t, upd)
 		require.Equal(t, qg.GameStageSubmit, upd.Stage)
 		require.Equal(t, *upd.StateChangeReason, models.ReasonLobbyFullTimeout)
+		// 5) should be round 1 as game started
+		require.Equal(t, upd.RoundN, int32(1))
+	})
+
+	t.Run("SubmitAll", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 2, 10)
+		if err != nil {
+			t.Fatalf("failed to create test players: %v", err)
+		}
+
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+
+		// 2) add player to game
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 1): %v", err)
+		}
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 2): %v", err)
+		}
+
+		// 3) submit video for player 1
+		_, _, err = gm.SubmitNewVideo(ctx, game.ID, testUrl1, players[0].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to submit video (player 1): %v", err)
+		}
+
+		// 4) advance game
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// No time to change state, only one player submitted video
+		require.Nil(t, upd, "update not nil")
+
+		// 5) submit video for player 2
+		_, _, err = gm.SubmitNewVideo(ctx, game.ID, testUrl2, players[1].TgID, 1)
+		if err != nil {
+			t.Fatalf("failed to submit video (player 2): %v", err)
+		}
+
+		// 6) advance game
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// No time to change state, only one player submitted video
+		require.NotNil(t, upd, "update nil")
+		require.Equal(t, qg.GameStageSubmitComplete, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonSubmitAll)
+	})
+
+	t.Run("SubmitTimeout", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+
+		// 2) advance game
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// No time to change state, no videos
+		require.Nil(t, upd, "update not nil")
+
+		time.Sleep(2 * time.Second)
+		// 3) advance game after timeout
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+
+		// 4) Game state changed to submit-complete because of timeout
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageSubmitComplete, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonSubmitTimeout)
+	})
+
+	t.Run("SubmitCompleteTimeout", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmitComplete, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// 2) No time to change state, no time
+		require.Nil(t, upd, "update not nil")
+
+		// 3) sleep for 1 seconds and advance game
+		time.Sleep(1 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+
+		// 4) Game state changed to submit because of timeout
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageWatch, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasinSubmitCompleteTimeout)
+		// 5) should be round 1 as game started
+		require.Equal(t, upd.RoundN, int32(1))
 	})
 }
