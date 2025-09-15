@@ -8,6 +8,7 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/tests"
 	"github.com/stretchr/testify/require"
 )
@@ -270,109 +271,135 @@ func TestGameActions(t *testing.T) {
 }
 
 func TestAdvanceGame(t *testing.T) {
-	// ts := tests.NewDockerTestSuite(t)
+	ts := tests.NewDockerTestSuite(t)
 
-	// gm := NewGameManager(ts.DBManager, GameConfig{
-	// 	MaxPlayers:     2,
-	// 	MaxLobbyStage:  2 * time.Second,
-	// 	MaxSubmitState: 60 * time.Second,
-	// 	MaxWatchState:  600 * time.Second,
-	// })
+	gm := NewGameManager(ts.DBManager, GameConfig{
+		MaxPlayers:        2,
+		MaxLobbyStage:     2 * time.Second,
+		MaxLobbyFullStage: 1 * time.Second,
+		MaxSubmitState:    60 * time.Second,
+		MaxWatchState:     600 * time.Second,
+	})
 
-	// t.Run("LobbyWithMaxPlayers", func(t *testing.T) {
-	// 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-	// 	defer cancelFunc()
+	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
 
-	// 	theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to create test theme: %v", err)
-	// 	}
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
 
-	// 	players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 2, 0)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to create test theme: %v", err)
-	// 	}
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 2, 0)
+		if err != nil {
+			t.Fatalf("failed to create test players: %v", err)
+		}
 
-	// 	// 1) Create game
-	// 	game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to create test game: %v", err)
-	// 	}
-	// 	upd, err := gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
-	// 	// 2) No time to change state, nPlayer = 0
-	// 	require.Nil(t, upd, "update not nil")
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// 2) No time to change state, nPlayer = 0
+		require.Nil(t, upd, "update not nil")
 
-	// 	// 3) Add Player 1
-	// 	_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to add player to game (player 1): %v", err)
-	// 	}
-	// 	upd, err = gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
-	// 	// 4) No time to change state, nPlayer = 1
-	// 	require.Nil(t, upd, "update not nil")
+		// 3) Add Player 1
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 1): %v", err)
+		}
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// 4) No time to change state, nPlayer = 1
+		require.Nil(t, upd, "update not nil")
 
-	// 	// 5) Add Player 2
-	// 	_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to add player to game (player 1): %v", err)
-	// 	}
-	// 	upd, err = gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
-	// 	// 6) No time to change state, nPlayer = 2, but minLobbyTime not exceeded
-	// 	require.Nil(t, upd, "update not nil")
+		// 5) Add Player 2
+		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, players[1].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to add player to game (player 2): %v", err)
+		}
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
 
-	// 	// 8) Wait and Advance
-	// 	time.Sleep(1 * time.Second)
-	// 	upd, err = gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
+		// 6) Game state changed to lobby-full
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageLobbyFull, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonLobbyFull)
+	})
 
-	// 	// 9) Game state changed to submitting
-	// 	require.NotNil(t, upd)
-	// 	assert.Equal(t, qg.GameStageSubmit, upd.Stage)
-	// 	assert.Equal(t, upd.StateChangeReason, models.ReasonLobbyFull)
-	// })
+	t.Run("LobbyTimeout", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
 
-	// t.Run("LobbyTimeout", func(t *testing.T) {
-	// 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-	// 	defer cancelFunc()
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
 
-	// 	// 1) Create game
-	// 	game, err := db.WithTxVQ(ctx, ts.dbManager, func(ctx context.Context, q qg.Querier) (qg.Game, error) {
-	// 		return q.TestCreateGame(ctx, qg.TestCreateGameParams{
-	// 			ThemeID:      theme.ID,
-	// 			State:        qg.GameStateLobby,
-	// 			NextChangeIn: db.ToPgInterval(gm.config.MaxLobbyState),
-	// 		})
-	// 	})
-	// 	if err != nil {
-	// 		t.Fatalf("failed to create test game: %v", err)
-	// 	}
-	// 	upd, err := gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
-	// 	// 2) No time to change state, nPlayer = 0, no timeout
-	// 	require.Nil(t, upd, "update not nil")
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// 2) No time to change state, nPlayer = 0
+		require.Nil(t, upd, "update not nil")
 
-	// 	// 3) Wait and Advance
-	// 	time.Sleep(2 * time.Second)
-	// 	upd, err = gm.AdvanceGame(ctx, game.ID)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to advance test game: %v", err)
-	// 	}
-	// 	// 4) Game state changed to submitting
-	// 	require.NotNil(t, upd)
-	// 	assert.Equal(t, qg.GameStateSubmitting, upd.State)
-	// 	assert.Equal(t, upd.StateChangeReason, ReasonLobbyTimeout)
-	// })
+		// 3) sleep for 2 seconds and advance game
+		time.Sleep(2 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+
+		// 4) Game state changed to lobby-full because of timeout
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageLobbyFull, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonLobbyTimeout)
+	})
+
+	t.Run("LobbyFullTimeout", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobbyFull)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// 2) No time to change state, no time
+		require.Nil(t, upd, "update not nil")
+
+		// 3) sleep for 1 seconds and advance game
+		time.Sleep(1 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+
+		// 4) Game state changed to submit because of timeout
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageSubmit, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonLobbyFullTimeout)
+	})
 }

@@ -21,8 +21,9 @@ const (
 type StageChangeReason string
 
 const (
-	ReasonLobbyFull    StageChangeReason = "lobby-full"
-	ReasonLobbyTimeout StageChangeReason = "lobby-timeout"
+	ReasonLobbyFull        StageChangeReason = "lobby-full"
+	ReasonLobbyTimeout     StageChangeReason = "lobby-timeout"
+	ReasonLobbyFullTimeout StageChangeReason = "lobby-full-timeout"
 )
 
 type GameUpdate struct {

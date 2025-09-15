@@ -285,7 +285,7 @@ func (gm *GameManager) AdvanceGameNow(ctx context.Context, gameId int64) (*model
 				return nil, nil
 			}
 
-			return nil, gmDbError("fetch failed", err)
+			return nil, gmDbError("failed to fetch game for update", err)
 		}
 
 		return gm.advanceGame(ctx, q, game, false)
@@ -301,7 +301,7 @@ func (gm *GameManager) AdvanceGameAt(ctx context.Context, gameId int64, updateKe
 				return nil, nil
 			}
 
-			return nil, gmDbError("fetch failed", err)
+			return nil, gmDbError("failed to fetch game for update", err)
 		}
 
 		return gm.advanceGame(ctx, q, game, isTimeout)
@@ -335,7 +335,7 @@ func (gm *GameManager) handleLobby(ctx context.Context, q qg.Querier, game qg.Ge
 		}
 
 		reason := models.ReasonLobbyFull
-		if isTimeout {
+		if probablyTimeout {
 			reason = models.ReasonLobbyTimeout
 		}
 
@@ -354,7 +354,7 @@ func (gm *GameManager) handleLobbyFull(ctx context.Context, q qg.Querier, game q
 			return nil, err
 		}
 
-		upd := statusToGameUpdate(status, models.ReasonLobbyFull)
+		upd := statusToGameUpdate(status, models.ReasonLobbyFullTimeout)
 		return &upd, nil
 	}
 
