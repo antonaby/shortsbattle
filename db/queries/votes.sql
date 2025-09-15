@@ -33,6 +33,35 @@ WITH players AS (
   WHERE gp.game_id = $1
 ),
 videos AS (
+  SELECT gv.id AS game_video_id, gv.player_id AS author_id, gv.round_n
+  FROM game_videos gv
+  WHERE gv.game_id = $1
+),
+expected AS (
+  SELECT p.player_id, v.game_video_id, v.round_n
+  FROM players p
+  CROSS JOIN videos v
+  WHERE p.player_id <> v.author_id
+)
+SELECT 
+  e.player_id,
+  e.game_video_id,
+  e.round_n,
+  gvt.value,
+  gvt.voted_at
+  FROM expected e
+  LEFT JOIN game_votes gvt
+    ON gvt.game_video_id = e.game_video_id
+   AND gvt.player_id     = e.player_id
+  ORDER BY e.round_n, e.game_video_id; 
+
+-- name: GetVotesForRound :many
+WITH players AS (
+  SELECT gp.player_id
+  FROM game_players gp
+  WHERE gp.game_id = $1
+),
+videos AS (
   SELECT gv.id AS game_video_id, gv.player_id AS author_id
   FROM game_videos gv
   WHERE gv.game_id = $1

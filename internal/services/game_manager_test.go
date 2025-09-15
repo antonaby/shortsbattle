@@ -273,6 +273,88 @@ func TestGameActions(t *testing.T) {
 		forbiddenServiceErr = rawErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
 	})
+
+	t.Run("GetFinalResultRandom", func(t *testing.T) {
+		testVideos := []string{
+			"https://www.youtube.com/shorts/WYfhopYduI0",
+			"https://www.youtube.com/shorts/vjrDd1tg-7U",
+			"https://www.youtube.com/shorts/6l_SPhjdKnE",
+			"https://www.youtube.com/shorts/B2uK-mAY-GI",
+			"https://www.youtube.com/shorts/6re6j4rNyiw",
+			"https://www.youtube.com/shorts/2RkJ_UzM_WE",
+			"https://www.youtube.com/shorts/rPaIdGOZVHg",
+			"https://www.youtube.com/shorts/Mn8bc-TYQQI",
+			"https://www.youtube.com/shorts/Wuuo966yQ1k",
+			"https://www.youtube.com/shorts/gb5VG9n3eEY",
+		}
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 1)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 10, 30)
+		if err != nil {
+			t.Fatalf("failed to create test players: %v", err)
+		}
+
+		// 1) create game and add players
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		for _, p := range players {
+			_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, p.TgID, qg.PlayerGameModeSubmitAndVote)
+			if err != nil {
+				t.Fatalf("failed to add player to game (player %d): %v", p.TgID, err)
+			}
+		}
+
+		// 2) change game state to submit and add videos
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageSubmit)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		gameVideos := []qg.GameVideo{}
+		for i, p := range players {
+			url := testVideos[i]
+			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 1)
+			if err != nil {
+				t.Fatalf("failed to submit video (player %d): %v", p.TgID, err)
+			}
+			gameVideos = append(gameVideos, *vd)
+		}
+
+		// 3) change game state to watch and vote
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageWatch)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		for _, p := range players {
+			for _, vd := range gameVideos {
+				if vd.PlayerID != p.TgID {
+					vote := []byte(`{"value": "like"}`)
+					_, _, err = gm.VoteForVideo(ctx, vd.ID, p.TgID, vote)
+					if err != nil {
+						t.Fatalf("failed to vote, p:%d vd:%d : %v", p.TgID, vd.ID, err)
+					}
+				}
+			}
+		}
+
+		// 4) caclulate final result
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageComplete)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		err = gm.GetFinalResult(ctx, game.ID, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get final result: %v", err)
+		}
+	})
 }
 
 func TestAdvanceGame(t *testing.T) {

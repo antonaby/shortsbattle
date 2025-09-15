@@ -105,6 +105,7 @@ func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int6
 	})
 }
 
+// TODO: check duplicate videos (the same video can be submitted only once)
 func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit, qg.GameStageSubmitComplete})
@@ -125,6 +126,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 	})
 }
 
+// TODO: check duplicate videos (the same video can be submitted only once)
 func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
@@ -245,6 +247,26 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 		}
 
 		return &game, &vote, nil
+	})
+}
+
+func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) error {
+	return db.WithTxQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) error {
+		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageWatchComplete, qg.GameStageComplete})
+		if err != nil {
+			return err
+		}
+
+		votes, err := q.GetVotes(ctx, gameId)
+		if err != nil {
+			return gmDbError("failed to get votes", err)
+		}
+
+		if len(votes) > 0 {
+			
+		}
+
+		return nil
 	})
 }
 
@@ -442,7 +464,7 @@ func (gm *GameManager) handleWatch(ctx context.Context, q qg.Querier, game qg.Ge
 		return &upd, nil
 	}
 
-	votes, err := q.GetVotes(ctx, game.GameID, game.RoundN)
+	votes, err := q.GetVotesForRound(ctx, game.GameID, game.RoundN)
 	if err != nil {
 		return nil, gmGameUpdError(game.GameID, err)
 	}

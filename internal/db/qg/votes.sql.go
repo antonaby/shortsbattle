@@ -72,6 +72,70 @@ WITH players AS (
   WHERE gp.game_id = $1
 ),
 videos AS (
+  SELECT gv.id AS game_video_id, gv.player_id AS author_id, gv.round_n
+  FROM game_videos gv
+  WHERE gv.game_id = $1
+),
+expected AS (
+  SELECT p.player_id, v.game_video_id, v.round_n
+  FROM players p
+  CROSS JOIN videos v
+  WHERE p.player_id <> v.author_id
+)
+SELECT 
+  e.player_id,
+  e.game_video_id,
+  e.round_n,
+  gvt.value,
+  gvt.voted_at
+  FROM expected e
+  LEFT JOIN game_votes gvt
+    ON gvt.game_video_id = e.game_video_id
+   AND gvt.player_id     = e.player_id
+  ORDER BY e.round_n, e.game_video_id
+`
+
+type GetVotesRow struct {
+	PlayerID    int64              `json:"player_id"`
+	GameVideoID int64              `json:"game_video_id"`
+	RoundN      int32              `json:"round_n"`
+	Value       []byte             `json:"value"`
+	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+}
+
+func (q *Queries) GetVotes(ctx context.Context, gameID int64) ([]GetVotesRow, error) {
+	rows, err := q.db.Query(ctx, getVotes, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetVotesRow
+	for rows.Next() {
+		var i GetVotesRow
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.GameVideoID,
+			&i.RoundN,
+			&i.Value,
+			&i.VotedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getVotesForRound = `-- name: GetVotesForRound :many
+WITH players AS (
+  SELECT gp.player_id
+  FROM game_players gp
+  WHERE gp.game_id = $1
+),
+videos AS (
   SELECT gv.id AS game_video_id, gv.player_id AS author_id
   FROM game_videos gv
   WHERE gv.game_id = $1
@@ -94,22 +158,22 @@ SELECT
    AND gvt.player_id     = e.player_id
 `
 
-type GetVotesRow struct {
+type GetVotesForRoundRow struct {
 	PlayerID    int64              `json:"player_id"`
 	GameVideoID int64              `json:"game_video_id"`
 	Value       []byte             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 
-func (q *Queries) GetVotes(ctx context.Context, gameID int64, roundN int32) ([]GetVotesRow, error) {
-	rows, err := q.db.Query(ctx, getVotes, gameID, roundN)
+func (q *Queries) GetVotesForRound(ctx context.Context, gameID int64, roundN int32) ([]GetVotesForRoundRow, error) {
+	rows, err := q.db.Query(ctx, getVotesForRound, gameID, roundN)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetVotesRow
+	var items []GetVotesForRoundRow
 	for rows.Next() {
-		var i GetVotesRow
+		var i GetVotesForRoundRow
 		if err := rows.Scan(
 			&i.PlayerID,
 			&i.GameVideoID,
