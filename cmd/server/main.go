@@ -118,8 +118,14 @@ func main() {
 		log.Fatal().Err(err).Send()
 	}
 	defer watchdogWorker.Shutdown()
+
 	go botManager.Start(ctx)
-	go dbWatchdog.Run(ctx)
+	
+	go dbWatchdog.Listen(ctx)
+	err = dbWatchdog.ReprocessMissed(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
 
 	go func() {
 		if err := e.Start(":8080"); err != nil && err != http.ErrServerClosed {

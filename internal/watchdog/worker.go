@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -167,8 +168,8 @@ func NewDBWatchdog(txm db.TxManager, client *WatchdogClient, pgDSN string, chann
 	}, nil
 }
 
-// TODO: handle disconnections and errors
-func (watchdog *DBWatchdog) Run(ctx context.Context) error {
+// TODO: handle disconnections and errors (better error handling and reprocessing missed messages)
+func (watchdog *DBWatchdog) Listen(ctx context.Context) error {
 	errCh := make(chan error, 1)
 
 	go func() { errCh <- watchdog.listen(ctx) }()
@@ -187,8 +188,8 @@ func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 	}
 
 	for {
-		innetCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		notification, err := watchdog.pgConn.WaitForNotification(innetCtx)
+		innerCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		notification, err := watchdog.pgConn.WaitForNotification(innerCtx)
 		cancel()
 
 		if err != nil {
@@ -200,16 +201,21 @@ func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 			}
 		}
 
-		var event GameUpdateEvent
-		if err := json.Unmarshal([]byte(notification.Payload), &event); err != nil {
-			return err
-		}
+		go func(notification *pgconn.Notification) {
+			var event GameUpdateEvent
+			if err := json.Unmarshal([]byte(notification.Payload), &event); err != nil {
+				log.Error().Err(err).Msg("failed to unmarshal notification payload")
+				return
+			}
 
-		if err := watchdog.handleMessage(ctx, event); err != nil {
-			return err
-		}
+			if err := watchdog.handleMessage(ctx, event); err != nil {
+				log.Error().Err(err).Msg("failed to process notification")
+				return 
+			}
 
-		log.Debug().Msgf("processed message for: %d, key: %s", event.GameID, event.UpdateKey)
+			log.Debug().Msgf("processed message for: %d, key: %s", event.GameID, event.UpdateKey)
+		}(notification)
+
 	}
 }
 
@@ -220,6 +226,8 @@ func (watchdog DBWatchdog) handleMessage(ctx context.Context, event GameUpdateEv
 			if db.IsNoRows(err) {
 				return nil
 			}
+
+			return wdError(common.GetDbErrorCode(err), "failed to enqueue game", err)
 		}
 
 		if game.NextGameUpdateAt.Valid {
@@ -233,43 +241,22 @@ func (watchdog DBWatchdog) handleMessage(ctx context.Context, event GameUpdateEv
 	})
 }
 
-// func (watchdog DBWatchdog) Run(ctx context.Context) error {
-// 	t := time.NewTicker(watchdog.updateInterval)
-// 	defer t.Stop()
+func (watchdog DBWatchdog) ReprocessMissed(ctx context.Context) error {
+	return db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
+		games, err := q.EnqueueGames(ctx)
+		if err != nil {
+			return wdError(common.GetDbErrorCode(err), "failed to enquque games", err)
+		}
 
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return ctx.Err()
-// 		case <-t.C:
-// 			watchdog.enqueueGames()
-// 		}
-// 	}
-// }
+		for _, g := range games {
+			if g.NextGameUpdateAt.Valid {
+				err := watchdog.client.AdvanceGameAt(ctx, g.NextGameUpdateAt.Time, g.GameID, g.UpdateKey.Bytes, true)
+				if err != nil {
+					return err
+				}
+			}
+		}
 
-// func (watchdog DBWatchdog) enqueueGames() {
-// 	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
-// 	defer cancelFunc()
-
-// 	err := db.WithTxQ(ctx, watchdog.txm, func(ctx context.Context, q qg.Querier) error {
-// 		games, err := q.EnqueueGames(ctx)
-// 		if err != nil {
-// 			return wdError(common.GetDbErrorCode(err), "failed to enquque games", err)
-// 		}
-
-// 		for _, g := range games {
-// 			if g.NextGameUpdateAt.Valid {
-// 				err := watchdog.client.AdvanceGameAt(ctx, g.NextGameUpdateAt.Time, g.GameID, g.UpdateKey.Bytes, true)
-// 				if err != nil {
-// 					return err
-// 				}
-// 			}
-// 		}
-
-// 		return nil
-// 	})
-
-// 	if err != nil {
-// 		log.Error().Err(err).Stack().Send()
-// 	}
-// }
+		return nil
+	})
+}
