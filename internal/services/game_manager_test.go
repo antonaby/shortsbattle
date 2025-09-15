@@ -29,10 +29,13 @@ func TestGameActions(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:     2,
-		MaxLobbyStage:  2 * time.Second,
-		MaxSubmitStage: 60 * time.Second,
-		MaxWatchState:  600 * time.Second,
+		MaxPlayers:             2,
+		MaxLobbyStage:          2 * time.Second,
+		MaxLobbyFullStage:      1 * time.Second,
+		MaxSubmitStage:         2 * time.Second,
+		MaxSubmitCompleteStage: 1 * time.Second,
+		MaxWatchState:          2 * time.Second,
+		MaxWatchCompleteStage:  1 * time.Second,
 	})
 
 	vs := NewVideosService(ts.DBManager)

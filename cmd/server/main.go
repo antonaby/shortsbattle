@@ -52,10 +52,11 @@ func main() {
 	gameConfig := services.GameConfig{
 		MaxPlayers:             2,
 		MaxLobbyStage:          60 * time.Second,
-		MaxLobbyFullStage:      10 * time.Second,
+		MaxLobbyFullStage:      5 * time.Second,
 		MaxSubmitStage:         60 * time.Second,
 		MaxSubmitCompleteStage: 5 * time.Second,
 		MaxWatchState:          600 * time.Second,
+		MaxWatchCompleteStage:  5 * time.Second,
 	}
 
 	themeService := services.NewThemeService(dbManager)
