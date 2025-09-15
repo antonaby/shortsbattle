@@ -1,10 +1,14 @@
--- name: GetGameVideosForVote :one
-SELECT gs.*
+-- name: GetGameVideoShareLock :one
+SELECT 
+  gs.*,
+  gv.id as game_video_id,
+  gv.player_id,
+  gv.video_id,
+  gv.submitted_at
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = sqlc.arg(game_video_id)
     AND gv.player_id <> sqlc.arg(player_id)
-    AND gs.stage = ANY(sqlc.arg(stages)::text[]::game_stage[])
     AND EXISTS (
       SELECT 1
       FROM game_players gp

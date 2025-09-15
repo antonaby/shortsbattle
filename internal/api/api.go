@@ -93,20 +93,23 @@ func (api *HttpApi) addUnsecuredEndpoints(g *echo.Group) {
 func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	v1group := g.Group("/v1")
 
+	// game actions
 	v1group.PUT("/games/join", api.joinGame)
-	// v1group.PUT("/games/:id/submit", api.submitVideo)
-	// v1group.GET("/games/:id/videos", api.getVideosForGame) // TODO: return DTOs intead of DB Models
+	v1group.PUT("/games/:id/submit", api.submitVideo)
+	v1group.GET("/games/:id/videos", api.getVideosForGame)
 
-	// v1group.PUT("/votes/:id", api.voteForVideo) // TODO: return DTOs intead of DB Models
+	// votes
+	v1group.PUT("/votes/:id", api.voteForVideo)
 
+	// themes
 	// TODO: add player id as the owner of the theme
 	v1group.POST("/themes", api.createTheme)
 	v1group.GET("/themes", api.listAllThemes)
 	v1group.GET("/themes/:id", api.getTheme)
 	v1group.POST("/themes/:id/rounds", api.createRound)
 
+	// players and videos
 	v1group.POST("/videos", api.addVideo)
-
 	v1group.GET("/me/videos", api.getVideosForPlayer)
 }
 

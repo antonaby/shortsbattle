@@ -60,13 +60,17 @@ func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64) ([]Fetc
 	return items, nil
 }
 
-const getGameVideosForVote = `-- name: GetGameVideosForVote :one
-SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at
+const getGameVideoShareLock = `-- name: GetGameVideoShareLock :one
+SELECT 
+  gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at,
+  gv.id as game_video_id,
+  gv.player_id,
+  gv.video_id,
+  gv.submitted_at
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = $1
     AND gv.player_id <> $2
-    AND gs.stage = ANY($3::text[]::game_stage[])
     AND EXISTS (
       SELECT 1
       FROM game_players gp
@@ -76,15 +80,23 @@ SELECT gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.up
 FOR SHARE OF gs
 `
 
-type GetGameVideosForVoteParams struct {
-	GameVideoID int64    `json:"game_video_id"`
-	PlayerID    int64    `json:"player_id"`
-	Stages      []string `json:"stages"`
+type GetGameVideoShareLockRow struct {
+	GameID           int64              `json:"game_id"`
+	ThemeID          int64              `json:"theme_id"`
+	Stage            GameStage          `json:"stage"`
+	RoundN           int32              `json:"round_n"`
+	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
+	UpdateKey        pgtype.UUID        `json:"update_key"`
+	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
+	GameVideoID      int64              `json:"game_video_id"`
+	PlayerID         int64              `json:"player_id"`
+	VideoID          int64              `json:"video_id"`
+	SubmittedAt      pgtype.Timestamptz `json:"submitted_at"`
 }
 
-func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, getGameVideosForVote, arg.GameVideoID, arg.PlayerID, arg.Stages)
-	var i GameStatus
+func (q *Queries) GetGameVideoShareLock(ctx context.Context, gameVideoID int64, playerID int64) (GetGameVideoShareLockRow, error) {
+	row := q.db.QueryRow(ctx, getGameVideoShareLock, gameVideoID, playerID)
+	var i GetGameVideoShareLockRow
 	err := row.Scan(
 		&i.GameID,
 		&i.ThemeID,
@@ -93,6 +105,10 @@ func (q *Queries) GetGameVideosForVote(ctx context.Context, arg GetGameVideosFor
 		&i.StateChangedAt,
 		&i.UpdateKey,
 		&i.NextGameUpdateAt,
+		&i.GameVideoID,
+		&i.PlayerID,
+		&i.VideoID,
+		&i.SubmittedAt,
 	)
 	return i, err
 }

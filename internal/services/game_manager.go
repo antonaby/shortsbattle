@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
@@ -105,7 +106,7 @@ func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int6
 
 func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId, playerId int64, roundN int32) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
-		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit})
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit, qg.GameStageSubmitComplete})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -130,7 +131,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 	}
 
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *qg.GameVideo, error) {
-		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit})
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit, qg.GameStageSubmitComplete})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -169,10 +170,8 @@ func (gm *GameManager) findGame(ctx context.Context, q qg.Querier, gameId, playe
 		return nil, gmDbError("failed to fetch game", err)
 	}
 
-	for _, stage := range stages {
-		if stage == game.Stage {
-			return &game, nil
-		}
+	if slices.Contains(stages, game.Stage) {
+		return &game, nil
 	}
 
 	return nil, gmError(common.ErrorForbidden, "wrong game stage", err)
@@ -219,20 +218,19 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 }
 
 // TODO: check voting mode
-func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GameStatus, *qg.GameVote, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, *qg.GameVote, error) {
-		game, err := q.GetGameVideosForVote(ctx, qg.GetGameVideosForVoteParams{
-			GameVideoID: gameVideoId,
-			PlayerID:    playerId,
-			Stages:      []string{string(qg.GameStageWatch)},
-		})
-
+func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+		game, err := q.GetGameVideoShareLock(ctx, gameVideoId, playerId)
 		if err != nil {
 			if db.IsNoRows(err) {
-				return nil, nil, gmError(common.ErrorForbidden, "player not in the game or wrong game stage", err)
+				return nil, nil, gmError(common.ErrorForbidden, "player not in the game", err)
 			}
 
 			return nil, nil, gmDbError("failed to vote", err)
+		}
+
+		if !slices.Contains([]qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete}, game.Stage) {
+			return nil, nil, gmError(common.ErrorForbidden, "wrong game stage", err)
 		}
 
 		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{

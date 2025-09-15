@@ -22,7 +22,7 @@ type Querier interface {
 	GetGameLock(ctx context.Context, gameID int64, updateKey pgtype.UUID) (GetGameLockRow, error)
 	GetGameRounds(ctx context.Context, id int64) ([]Round, error)
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)
-	GetGameVideosForVote(ctx context.Context, arg GetGameVideosForVoteParams) (GameStatus, error)
+	GetGameVideoShareLock(ctx context.Context, gameVideoID int64, playerID int64) (GetGameVideoShareLockRow, error)
 	GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error)
 	GetSubmittedVideosByPlayers(ctx context.Context, gameID int64, roundN int32) ([]GetSubmittedVideosByPlayersRow, error)
 	GetTheme(ctx context.Context, id int64) (Theme, error)
