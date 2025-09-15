@@ -39,6 +39,10 @@ type SubmitVideoRequest struct {
 	VideoUrl *string `json:"video_url" validate:"omitempty,url"`
 }
 
+type UpdateGameModeRequest struct {
+	Mode qg.PlayerGameMode `json:"mode" validate:"required"`
+}
+
 type JoinGameRequest struct {
 	ThemeID int64             `json:"theme_id" validate:"required"`
 	Mode    qg.PlayerGameMode `json:"mode" validate:"required"`

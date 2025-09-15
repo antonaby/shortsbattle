@@ -50,6 +50,49 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 	})
 }
 
+func (api *HttpApi) updateGameMode(c echo.Context) error {
+	tgId, err := tgId(c)
+	if err != nil {
+		return err
+	}
+
+	gameId, err := param64(c, "id")
+	if err != nil {
+		return err
+	}
+
+	request, err := bindAndValidate[models.UpdateGameModeRequest](c)
+	if err != nil {
+		return err
+	}
+
+	ctx := c.Request().Context()
+
+	gp, err := api.games.UpdateGameMode(ctx, gameId, tgId, request.Mode)
+	if err != nil {
+		var sErr common.ServiceError
+		if errors.As(err, &sErr) {
+			if sErr.Code == common.ErrorNotFound {
+				return c.JSON(http.StatusNotFound, models.ErrorResponse{
+					Error: ResourceNotFoundMsg,
+				})
+			}
+			if sErr.Code == common.ErrorForbidden {
+				return c.JSON(http.StatusForbidden, models.ErrorResponse{
+					Error: GameActionForbiddenMsg,
+				})
+			}
+		}
+
+		c.Echo().Logger.Errorf("failed to udpate game mode: %w", err)
+		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error: SomethingWentWrongMsg,
+		})
+	}
+
+	return c.JSON(http.StatusOK, gp)
+}
+
 func (api *HttpApi) submitVideo(c echo.Context) error {
 	tgId, err := tgId(c)
 	if err != nil {

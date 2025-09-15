@@ -96,6 +96,7 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	// game actions
 	v1group.PUT("/games/join", api.joinGame)
 	v1group.PUT("/games/:id/submit", api.submitVideo)
+	v1group.PUT("/games/:id/mode", api.updateGameMode)
 	v1group.GET("/games/:id/videos", api.getVideosForGame)
 
 	// votes
