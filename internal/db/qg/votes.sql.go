@@ -12,54 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const fetchVotesByPlayers = `-- name: FetchVotesByPlayers :many
-SELECT gvd.id, gvd.game_id, gvd.player_id, gvd.video_id, gvd.round_n, gvd.submitted_at, gvt.value, gvt.voted_at
-FROM game_videos gvd
-LEFT JOIN game_votes gvt ON gvd.id = gvt.game_video_id
-WHERE gvd.game_id = $1
-ORDER BY gvd.round_n
-`
-
-type FetchVotesByPlayersRow struct {
-	ID          int64              `json:"id"`
-	GameID      int64              `json:"game_id"`
-	PlayerID    int64              `json:"player_id"`
-	VideoID     int64              `json:"video_id"`
-	RoundN      int32              `json:"round_n"`
-	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
-	Value       []byte             `json:"value"`
-	VotedAt     pgtype.Timestamptz `json:"voted_at"`
-}
-
-func (q *Queries) FetchVotesByPlayers(ctx context.Context, gameID int64) ([]FetchVotesByPlayersRow, error) {
-	rows, err := q.db.Query(ctx, fetchVotesByPlayers, gameID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []FetchVotesByPlayersRow
-	for rows.Next() {
-		var i FetchVotesByPlayersRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.GameID,
-			&i.PlayerID,
-			&i.VideoID,
-			&i.RoundN,
-			&i.SubmittedAt,
-			&i.Value,
-			&i.VotedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getGameVideoShareLock = `-- name: GetGameVideoShareLock :one
 SELECT 
   gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at,
@@ -111,6 +63,67 @@ func (q *Queries) GetGameVideoShareLock(ctx context.Context, gameVideoID int64, 
 		&i.SubmittedAt,
 	)
 	return i, err
+}
+
+const getVotes = `-- name: GetVotes :many
+WITH players AS (
+  SELECT gp.player_id
+  FROM game_players gp
+  WHERE gp.game_id = $1
+),
+videos AS (
+  SELECT gv.id AS game_video_id, gv.player_id AS author_id
+  FROM game_videos gv
+  WHERE gv.game_id = $1
+    AND gv.round_n = $2
+),
+expected AS (
+  SELECT p.player_id, v.game_video_id
+  FROM players p
+  CROSS JOIN videos v
+  WHERE p.player_id <> v.author_id
+)
+SELECT 
+  e.player_id,
+  e.game_video_id,
+  gvt.value,
+  gvt.voted_at
+  FROM expected e
+  LEFT JOIN game_votes gvt
+    ON gvt.game_video_id = e.game_video_id
+   AND gvt.player_id     = e.player_id
+`
+
+type GetVotesRow struct {
+	PlayerID    int64              `json:"player_id"`
+	GameVideoID int64              `json:"game_video_id"`
+	Value       []byte             `json:"value"`
+	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+}
+
+func (q *Queries) GetVotes(ctx context.Context, gameID int64, roundN int32) ([]GetVotesRow, error) {
+	rows, err := q.db.Query(ctx, getVotes, gameID, roundN)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetVotesRow
+	for rows.Next() {
+		var i GetVotesRow
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.GameVideoID,
+			&i.Value,
+			&i.VotedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const voteForVideo = `-- name: VoteForVideo :one

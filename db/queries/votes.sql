@@ -26,9 +26,30 @@ SET value = EXCLUDED.value,
     voted_at = now()
 RETURNING *;
 
--- name: FetchVotesByPlayers :many
-SELECT gvd.*, gvt.value, gvt.voted_at
-FROM game_videos gvd
-LEFT JOIN game_votes gvt ON gvd.id = gvt.game_video_id
-WHERE gvd.game_id = $1
-ORDER BY gvd.round_n;
+-- name: GetVotes :many
+WITH players AS (
+  SELECT gp.player_id
+  FROM game_players gp
+  WHERE gp.game_id = $1
+),
+videos AS (
+  SELECT gv.id AS game_video_id, gv.player_id AS author_id
+  FROM game_videos gv
+  WHERE gv.game_id = $1
+    AND gv.round_n = $2
+),
+expected AS (
+  SELECT p.player_id, v.game_video_id
+  FROM players p
+  CROSS JOIN videos v
+  WHERE p.player_id <> v.author_id
+)
+SELECT 
+  e.player_id,
+  e.game_video_id,
+  gvt.value,
+  gvt.voted_at
+  FROM expected e
+  LEFT JOIN game_votes gvt
+    ON gvt.game_video_id = e.game_video_id
+   AND gvt.player_id     = e.player_id;

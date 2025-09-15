@@ -45,6 +45,7 @@ type GameConfig struct {
 	MaxSubmitStage         time.Duration
 	MaxSubmitCompleteStage time.Duration
 	MaxWatchState          time.Duration
+	MaxWatchCompleteStage  time.Duration
 }
 
 type GameManager struct {
@@ -223,7 +224,7 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 		game, err := q.GetGameVideoShareLock(ctx, gameVideoId, playerId)
 		if err != nil {
 			if db.IsNoRows(err) {
-				return nil, nil, gmError(common.ErrorForbidden, "player not in the game", err)
+				return nil, nil, gmError(common.ErrorForbidden, "player not in the game or player tried to vote for its own video", err)
 			}
 
 			return nil, nil, gmDbError("failed to vote", err)
@@ -316,11 +317,14 @@ func (gm *GameManager) advanceGame(ctx context.Context, q qg.Querier, game qg.Ge
 		return gm.handleSubmit(ctx, q, game, isTimeout)
 	case qg.GameStageSubmitComplete:
 		return gm.handleSubmitComplete(ctx, q, game, isTimeout)
+	case qg.GameStageWatch:
+		return gm.handleWatch(ctx, q, game, isTimeout)
 	default:
 		return nil, nil
 	}
 }
 
+// TODO: count only players in submit_and_vote mode
 // TODO: check only active users
 // TODO: add bots if nPlayers less than MaxPlayers
 func (gm *GameManager) handleLobby(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
@@ -368,6 +372,7 @@ func (gm *GameManager) handleLobbyFull(ctx context.Context, q qg.Querier, game q
 	return nil, nil
 }
 
+// TODO: handle users in only watching mode
 // TODO: add bots in case some players inactive
 func (gm *GameManager) handleSubmit(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	probablyTimeout := game.PastMs >= gm.config.MaxSubmitStage.Milliseconds() || isTimeout
@@ -450,54 +455,44 @@ func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) 
 	}
 }
 
-// func (gm *GameManager) fromSubmittingToWatching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
-// 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-// 		ID:          game.ID,
-// 		State:       qg.GameStateWatching,
-// 		NextStateIn: db.ToPgInterval(gm.config.WatchingState),
-// 		RoundN:      game.RoundN,
-// 	})
+// TODO: increase time as players vote
+func (gm *GameManager) handleWatch(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
+	probablyTimeout := game.PastMs >= gm.config.MaxWatchState.Milliseconds() || isTimeout
+	if probablyTimeout {
+		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageWatchComplete, game.RoundN, gm.config.MaxWatchCompleteStage)
+		if err != nil {
+			return nil, err
+		}
 
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+		upd := statusToGameUpdate(status, models.ReasonWatchTimeout)
+		return &upd, nil
+	}
 
-// 	upd := statusRowToGameUpdate(status, reason)
-// 	return &upd, nil
-// }
+	votes, err := q.GetVotes(ctx, game.GameID, game.RoundN)
+	if err != nil {
+		return nil, gmGameUpdError(game.GameID, err)
+	}
 
-// // TODO: add 30 sec for ad after all players have watched
-// func (gm *GameManager) handleWathching(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier) (*models.GameUpdate, error) {
-// 	votes, err := q.FetchVotesByPlayers(ctx, qg.FetchVotesByPlayersParams{
-// 		GameID: game.ID,
-// 		RoundN: game.RoundN.Int32,
-// 	})
+	allPlayersVoted := len(votes) > 0
+	for _, v := range votes {
+		if !v.VotedAt.Valid {
+			allPlayersVoted = false
+			break
+		}
+	}
 
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+	if allPlayersVoted {
+		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageWatchComplete, game.RoundN, gm.config.MaxWatchCompleteStage)
+		if err != nil {
+			return nil, err
+		}
 
-// 	if len(votes) > 0 {
-// 		allVoted := true
-// 		for _, v := range votes {
-// 			if !v.Value.Valid {
-// 				// Some player hasn't voted
-// 				allVoted = false
-// 				break
-// 			}
-// 		}
+		upd := statusToGameUpdate(status, models.ReasonWatchAll)
+		return &upd, nil
+	}
 
-// 		if allVoted {
-// 			return gm.fromWatchingToSubmittingOrComplete(ctx, game, q, ReasonWatchAll)
-// 		}
-// 	}
-
-// 	if game.RemainingMs > gm.config.MinRemainingBeforeChangeMs {
-// 		return nil, nil
-// 	}
-
-// 	return gm.fromWatchingToSubmittingOrComplete(ctx, game, q, ReasonWatchTimeout)
-// }
+	return nil, nil
+}
 
 // func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
 // 	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})

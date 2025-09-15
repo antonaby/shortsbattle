@@ -27,6 +27,8 @@ const (
 	ReasonSubmitAll             StageChangeReason = "submit-all"
 	ReasonSubmitTimeout         StageChangeReason = "submit-timeout"
 	ReasinSubmitCompleteTimeout StageChangeReason = "submit-complete-timeout"
+	ReasonWatchAll              StageChangeReason = "watch-all"
+	ReasonWatchTimeout          StageChangeReason = "watch-timeout"
 )
 
 type GameUpdate struct {
