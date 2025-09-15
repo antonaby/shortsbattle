@@ -319,6 +319,8 @@ func (gm *GameManager) advanceGame(ctx context.Context, q qg.Querier, game qg.Ge
 		return gm.handleSubmitComplete(ctx, q, game, isTimeout)
 	case qg.GameStageWatch:
 		return gm.handleWatch(ctx, q, game, isTimeout)
+	case qg.GameStageWatchComplete:
+		return gm.handleWatchComplete(ctx, q, game, isTimeout)
 	default:
 		return nil, nil
 	}
@@ -427,34 +429,6 @@ func (gm *GameManager) handleSubmitComplete(ctx context.Context, q qg.Querier, g
 	return nil, nil
 }
 
-func (gm *GameManager) updateGameStatus(
-	ctx context.Context, q qg.Querier, gameId int64,
-	stage qg.GameStage, roundN int32, nextGameChangeIn time.Duration) (*qg.GameStatus, error) {
-	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-		GameID:           gameId,
-		Stage:            stage,
-		RoundN:           roundN,
-		NextGameUpdateIn: db.ToPgInterval(nextGameChangeIn),
-	})
-
-	if err != nil {
-		return nil, gmDbError("failed to update game stage", err)
-	}
-
-	return &status, nil
-}
-
-func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) models.GameUpdate {
-	return models.GameUpdate{
-		GameID:            status.GameID,
-		MsgType:           models.GameUpdateMsg,
-		Stage:             status.Stage,
-		StateChangeReason: &reason,
-		RoundN:            status.RoundN,
-		StateChangedAt:    status.StateChangedAt,
-	}
-}
-
 // TODO: increase time as players vote
 func (gm *GameManager) handleWatch(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	probablyTimeout := game.PastMs >= gm.config.MaxWatchState.Milliseconds() || isTimeout
@@ -494,48 +468,69 @@ func (gm *GameManager) handleWatch(ctx context.Context, q qg.Querier, game qg.Ge
 	return nil, nil
 }
 
-// func (gm *GameManager) fromWatchingToSubmittingOrComplete(ctx context.Context, game *qg.FetchGameAndLockRow, q qg.Querier, reason string) (*models.GameUpdate, error) {
-// 	rounds, err := q.GetGameRounds(ctx, qg.GetGameRoundsParams{ID: game.ID})
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
+	probablyTimeout := game.PastMs >= gm.config.MaxWatchCompleteStage.Milliseconds() || isTimeout
+	if probablyTimeout {
+		rounds, err := q.GetGameRounds(ctx, game.GameID)
+		if err != nil {
+			return nil, gmGameUpdError(game.GameID, err)
+		}
 
-// 	if int(game.RoundN.Int32) < len(rounds) {
-// 		status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
-// 			ID:          game.ID,
-// 			State:       qg.GameStateSubmitting,
-// 			NextStateIn: db.ToPgInterval(gm.config.SubmittingState),
-// 			RoundN: pgtype.Int4{
-// 				Int32: game.RoundN.Int32 + 1,
-// 				Valid: true,
-// 			},
-// 		})
+		if int(game.RoundN) < len(rounds) {
+			status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageSubmit, game.RoundN+1, gm.config.MaxSubmitStage)
+			if err != nil {
+				return nil, err
+			}
 
-// 		if err != nil {
-// 			return nil, gmGameUpdError(game.ID, err)
-// 		}
+			upd := statusToGameUpdate(status, models.ReasonWatchCompleteNextRound)
+			return &upd, nil
+		}
 
-// 		upd := statusRowToGameUpdate(status, reason)
-// 		return &upd, nil
-// 	}
+		status, err := q.UpdateGameStatusComplete(ctx, qg.GameStageComplete, game.GameID)
+		if err != nil {
+			return nil, gmDbError("failed to update game stage", err)
+		}
 
-// 	completeGame, err := q.SetCompletedStatus(ctx, qg.SetCompletedStatusParams{
-// 		ID:    game.ID,
-// 		State: qg.GameStateCompleted,
-// 	})
+		reason := models.ReasonWatchCompleteGameComplete
+		upd := models.GameUpdate{
+			GameID:            status.GameID,
+			MsgType:           models.GameUpdateMsg,
+			Stage:             status.Stage,
+			StateChangeReason: &reason,
+			RoundN:            status.RoundN,
+			StateChangedAt:    status.StateChangedAt,
+		}
+		return &upd, nil
+	}
 
-// 	if err != nil {
-// 		return nil, gmGameUpdError(game.ID, err)
-// 	}
+	return nil, nil
+}
 
-// 	// TODO: add totoal result
-// 	return &models.GameUpdate{
-// 		MsgType:           models.GameCompleteMsg,
-// 		GameID:            completeGame.ID,
-// 		State:             completeGame.State,
-// 		StateChangedAt:    completeGame.StateChangedAt,
-// 		NextStateChangeAt: completeGame.NextStateChangeAt,
-// 		RamaningTimeMs:    0,
-// 		Result:            &models.GameResult{},
-// 	}, nil
-// }
+func (gm *GameManager) updateGameStatus(
+	ctx context.Context, q qg.Querier, gameId int64,
+	stage qg.GameStage, roundN int32, nextGameChangeIn time.Duration) (*qg.GameStatus, error) {
+	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
+		GameID:           gameId,
+		Stage:            stage,
+		RoundN:           roundN,
+		NextGameUpdateIn: db.ToPgInterval(nextGameChangeIn),
+	})
+
+	if err != nil {
+		return nil, gmDbError("failed to update game stage", err)
+	}
+
+	return &status, nil
+}
+
+// TODO: add remaining ms
+func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) models.GameUpdate {
+	return models.GameUpdate{
+		GameID:            status.GameID,
+		MsgType:           models.GameUpdateMsg,
+		Stage:             status.Stage,
+		StateChangeReason: &reason,
+		RoundN:            status.RoundN,
+		StateChangedAt:    status.StateChangedAt,
+	}
+}

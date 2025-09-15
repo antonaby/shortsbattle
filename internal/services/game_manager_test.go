@@ -622,7 +622,7 @@ func TestAdvanceGame(t *testing.T) {
 		require.Equal(t, *upd.StateChangeReason, models.ReasonWatchAll)
 	})
 
-	t.Run("WatchTImeout", func(t *testing.T) {
+	t.Run("WatchTimeout", func(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
@@ -656,5 +656,58 @@ func TestAdvanceGame(t *testing.T) {
 		require.NotNil(t, upd)
 		require.Equal(t, qg.GameStageWatchComplete, upd.Stage)
 		require.Equal(t, *upd.StateChangeReason, models.ReasonWatchTimeout)
+	})
+
+	t.Run("WatchComplete", func(t *testing.T) {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 2)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		// 1) Create game
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageWatchComplete, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		// 2) advance game
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// No time to change state, no timeout
+		require.Nil(t, upd, "update not nil")
+
+		// 3) wait for the next round
+		time.Sleep(1 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// No time to change state, no timeout
+		require.NotNil(t, upd, "update not nil")
+		require.Equal(t, qg.GameStageSubmit, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonWatchCompleteNextRound)
+		// should be second round
+		require.Equal(t, upd.RoundN, int32(2))
+
+		// 4) chnage game state back to watch complete and advance
+		_, err = tests.ChangeGameStageAndUpdateAt(ctx, ts.DBManager, game.ID, qg.GameStageWatchComplete, gm.config.MaxWatchCompleteStage)
+		if err != nil {
+			t.Fatalf("failed to change game state: %v", err)
+		}
+		time.Sleep(1 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		// game complete
+		require.NotNil(t, upd, "update not nil")
+		require.Equal(t, qg.GameStageComplete, upd.Stage)
+		require.Equal(t, *upd.StateChangeReason, models.ReasonWatchCompleteGameComplete)
+		// round is 0 as game complete
+		require.Equal(t, upd.RoundN, int32(0))
 	})
 }

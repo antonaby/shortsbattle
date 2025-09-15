@@ -169,3 +169,33 @@ func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, game
 	)
 	return i, err
 }
+
+const testUpdateGameStageAndUpdateAt = `-- name: TestUpdateGameStageAndUpdateAt :one
+UPDATE game_status
+SET stage = $1,
+    next_game_update_at = now() + $2::interval,
+    update_key = uuid_generate_v1mc()
+WHERE game_id = $3
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
+`
+
+type TestUpdateGameStageAndUpdateAtParams struct {
+	Stage        GameStage       `json:"stage"`
+	NextUpdateAt pgtype.Interval `json:"next_update_at"`
+	GameID       int64           `json:"game_id"`
+}
+
+func (q *Queries) TestUpdateGameStageAndUpdateAt(ctx context.Context, arg TestUpdateGameStageAndUpdateAtParams) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, testUpdateGameStageAndUpdateAt, arg.Stage, arg.NextUpdateAt, arg.GameID)
+	var i GameStatus
+	err := row.Scan(
+		&i.GameID,
+		&i.ThemeID,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.UpdateKey,
+		&i.NextGameUpdateAt,
+	)
+	return i, err
+}

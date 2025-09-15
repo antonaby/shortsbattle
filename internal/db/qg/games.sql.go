@@ -258,31 +258,6 @@ func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, erro
 	return game_id, err
 }
 
-const setCompletedStatus = `-- name: SetCompletedStatus :one
-UPDATE game_status SET 
-  stage = $1,
-  next_state_change_at = NULL,
-  next_enqueue_at = NULL,
-  round_n = 0
-WHERE game_id = $2 
-RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
-`
-
-func (q *Queries) SetCompletedStatus(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
-	row := q.db.QueryRow(ctx, setCompletedStatus, stage, gameID)
-	var i GameStatus
-	err := row.Scan(
-		&i.GameID,
-		&i.ThemeID,
-		&i.Stage,
-		&i.RoundN,
-		&i.StateChangedAt,
-		&i.UpdateKey,
-		&i.NextGameUpdateAt,
-	)
-	return i, err
-}
-
 const updateGameMode = `-- name: UpdateGameMode :one
 UPDATE game_players 
 SET mode = $3
@@ -334,6 +309,32 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		arg.NextGameUpdateIn,
 		arg.GameID,
 	)
+	var i GameStatus
+	err := row.Scan(
+		&i.GameID,
+		&i.ThemeID,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.UpdateKey,
+		&i.NextGameUpdateAt,
+	)
+	return i, err
+}
+
+const updateGameStatusComplete = `-- name: UpdateGameStatusComplete :one
+UPDATE game_status SET 
+  stage = $1,
+  state_changed_at = now(),
+  round_n = 0,
+  next_game_update_at = NULL,
+  update_key = uuid_generate_v1mc()
+WHERE game_id = $2 
+RETURNING game_id, theme_id, stage, round_n, state_changed_at, update_key, next_game_update_at
+`
+
+func (q *Queries) UpdateGameStatusComplete(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, updateGameStatusComplete, stage, gameID)
 	var i GameStatus
 	err := row.Scan(
 		&i.GameID,

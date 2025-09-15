@@ -203,6 +203,21 @@ func ChangeGameStage(ctx context.Context, txm db.TxManager, gameId int64, stage 
 	})
 }
 
+func ChangeGameStageAndUpdateAt(ctx context.Context, txm db.TxManager, gameId int64, stage qg.GameStage, updateAt time.Duration) (*qg.GameStatus, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GameStatus, error) {
+		status, err := q.TestUpdateGameStageAndUpdateAt(ctx, qg.TestUpdateGameStageAndUpdateAtParams{
+			GameID:       gameId,
+			Stage:        stage,
+			NextUpdateAt: db.ToPgInterval(updateAt),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return &status, nil
+	})
+}
+
 func AddPlayerToGame(ctx context.Context, txm db.TxManager, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
 		gp, err := q.TestAddPlayerToGame(ctx, qg.TestAddPlayerToGameParams{

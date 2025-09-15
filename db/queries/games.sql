@@ -88,12 +88,13 @@ UPDATE game_status SET
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 
--- name: SetCompletedStatus :one
+-- name: UpdateGameStatusComplete :one
 UPDATE game_status SET 
   stage = sqlc.arg(stage),
-  next_state_change_at = NULL,
-  next_enqueue_at = NULL,
-  round_n = 0
+  state_changed_at = now(),
+  round_n = 0,
+  next_game_update_at = NULL,
+  update_key = uuid_generate_v1mc()
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 

@@ -17,6 +17,14 @@ SET stage = $1
 WHERE game_id = $2
 RETURNING *;
 
+-- name: TestUpdateGameStageAndUpdateAt :one
+UPDATE game_status
+SET stage = sqlc.arg(stage),
+    next_game_update_at = now() + sqlc.arg(next_update_at)::interval,
+    update_key = uuid_generate_v1mc()
+WHERE game_id = sqlc.arg(game_id)
+RETURNING *;
+
 -- name: TestAddPlayerToGame :one
 INSERT INTO game_players (
   game_id,

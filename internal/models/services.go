@@ -13,22 +13,23 @@ import (
 type MessageType string
 
 const (
-	GameDetailsMsg  MessageType = "details"
-	GameUpdateMsg   MessageType = "state_change"
-	GameCompleteMsg MessageType = "complete"
+	GameDetailsMsg MessageType = "details"
+	GameUpdateMsg  MessageType = "stage_updated"
 )
 
 type StageChangeReason string
 
 const (
-	ReasonLobbyFull             StageChangeReason = "lobby-full"
-	ReasonLobbyTimeout          StageChangeReason = "lobby-timeout"
-	ReasonLobbyFullTimeout      StageChangeReason = "lobby-full-timeout"
-	ReasonSubmitAll             StageChangeReason = "submit-all"
-	ReasonSubmitTimeout         StageChangeReason = "submit-timeout"
-	ReasinSubmitCompleteTimeout StageChangeReason = "submit-complete-timeout"
-	ReasonWatchAll              StageChangeReason = "watch-all"
-	ReasonWatchTimeout          StageChangeReason = "watch-timeout"
+	ReasonLobbyFull                 StageChangeReason = "lobby-full"
+	ReasonLobbyTimeout              StageChangeReason = "lobby-timeout"
+	ReasonLobbyFullTimeout          StageChangeReason = "lobby-full-timeout"
+	ReasonSubmitAll                 StageChangeReason = "submit-all"
+	ReasonSubmitTimeout             StageChangeReason = "submit-timeout"
+	ReasinSubmitCompleteTimeout     StageChangeReason = "submit-complete-timeout"
+	ReasonWatchAll                  StageChangeReason = "watch-all"
+	ReasonWatchTimeout              StageChangeReason = "watch-timeout"
+	ReasonWatchCompleteNextRound    StageChangeReason = "watch-complete-next-round"
+	ReasonWatchCompleteGameComplete StageChangeReason = "watch-complete-game-complete"
 )
 
 type GameUpdate struct {
