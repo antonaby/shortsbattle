@@ -90,6 +90,9 @@ UPDATE game_status SET
 WHERE game_id = sqlc.arg(game_id) 
 RETURNING *;
 
+-- name: SetGameComplete :exec
+UPDATE games SET completed_at = now();
+
 -- name: GetGameRounds :many
 SELECT r.* 
 FROM rounds r

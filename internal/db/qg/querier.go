@@ -20,6 +20,7 @@ type Querier interface {
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	EnqueueGame(ctx context.Context, gameID int64) (GameUpdate, error)
 	EnqueueGames(ctx context.Context) ([]GameUpdate, error)
+	GetFinalResult(ctx context.Context, gameID int64, playerID int64) (GameFinalResult, error)
 	GetGameLock(ctx context.Context, gameID int64, updateKey pgtype.UUID) (GetGameLockRow, error)
 	GetGameRounds(ctx context.Context, gameID int64) ([]Round, error)
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)
@@ -35,6 +36,7 @@ type Querier interface {
 	JoinGame(ctx context.Context, arg JoinGameParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, limit int32, offset int32) ([]Theme, error)
+	SetGameComplete(ctx context.Context) error
 	TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error)
 	TestCreateGame(ctx context.Context, themeID int64) (Game, error)
 	TestCreateGameStatus(ctx context.Context, arg TestCreateGameStatusParams) (GameStatus, error)

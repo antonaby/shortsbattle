@@ -13,11 +13,29 @@ import (
 const createFinalResult = `-- name: CreateFinalResult :one
 INSERT INTO game_final_results(game_id, result) 
 VALUES ($1, $2) 
+ON CONFLICT (game_id) DO UPDATE
+SET result = EXCLUDED.result,
+    calculated_at = now()
 RETURNING game_id, result, calculated_at
 `
 
 func (q *Queries) CreateFinalResult(ctx context.Context, gameID int64, result json.RawMessage) (GameFinalResult, error) {
 	row := q.db.QueryRow(ctx, createFinalResult, gameID, result)
+	var i GameFinalResult
+	err := row.Scan(&i.GameID, &i.Result, &i.CalculatedAt)
+	return i, err
+}
+
+const getFinalResult = `-- name: GetFinalResult :one
+SELECT f.game_id, f.result, f.calculated_at FROM game_final_results f
+WHERE f.game_id = $1
+  AND EXISTS (
+    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
+  )
+`
+
+func (q *Queries) GetFinalResult(ctx context.Context, gameID int64, playerID int64) (GameFinalResult, error) {
+	row := q.db.QueryRow(ctx, getFinalResult, gameID, playerID)
 	var i GameFinalResult
 	err := row.Scan(&i.GameID, &i.Result, &i.CalculatedAt)
 	return i, err

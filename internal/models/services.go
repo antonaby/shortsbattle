@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -77,6 +78,7 @@ type GameUpdate struct {
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	Theme             *qg.Theme          `json:"theme,omitempty"`
+	Result            *json.RawMessage   `json:"resul,omitempty"`
 }
 
 func GetCfChannelName(gameId int64) string {

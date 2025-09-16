@@ -250,6 +250,15 @@ func (q *Queries) JoinGame(ctx context.Context, arg JoinGameParams) (int64, erro
 	return game_id, err
 }
 
+const setGameComplete = `-- name: SetGameComplete :exec
+UPDATE games SET completed_at = now()
+`
+
+func (q *Queries) SetGameComplete(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, setGameComplete)
+	return err
+}
+
 const updateGameMode = `-- name: UpdateGameMode :one
 UPDATE game_players 
 SET mode = $3
