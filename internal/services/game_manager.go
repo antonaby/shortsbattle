@@ -530,10 +530,6 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			return nil, gmDbError("failed to update game stage", err)
 		}
 
-		if err := q.SetGameComplete(ctx); err != nil {
-			return nil, gmDbError("failed to update game stage", err)
-		}
-
 		fResult, err := gm.calculateFinalResult(ctx, q, game)
 		if err != nil {
 			return nil, gmDbError("failed to update game stage", err)
@@ -635,6 +631,10 @@ func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, erro
 		votes[rawVote.GameVideoID] = res
 	}
 
+	if len(votes) == 0 {
+		return convertToLikeDislikeFinalResult([]models.LikeDislikeVideoResult{})
+	}
+
 	results := make([]models.LikeDislikeVideoResult, 0, len(votes))
 	for _, v := range votes {
 		results = append(results, v)
@@ -647,6 +647,10 @@ func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, erro
 		return results[i].RoundN < results[j].RoundN
 	})
 
+	return convertToLikeDislikeFinalResult(results)
+}
+
+func convertToLikeDislikeFinalResult(results []models.LikeDislikeVideoResult) (json.RawMessage, error) {
 	fResult := models.LikeDislikeFinalResult{
 		Results: results,
 	}

@@ -36,7 +36,6 @@ type Querier interface {
 	JoinGame(ctx context.Context, arg JoinGameParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, limit int32, offset int32) ([]Theme, error)
-	SetGameComplete(ctx context.Context) error
 	TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error)
 	TestCreateGame(ctx context.Context, themeID int64) (Game, error)
 	TestCreateGameStatus(ctx context.Context, arg TestCreateGameStatusParams) (GameStatus, error)

@@ -45,6 +45,7 @@ BEGIN
     IF NEW.stage = 'complete' THEN
       -- ensure no queued update remains if inserted already complete
       DELETE FROM game_updates WHERE game_id = NEW.game_id;
+      UPDATE games SET completed_at = now() WHERE id = NEW.game_id;
     ELSE
       INSERT INTO game_updates (game_id, update_key, next_game_update_at, enqueued_at)
       VALUES (NEW.game_id, NEW.update_key, NEW.next_game_update_at, NULL)
