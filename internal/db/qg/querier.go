@@ -6,6 +6,7 @@ package qg
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -13,6 +14,7 @@ import (
 type Querier interface {
 	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error)
 	CountPlayersInGame(ctx context.Context, gameID int64) (int64, error)
+	CreateFinalResult(ctx context.Context, gameID int64, result json.RawMessage) (GameFinalResult, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)

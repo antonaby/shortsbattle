@@ -371,7 +371,12 @@ func TestGameActions(t *testing.T) {
 		}
 
 		require.NotNil(t, result)
-		require.Equal(t, 10, len(result.([]models.LikeDislikeVideoResult)))
+		var finalResult models.LikeDislikeFinalResult
+		if err := json.Unmarshal(result.Result, &finalResult); err != nil {
+			t.Fatalf("failed to unmarchal final result: %v", err)
+		}
+
+		require.Equal(t, 10, len(finalResult.Results))
 	})
 }
 

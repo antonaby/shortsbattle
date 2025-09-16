@@ -274,8 +274,8 @@ func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage
 	return nil
 }
 
-func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) (any, error) {
-	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (any, error) {
+func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) (*qg.GameFinalResult, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameFinalResult, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})
 		if err != nil {
 			return nil, err
@@ -288,7 +288,17 @@ func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int6
 
 		if len(votes) > 0 {
 			if game.Mode == qg.GameModeLikedislike {
-				return gm.getFinalLikeDislikeResult(votes)
+				result, err := gm.getFinalLikeDislikeResult(votes)
+				if err != nil {
+					return nil, err
+				}
+
+				fResult, err := q.CreateFinalResult(ctx, game.GameID, result)
+				if err != nil {
+					return nil, gmDbError("failed to create final result", err)
+				}
+
+				return &fResult, nil
 			}
 		}
 
@@ -296,7 +306,7 @@ func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int6
 	})
 }
 
-func (gm *GameManager) getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeVideoResult, error) {
+func (gm *GameManager) getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, error) {
 	votes := make(map[int64]models.LikeDislikeVideoResult)
 
 	for _, rawVote := range rawVotes {
@@ -335,10 +345,22 @@ func (gm *GameManager) getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) ([]m
 	}
 
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].RoundN == results[j].RoundN {
+			return results[i].Likes > results[j].Likes
+		}
 		return results[i].RoundN < results[j].RoundN
 	})
 
-	return results, nil
+	fResult := models.LikeDislikeFinalResult{
+		Results: results,
+	}
+
+	data, err := json.Marshal(fResult)
+	if err != nil {
+		return nil, gmError(common.ErrorMarshal, "bad result data", err)
+	}
+
+	return json.RawMessage(data), nil
 }
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {

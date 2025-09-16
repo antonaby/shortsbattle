@@ -43,6 +43,10 @@ type LikeDislikeVideoResult struct {
 	Dislikes    int   `json:"dislikes"`
 }
 
+type LikeDislikeFinalResult struct {
+	Results []LikeDislikeVideoResult `json:"results"`
+}
+
 type MessageType string
 
 const (

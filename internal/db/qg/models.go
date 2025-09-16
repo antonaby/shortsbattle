@@ -149,6 +149,12 @@ type Game struct {
 	CompletedAt pgtype.Timestamptz `json:"completed_at"`
 }
 
+type GameFinalResult struct {
+	GameID       int64              `json:"game_id"`
+	Result       json.RawMessage    `json:"result"`
+	CalculatedAt pgtype.Timestamptz `json:"calculated_at"`
+}
+
 type GamePlayer struct {
 	GameID   int64              `json:"game_id"`
 	PlayerID int64              `json:"player_id"`
