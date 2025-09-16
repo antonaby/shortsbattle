@@ -26,7 +26,7 @@ func (q *Queries) CreateFinalResult(ctx context.Context, gameID int64, result js
 	return i, err
 }
 
-const createPlayerScore = `-- name: CreatePlayerScore :exec
+const createPlayerStat = `-- name: CreatePlayerStat :exec
 INSERT INTO player_stats (player_id, game_id, points)
 VALUES ($1, $2, $3)
 ON CONFLICT (player_id, game_id) DO UPDATE
@@ -34,14 +34,14 @@ SET points = EXCLUDED.points,
     added_at = now()
 `
 
-type CreatePlayerScoreParams struct {
+type CreatePlayerStatParams struct {
 	PlayerID int64 `json:"player_id"`
 	GameID   int64 `json:"game_id"`
 	Points   int64 `json:"points"`
 }
 
-func (q *Queries) CreatePlayerScore(ctx context.Context, arg CreatePlayerScoreParams) error {
-	_, err := q.db.Exec(ctx, createPlayerScore, arg.PlayerID, arg.GameID, arg.Points)
+func (q *Queries) CreatePlayerStat(ctx context.Context, arg CreatePlayerStatParams) error {
+	_, err := q.db.Exec(ctx, createPlayerStat, arg.PlayerID, arg.GameID, arg.Points)
 	return err
 }
 
@@ -58,4 +58,37 @@ func (q *Queries) GetFinalResult(ctx context.Context, gameID int64, playerID int
 	var i GameFinalResult
 	err := row.Scan(&i.GameID, &i.Result, &i.CalculatedAt)
 	return i, err
+}
+
+const getPlayersStatsForGame = `-- name: GetPlayersStatsForGame :many
+SELECT ps.player_id, ps.game_id, ps.points, ps.added_at FROM player_stats ps
+WHERE ps.game_id = $1
+  AND EXISTS (
+    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
+  )
+`
+
+func (q *Queries) GetPlayersStatsForGame(ctx context.Context, gameID int64, playerID int64) ([]PlayerStat, error) {
+	rows, err := q.db.Query(ctx, getPlayersStatsForGame, gameID, playerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlayerStat
+	for rows.Next() {
+		var i PlayerStat
+		if err := rows.Scan(
+			&i.PlayerID,
+			&i.GameID,
+			&i.Points,
+			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

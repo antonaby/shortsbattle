@@ -17,11 +17,13 @@ CREATE TABLE
     added_at TIMESTAMPTZ NOT NULL DEFAULT now (),
     PRIMARY KEY (player_id, game_id)
   );
+
+CREATE INDEX idx_player_stats_game ON player_stats (game_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS game_final_results;
 
-DROP TABLE IF EXISTS player_stats;
+DROP TABLE IF EXISTS players_stats;
 -- +goose StatementEnd

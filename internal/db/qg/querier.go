@@ -16,7 +16,7 @@ type Querier interface {
 	CountPlayersInGame(ctx context.Context, gameID int64) (int64, error)
 	CreateFinalResult(ctx context.Context, gameID int64, result json.RawMessage) (GameFinalResult, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
-	CreatePlayerScore(ctx context.Context, arg CreatePlayerScoreParams) error
+	CreatePlayerStat(ctx context.Context, arg CreatePlayerStatParams) error
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	EnqueueGame(ctx context.Context, gameID int64) (GameUpdate, error)
@@ -27,6 +27,7 @@ type Querier interface {
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)
 	GetGameVideoShareLock(ctx context.Context, gameVideoID int64, playerID int64) (GetGameVideoShareLockRow, error)
 	GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error)
+	GetPlayersStatsForGame(ctx context.Context, gameID int64, playerID int64) ([]PlayerStat, error)
 	GetRounds(ctx context.Context, themeID int64) ([]Round, error)
 	GetSubmittedVideosByPlayers(ctx context.Context, gameID int64, roundN int32) ([]GetSubmittedVideosByPlayersRow, error)
 	GetTheme(ctx context.Context, id int64) (Theme, error)

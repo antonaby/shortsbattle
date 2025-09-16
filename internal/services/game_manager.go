@@ -312,6 +312,21 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
+func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerStat, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerStat, error) {
+		stats, err := q.GetPlayersStatsForGame(ctx, gameId, playerId)
+		if err != nil {
+			return nil, gmDbError("failed to get player stats", err)
+		}
+
+		if len(stats) == 0 {
+			return []qg.PlayerStat{}, nil
+		}
+
+		return stats, nil
+	})
+}
+
 func (gm *GameManager) AdvanceGameNow(ctx context.Context, gameId int64) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		pgUUID := pgtype.UUID{Valid: false}
@@ -598,7 +613,7 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 
 			playerScores := calculatePlayerScores(likesDislikes, game.GameID)
 			for _, s := range playerScores {
-				if err := q.CreatePlayerScore(ctx, qg.CreatePlayerScoreParams{
+				if err := q.CreatePlayerStat(ctx, qg.CreatePlayerStatParams{
 					PlayerID: s.PlayerID,
 					GameID: s.GameID,
 					Points: s.Points,

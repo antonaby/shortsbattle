@@ -10,6 +10,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/tests"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -389,6 +390,20 @@ func TestGameActions(t *testing.T) {
 		// it should return the same result
 		require.NotNil(t, fResult)
 		require.Equal(t, fResult.Result, *upd.Result)
+
+		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get player scores (player 1): %v", err)
+		}
+
+		require.Equal(t, 10, len(scores))
+		for _, s := range scores {
+			if s.PlayerID % 2 == 0 {
+				assert.Equal(t, int64(9), s.Points)
+			} else {
+				assert.Equal(t, int64(0), s.Points)
+			}
+		}
 	})
 }
 
