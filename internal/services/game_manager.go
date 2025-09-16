@@ -11,6 +11,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -49,14 +50,16 @@ type GameConfig struct {
 }
 
 type GameManager struct {
-	config GameConfig
-	txm    db.TxManager
+	config    GameConfig
+	txm       db.TxManager
+	validator *validator.Validate
 }
 
 func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	return &GameManager{
-		txm:    txm,
-		config: config,
+		txm:       txm,
+		config:    config,
+		validator: validator.New(),
 	}
 }
 
@@ -220,7 +223,6 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
-// TODO: check voting mode
 func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
 		game, err := q.GetGameVideoShareLock(ctx, gameVideoId, playerId)
@@ -236,6 +238,10 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 			return nil, nil, gmError(common.ErrorForbidden, "wrong game stage", err)
 		}
 
+		if err := gm.validateVoteValue(game.Mode, value); err != nil {
+			return nil, nil, err
+		}
+
 		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{
 			GameVideoID: gameVideoId,
 			PlayerID:    playerId,
@@ -248,6 +254,23 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 
 		return &game, &vote, nil
 	})
+}
+
+func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage) error {
+	if mode == qg.GameModeLikedislike {
+		var vote models.LikeDislikeVote
+		err := json.Unmarshal(value, &vote)
+		if err != nil {
+			return gmError(common.ErrorBadData, "bad vote data", err)
+		}
+
+		err = gm.validator.Struct(vote)
+		if err != nil {
+			return gmError(common.ErrorBadData, "bad vote data", err)
+		}
+	}
+
+	return nil
 }
 
 func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) error {

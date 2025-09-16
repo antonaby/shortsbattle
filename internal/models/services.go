@@ -24,6 +24,10 @@ type ThemeWithRounds struct {
 	Rounds      []ThemeRound `json:"rounds"`
 }
 
+type LikeDislikeVote struct {
+	Value string `json:"value" validate:"required,oneof=like dislike"`
+}
+
 type MessageType string
 
 const (

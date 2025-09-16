@@ -251,6 +251,13 @@ func TestGameActions(t *testing.T) {
 		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game1.ID, qg.GameStageWatch)
 		fatalIfError(t, err, "failed to chnage game stage")
 
+		// player 1 bad
+		player1VoteBadData := []byte(`{"value": "abc"}`)
+		_, _, rawErr := gm.VoteForVideo(ctx, player2GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteBadData))
+		require.NotNil(t, rawErr)
+		badDataErr := rawErr.(common.ServiceError)
+		require.Equal(t, common.ErrorBadData, int(badDataErr.Code))
+
 		// player 1 vote
 		player1VoteData := []byte(`{"value": "like"}`)
 		_, player1Vote1, err := gm.VoteForVideo(ctx, player2GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
@@ -264,7 +271,7 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, player1GameVideo1.ID, player1Vote2.GameVideoID)
 
 		// player can't vote for it's own video (palyer 1)
-		_, _, rawErr := gm.VoteForVideo(ctx, player1GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
+		_, _, rawErr = gm.VoteForVideo(ctx, player1GameVideo1.ID, players[0].TgID, json.RawMessage(player1VoteData))
 		require.NotNil(t, rawErr)
 		forbiddenServiceErr := rawErr.(common.ServiceError)
 		require.Equal(t, common.ErrorForbidden, int(forbiddenServiceErr.Code))
