@@ -14,7 +14,7 @@ import (
 
 const getGameVideoShareLock = `-- name: GetGameVideoShareLock :one
 SELECT 
-  gs.game_id, gs.theme_id, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at,
+  gs.game_id, gs.theme_id, gs.mode, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at,
   gv.id as game_video_id,
   gv.player_id,
   gv.video_id,
@@ -35,6 +35,7 @@ FOR SHARE OF gs
 type GetGameVideoShareLockRow struct {
 	GameID           int64              `json:"game_id"`
 	ThemeID          int64              `json:"theme_id"`
+	Mode             GameMode           `json:"mode"`
 	Stage            GameStage          `json:"stage"`
 	RoundN           int32              `json:"round_n"`
 	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
@@ -52,6 +53,7 @@ func (q *Queries) GetGameVideoShareLock(ctx context.Context, gameVideoID int64, 
 	err := row.Scan(
 		&i.GameID,
 		&i.ThemeID,
+		&i.Mode,
 		&i.Stage,
 		&i.RoundN,
 		&i.StateChangedAt,

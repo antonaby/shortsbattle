@@ -12,6 +12,47 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type GameMode string
+
+const (
+	GameModeLikedislike GameMode = "likedislike"
+)
+
+func (e *GameMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = GameMode(s)
+	case string:
+		*e = GameMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for GameMode: %T", src)
+	}
+	return nil
+}
+
+type NullGameMode struct {
+	GameMode GameMode `json:"game_mode"`
+	Valid    bool     `json:"valid"` // Valid is true if GameMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullGameMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.GameMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.GameMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullGameMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.GameMode), nil
+}
+
 type GameStage string
 
 const (
@@ -119,6 +160,7 @@ type GamePlayer struct {
 type GameStatus struct {
 	GameID           int64              `json:"game_id"`
 	ThemeID          int64              `json:"theme_id"`
+	Mode             GameMode           `json:"mode"`
 	Stage            GameStage          `json:"stage"`
 	RoundN           int32              `json:"round_n"`
 	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
@@ -174,6 +216,7 @@ type Theme struct {
 	ID          int64              `json:"id"`
 	Title       string             `json:"title"`
 	Description pgtype.Text        `json:"description"`
+	Mode        GameMode           `json:"mode"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 

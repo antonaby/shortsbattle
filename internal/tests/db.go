@@ -9,7 +9,6 @@ import (
 
 	"github.com/antonaby/shortsbattle/game-server/internal/db"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 )
@@ -122,9 +121,9 @@ func NewDockerTestSuite(t *testing.T) *DockerTestSuite {
 	}
 }
 
-func CreateTestTheme(ctx context.Context, txm db.TxManager, nRounds int) (*qg.Theme, error) {
+func CreateTestTheme(ctx context.Context, txm db.TxManager, nRounds int, mode qg.GameMode) (*qg.Theme, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
-		theme, err := q.CreateTheme(ctx, "Test Theme", pgtype.Text{})
+		theme, err := q.TestCreateTheme(ctx, "Test Theme", mode)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +170,7 @@ func GetGameStatus(ctx context.Context, txm db.TxManager, gameId int64) (qg.Test
 	})
 }
 
-func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, stage qg.GameStage, roundN int32) (*qg.Game, error) {
+func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, mode qg.GameMode, stage qg.GameStage, roundN int32) (*qg.Game, error) {
 	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.Game, error) {
 		game, err := q.TestCreateGame(ctx, themeId)
 		if err != nil {
@@ -180,6 +179,7 @@ func CreateGameWithStage(ctx context.Context, txm db.TxManager, themeId int64, s
 
 		_, err = q.TestCreateGameStatus(ctx, qg.TestCreateGameStatusParams{
 			GameID:  game.ID,
+			Mode:    mode,
 			Stage:   stage,
 			ThemeID: game.ThemeID,
 			RoundN:  roundN,

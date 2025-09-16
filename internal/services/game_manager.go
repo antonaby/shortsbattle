@@ -60,7 +60,7 @@ func NewGameManager(txm db.TxManager, config GameConfig) *GameManager {
 	}
 }
 
-func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64, mode qg.PlayerGameMode) (int64, error) {
+func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int64, playerMode qg.PlayerGameMode) (int64, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (int64, error) {
 		gameId, err := q.JoinGame(ctx, qg.JoinGameParams{
 			ThemeID:          themeId,
@@ -68,7 +68,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 			LobbyStage:       qg.GameStageLobby,
 			NextGameUpdateIn: db.ToPgInterval(gm.config.MaxLobbyStage),
 			MaxPlayers:       gm.config.MaxPlayers,
-			Mode:             mode,
+			PlayerMode:       playerMode,
 		})
 
 		if err != nil {
@@ -113,7 +113,7 @@ func (gm *GameManager) SubmitExistingVideo(ctx context.Context, gameId, videoId,
 			return nil, nil, err
 		}
 
-		if game.Mode != qg.PlayerGameModeSubmitAndVote {
+		if game.PlayerMode != qg.PlayerGameModeSubmitAndVote {
 			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
@@ -139,7 +139,7 @@ func (gm *GameManager) SubmitNewVideo(ctx context.Context, gameId int64, videoUr
 			return nil, nil, err
 		}
 
-		if game.Mode != qg.PlayerGameModeSubmitAndVote {
+		if game.PlayerMode != qg.PlayerGameModeSubmitAndVote {
 			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
@@ -263,7 +263,7 @@ func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int6
 		}
 
 		if len(votes) > 0 {
-			
+
 		}
 
 		return nil
@@ -508,6 +508,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			return &upd, nil
 		}
 
+		// TODO: set completed to the main game row
 		status, err := q.UpdateGameStatusComplete(ctx, qg.GameStageComplete, game.GameID)
 		if err != nil {
 			return nil, gmDbError("failed to update game stage", err)

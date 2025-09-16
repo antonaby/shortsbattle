@@ -45,7 +45,7 @@ func TestGameActions(t *testing.T) {
 		defer cancelFunc()
 
 		// create theme and players
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		fatalIfError(t, err, "failed to create test theme")
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 0)
 		fatalIfError(t, err, "failed to create test players")
@@ -93,7 +93,7 @@ func TestGameActions(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		fatalIfError(t, err, "failed to create test theme")
 
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 4, 10)
@@ -118,7 +118,7 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, player1video3.ID, videos[1].ID)
 
 		// create game and add player to it
-		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
 		fatalIfError(t, err, "failed to create test game")
 		_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game1.ID, players[0].TgID, qg.PlayerGameModeSubmitAndVote)
 		fatalIfError(t, err, "failed to add player to game (player 1)")
@@ -223,13 +223,13 @@ func TestGameActions(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		fatalIfError(t, err, "failed to create test theme")
 
 		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 3, 20)
 		fatalIfError(t, err, "failed to create test players")
 
-		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
 		fatalIfError(t, err, "failed to create test game")
 
 		// add players to the game
@@ -291,7 +291,7 @@ func TestGameActions(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 1)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 1, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -302,7 +302,7 @@ func TestGameActions(t *testing.T) {
 		}
 
 		// 1) create game and add players
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobby, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -374,7 +374,7 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -385,7 +385,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobby, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -428,13 +428,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobby, 0)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobby, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -464,13 +464,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageLobbyFull, 0)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobbyFull, 0)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -500,7 +500,7 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -511,7 +511,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -561,13 +561,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -597,13 +597,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmitComplete, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmitComplete, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -633,7 +633,7 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
@@ -643,7 +643,7 @@ func TestAdvanceGame(t *testing.T) {
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageSubmit, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -711,13 +711,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 3, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageWatch, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageWatch, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}
@@ -747,13 +747,13 @@ func TestAdvanceGame(t *testing.T) {
 		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelFunc()
 
-		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 2)
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 2, qg.GameModeLikedislike)
 		if err != nil {
 			t.Fatalf("failed to create test theme: %v", err)
 		}
 
 		// 1) Create game
-		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameStageWatchComplete, 1)
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageWatchComplete, 1)
 		if err != nil {
 			t.Fatalf("failed to create test game: %v", err)
 		}

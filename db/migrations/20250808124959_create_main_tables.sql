@@ -3,12 +3,15 @@
 -- enable UUID ext
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE TYPE game_mode AS ENUM ('likedislike');
+
 -- games table
 CREATE TABLE
     themes (
         id BIGSERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT,
+        mode game_mode NOT NULL DEFAULT 'likedislike',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 

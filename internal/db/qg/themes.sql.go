@@ -41,7 +41,7 @@ func (q *Queries) CreateRound(ctx context.Context, arg CreateRoundParams) (Round
 }
 
 const createTheme = `-- name: CreateTheme :one
-INSERT INTO themes (title, description) VALUES ($1, $2) RETURNING id, title, description, created_at
+INSERT INTO themes (title, description) VALUES ($1, $2) RETURNING id, title, description, mode, created_at
 `
 
 func (q *Queries) CreateTheme(ctx context.Context, title string, description pgtype.Text) (Theme, error) {
@@ -51,13 +51,14 @@ func (q *Queries) CreateTheme(ctx context.Context, title string, description pgt
 		&i.ID,
 		&i.Title,
 		&i.Description,
+		&i.Mode,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getTheme = `-- name: GetTheme :one
-SELECT id, title, description, created_at FROM themes WHERE id = $1
+SELECT id, title, description, mode, created_at FROM themes WHERE id = $1
 `
 
 func (q *Queries) GetTheme(ctx context.Context, id int64) (Theme, error) {
@@ -67,13 +68,14 @@ func (q *Queries) GetTheme(ctx context.Context, id int64) (Theme, error) {
 		&i.ID,
 		&i.Title,
 		&i.Description,
+		&i.Mode,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listAllThemes = `-- name: ListAllThemes :many
-SELECT id, title, description, created_at FROM themes ORDER BY created_at
+SELECT id, title, description, mode, created_at FROM themes ORDER BY created_at
 `
 
 func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
@@ -89,6 +91,7 @@ func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
 			&i.ID,
 			&i.Title,
 			&i.Description,
+			&i.Mode,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -102,7 +105,7 @@ func (q *Queries) ListAllThemes(ctx context.Context) ([]Theme, error) {
 }
 
 const listThemes = `-- name: ListThemes :many
-SELECT id, title, description, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
+SELECT id, title, description, mode, created_at FROM themes ORDER BY created_at DESC LIMIT $1 OFFSET $2
 `
 
 func (q *Queries) ListThemes(ctx context.Context, limit int32, offset int32) ([]Theme, error) {
@@ -118,6 +121,7 @@ func (q *Queries) ListThemes(ctx context.Context, limit int32, offset int32) ([]
 			&i.ID,
 			&i.Title,
 			&i.Description,
+			&i.Mode,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

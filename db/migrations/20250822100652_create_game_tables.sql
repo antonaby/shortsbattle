@@ -14,7 +14,8 @@ CREATE TABLE
   game_status (
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
     theme_id BIGINT NOT NULL REFERENCES themes (id) ON DELETE SET NULL,
-    stage game_stage NOT NULL DEFAULT 'lobby',
+    mode game_mode NOT NULL,
+    stage game_stage NOT NULL,
     round_n INT NOT NULL DEFAULT 0,
     state_changed_at TIMESTAMPTZ NOT NULL,
     update_key UUID NOT NULL,

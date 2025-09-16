@@ -5,7 +5,7 @@ SELECT join_game(
   sqlc.arg(lobby_stage), 
   sqlc.arg(next_game_update_in),
   sqlc.arg(max_players), 
-  sqlc.arg(mode)
+  sqlc.arg(player_mode)
 ) AS game_id;
 
 -- name: EnqueueGames :many
@@ -36,15 +36,7 @@ WHERE g.game_id = cte.game_id
 RETURNING g.*;
 
 -- name: GetGameShareLock :one
-SELECT gs.*, gp.player_id, gp.mode, gp.is_active, gp.joined_at,
-  GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
-    0
-  )::bigint AS remaining_ms,
-  GREATEST(
-    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
-    0
-  )::bigint AS past_ms
+SELECT gs.*, gp.player_id, gp.mode as player_mode, gp.is_active, gp.joined_at
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id  = sqlc.arg(game_id)
@@ -101,6 +93,6 @@ RETURNING *;
 -- name: GetGameRounds :many
 SELECT r.* 
 FROM rounds r
-JOIN games g ON g.theme_id = r.theme_id
-WHERE g.id = $1
+JOIN game_status gs ON gs.theme_id = r.theme_id
+WHERE gs.game_id = $1
 ORDER BY r.round_n;

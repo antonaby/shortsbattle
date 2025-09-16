@@ -1,3 +1,6 @@
+-- name: TestCreateTheme :one
+INSERT INTO themes (title, mode) VALUES ($1, $2) RETURNING *;
+
 -- name: TestCreateGame :one
 INSERT INTO games (
   theme_id
@@ -7,8 +10,8 @@ INSERT INTO games (
 RETURNING *;
 
 -- name: TestCreateGameStatus :one
-INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, update_key, round_n)
-VALUES ($1, $2, $3, now(), uuid_generate_v1mc(), $4)
+INSERT INTO game_status (game_id, theme_id, mode, stage, state_changed_at, update_key, round_n)
+VALUES ($1, $2, $3, $4, now(), uuid_generate_v1mc(), $5)
 RETURNING *;
 
 -- name: TestUpdateGameStage :one

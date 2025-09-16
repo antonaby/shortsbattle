@@ -8,12 +8,13 @@ CREATE OR REPLACE FUNCTION join_game(
   p_lobby_stage           game_stage,
   p_next_game_update_in   INTERVAL,
   p_max_players           INT,
-  p_mode                  player_game_mode
+  p_player_mode           player_game_mode
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
   v_game_id BIGINT;
+  v_theme   themes%ROWTYPE;
 BEGIN
   -- 1) Serialize by *player* so they can't join two games concurrently
   PERFORM pg_advisory_xact_lock(p_player_id);
@@ -47,16 +48,17 @@ BEGIN
 
   -- 5) Create a new game if none found
   IF v_game_id IS NULL THEN
-    INSERT INTO games (theme_id)
-    VALUES (
-      p_theme_id
-    )
+    SELECT * INTO v_theme FROM themes WHERE id = p_theme_id;
+
+    INSERT INTO games (theme_id) 
+    VALUES (v_theme.id) 
     RETURNING id INTO v_game_id;
     
-    INSERT INTO game_status (game_id, theme_id, stage, state_changed_at, next_game_update_at, update_key)
+    INSERT INTO game_status (game_id, theme_id, mode, stage, state_changed_at, next_game_update_at, update_key)
     VALUES (
       v_game_id, 
       p_theme_id,
+      v_theme.mode,
       p_lobby_stage, 
       now(),
       now() + p_next_game_update_in,
@@ -67,7 +69,7 @@ BEGIN
   -- Add player to the chosen/created game.
   -- If they're already in, do nothing (idempotent).
   INSERT INTO game_players (game_id, player_id, mode)
-  VALUES (v_game_id, p_player_id, p_mode)
+  VALUES (v_game_id, p_player_id, p_player_mode)
   ON CONFLICT DO NOTHING;
 
   RETURN v_game_id;
