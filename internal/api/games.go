@@ -90,6 +90,11 @@ func (api *HttpApi) updateGameMode(c echo.Context) error {
 		})
 	}
 
+	err = api.watchdog.AdvanceGameNow(ctx, gp.GameID)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to schedule game advancing: %w", err)
+	}
+
 	return c.JSON(http.StatusOK, gp)
 }
 

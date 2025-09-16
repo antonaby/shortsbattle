@@ -223,3 +223,22 @@ func (q *Queries) TestUpdateGameStageAndUpdateAt(ctx context.Context, arg TestUp
 	)
 	return i, err
 }
+
+const testUpdatePlayerMode = `-- name: TestUpdatePlayerMode :one
+UPDATE game_players 
+SET mode = $2 
+WHERE player_id = $1 RETURNING game_id, player_id, mode, is_active, joined_at
+`
+
+func (q *Queries) TestUpdatePlayerMode(ctx context.Context, playerID int64, mode PlayerGameMode) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, testUpdatePlayerMode, playerID, mode)
+	var i GamePlayer
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
+	)
+	return i, err
+}

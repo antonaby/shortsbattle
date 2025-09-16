@@ -233,3 +233,14 @@ func AddPlayerToGame(ctx context.Context, txm db.TxManager, gameId, playerId int
 		return &gp, nil
 	})
 }
+
+func ChangePlayerGameMode(ctx context.Context, txm db.TxManager, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
+	return db.WithTxVQ(ctx, txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
+		gp, err := q.TestUpdatePlayerMode(ctx, playerId, mode)
+		if err != nil {
+			return nil, err
+		}
+
+		return &gp, nil
+	})
+}

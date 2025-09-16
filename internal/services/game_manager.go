@@ -85,7 +85,7 @@ func (gm *GameManager) JoinGame(ctx context.Context, themeId int64, playerId int
 
 func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int64, mode qg.PlayerGameMode) (*qg.GamePlayer, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GamePlayer, error) {
-		stages := []qg.GameStage{qg.GameStageLobby, qg.GameStageLobbyFull, qg.GameStageSubmit}
+		stages := []qg.GameStage{qg.GameStageLobby}
 		_, err := gm.findGame(ctx, q, gameId, playerId, stages)
 		if err != nil {
 			return nil, err

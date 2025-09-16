@@ -176,8 +176,10 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, common.ErrorForbidden, int(wrongModeErr.Code))
 
 		// chnage game mode for player 3
-		gamePlayer3, err := gm.UpdateGameMode(ctx, game1.ID, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
-		fatalIfError(t, err, "failed to update game mode (player 3)")
+		gamePlayer3, err := tests.ChangePlayerGameMode(ctx, ts.DBManager, players[2].TgID, qg.PlayerGameModeSubmitAndVote)
+		if err != nil {
+			t.Fatalf("failed to update game mode (player 3): %v", err)
+		}
 		require.Equal(t, qg.PlayerGameModeSubmitAndVote, gamePlayer3.Mode)
 
 		// add video for player 3

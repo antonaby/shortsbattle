@@ -49,3 +49,8 @@ SELECT *,
   )::bigint AS past_ms
 FROM game_status 
 WHERE game_id = $1;
+
+-- name: TestUpdatePlayerMode :one
+UPDATE game_players 
+SET mode = $2 
+WHERE player_id = $1 RETURNING *;
