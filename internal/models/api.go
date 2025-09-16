@@ -20,8 +20,9 @@ type ErrorResponse struct {
 }
 
 type CreateThemeRequest struct {
-	Title       string  `json:"title" validate:"required,min=3"`
-	Description *string `json:"description"`
+	Title       string      `json:"title" validate:"required,min=3"`
+	Description *string     `json:"description"`
+	Mode        qg.GameMode `json:"mode" validate:"required"`
 }
 
 type CreateRoundRequest struct {

@@ -41,11 +41,17 @@ func (q *Queries) CreateRound(ctx context.Context, arg CreateRoundParams) (Round
 }
 
 const createTheme = `-- name: CreateTheme :one
-INSERT INTO themes (title, description) VALUES ($1, $2) RETURNING id, title, description, mode, created_at
+INSERT INTO themes (title, description, mode) VALUES ($1, $2, $3) RETURNING id, title, description, mode, created_at
 `
 
-func (q *Queries) CreateTheme(ctx context.Context, title string, description pgtype.Text) (Theme, error) {
-	row := q.db.QueryRow(ctx, createTheme, title, description)
+type CreateThemeParams struct {
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+	Mode        GameMode    `json:"mode"`
+}
+
+func (q *Queries) CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error) {
+	row := q.db.QueryRow(ctx, createTheme, arg.Title, arg.Description, arg.Mode)
 	var i Theme
 	err := row.Scan(
 		&i.ID,
@@ -55,6 +61,36 @@ func (q *Queries) CreateTheme(ctx context.Context, title string, description pgt
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getRounds = `-- name: GetRounds :many
+SELECT theme_id, round_n, title, description, created_at FROM rounds WHERE theme_id = $1
+`
+
+func (q *Queries) GetRounds(ctx context.Context, themeID int64) ([]Round, error) {
+	rows, err := q.db.Query(ctx, getRounds, themeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Round
+	for rows.Next() {
+		var i Round
+		if err := rows.Scan(
+			&i.ThemeID,
+			&i.RoundN,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTheme = `-- name: GetTheme :one

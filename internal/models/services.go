@@ -10,6 +10,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ThemeRound struct {
+	RoundN      int32  `json:"round_n"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type ThemeWithRounds struct {
+	ID          int64        `json:"id"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Mode        qg.GameMode  `json:"mode"`
+	Rounds      []ThemeRound `json:"rounds"`
+}
+
 type MessageType string
 
 const (

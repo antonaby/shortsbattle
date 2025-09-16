@@ -75,6 +75,10 @@ func (api *HttpApi) NewEchoServer() *echo.Echo {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 	}))
 
+	// TODO: secure
+	adminApiGroup := e.Group("/internal")
+	api.addInternalEndpoints(adminApiGroup)
+
 	unsecuredApiGroup := e.Group("/api")
 	api.addUnsecuredEndpoints(unsecuredApiGroup)
 
@@ -102,16 +106,19 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	// votes
 	v1group.PUT("/votes/:id", api.voteForVideo)
 
+	// players and videos
+	v1group.POST("/videos", api.addVideo)
+	v1group.GET("/me/videos", api.getVideosForPlayer)
+}
+
+func (api *HttpApi) addInternalEndpoints(g *echo.Group) {
+	v1group := g.Group("/v1")
+	
 	// themes
-	// TODO: add player id as the owner of the theme
 	v1group.POST("/themes", api.createTheme)
 	v1group.GET("/themes", api.listAllThemes)
 	v1group.GET("/themes/:id", api.getTheme)
 	v1group.POST("/themes/:id/rounds", api.createRound)
-
-	// players and videos
-	v1group.POST("/videos", api.addVideo)
-	v1group.GET("/me/videos", api.getVideosForPlayer)
 }
 
 func (api *HttpApi) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
