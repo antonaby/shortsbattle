@@ -344,6 +344,8 @@ func (gm *GameManager) AdvanceGameAt(ctx context.Context, gameId int64, updateKe
 	})
 }
 
+// TODO: verify that all errors should be retried (or exclude some of them)
+// If it throws an error, asynq may bot need to retry the game advance
 func (gm *GameManager) advanceGame(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	switch game.Stage {
 	case qg.GameStageLobby:
@@ -537,6 +539,11 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			return nil, gmDbError("failed to update game stage", err)
 		}
 
+		var rawResult *json.RawMessage
+		if fResult != nil {
+			rawResult = &fResult.Result
+		}
+
 		reason := models.ReasonWatchCompleteGameComplete
 		upd := models.GameUpdate{
 			GameID:            status.GameID,
@@ -545,7 +552,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			StateChangeReason: &reason,
 			RoundN:            status.RoundN,
 			StateChangedAt:    status.StateChangedAt,
-			Result:            &fResult.Result,
+			Result:            rawResult,
 		}
 		return &upd, nil
 	}
@@ -592,7 +599,7 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 		}
 	}
 
-	return nil, gmError(common.ErrorNoData, "no votes for the game", nil)
+	return nil, nil
 }
 
 func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, error) {

@@ -367,6 +367,7 @@ func TestGameActions(t *testing.T) {
 		}
 
 		// 5) advacne game and check result
+		time.Sleep(1 * time.Second)
 		upd, err := gm.AdvanceGameNow(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
