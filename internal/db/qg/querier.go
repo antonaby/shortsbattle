@@ -46,7 +46,7 @@ type Querier interface {
 	TestUpdateGameStageAndUpdateAt(ctx context.Context, arg TestUpdateGameStageAndUpdateAtParams) (GameStatus, error)
 	TestUpdatePlayerMode(ctx context.Context, playerID int64, mode PlayerGameMode) (GamePlayer, error)
 	UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) (GamePlayer, error)
-	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (GameStatus, error)
+	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
 	UpdateGameStatusComplete(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error)
 	UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error)
 	VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error)

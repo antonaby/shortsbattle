@@ -558,7 +558,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 
 func (gm *GameManager) updateGameStatus(
 	ctx context.Context, q qg.Querier, gameId int64,
-	stage qg.GameStage, roundN int32, nextGameChangeIn time.Duration) (*qg.GameStatus, error) {
+	stage qg.GameStage, roundN int32, nextGameChangeIn time.Duration) (*qg.UpdateGameStatusRow, error) {
 	status, err := q.UpdateGameStatus(ctx, qg.UpdateGameStatusParams{
 		GameID:           gameId,
 		Stage:            stage,
@@ -663,8 +663,7 @@ func convertToLikeDislikeFinalResult(results []models.LikeDislikeVideoResult) (j
 	return json.RawMessage(data), nil
 }
 
-// TODO: add remaining ms
-func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) models.GameUpdate {
+func statusToGameUpdate(status *qg.UpdateGameStatusRow, reason models.StageChangeReason) models.GameUpdate {
 	return models.GameUpdate{
 		GameID:            status.GameID,
 		MsgType:           models.GameUpdateMsg,
@@ -672,5 +671,6 @@ func statusToGameUpdate(status *qg.GameStatus, reason models.StageChangeReason) 
 		StateChangeReason: &reason,
 		RoundN:            status.RoundN,
 		StateChangedAt:    status.StateChangedAt,
+		RemainingMs:       status.RemainingMs,
 	}
 }

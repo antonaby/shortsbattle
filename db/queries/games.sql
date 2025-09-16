@@ -78,7 +78,15 @@ UPDATE game_status SET
   next_game_update_at = now() + sqlc.arg(next_game_update_in)::interval,
   update_key = uuid_generate_v1mc()
 WHERE game_id = sqlc.arg(game_id) 
-RETURNING *;
+RETURNING *,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (now() - state_changed_at)) * 1000)::bigint, 0),
+    0
+  )::bigint AS past_ms;
 
 -- name: UpdateGameStatusComplete :one
 UPDATE game_status SET 

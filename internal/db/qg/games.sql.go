@@ -284,7 +284,15 @@ UPDATE game_status SET
   next_game_update_at = now() + $3::interval,
   update_key = uuid_generate_v1mc()
 WHERE game_id = $4 
-RETURNING game_id, theme_id, mode, stage, round_n, state_changed_at, update_key, next_game_update_at
+RETURNING game_id, theme_id, mode, stage, round_n, state_changed_at, update_key, next_game_update_at,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (now() - state_changed_at)) * 1000)::bigint, 0),
+    0
+  )::bigint AS past_ms
 `
 
 type UpdateGameStatusParams struct {
@@ -294,14 +302,27 @@ type UpdateGameStatusParams struct {
 	GameID           int64           `json:"game_id"`
 }
 
-func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (GameStatus, error) {
+type UpdateGameStatusRow struct {
+	GameID           int64              `json:"game_id"`
+	ThemeID          int64              `json:"theme_id"`
+	Mode             GameMode           `json:"mode"`
+	Stage            GameStage          `json:"stage"`
+	RoundN           int32              `json:"round_n"`
+	StateChangedAt   pgtype.Timestamptz `json:"state_changed_at"`
+	UpdateKey        pgtype.UUID        `json:"update_key"`
+	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
+	RemainingMs      int64              `json:"remaining_ms"`
+	PastMs           int64              `json:"past_ms"`
+}
+
+func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error) {
 	row := q.db.QueryRow(ctx, updateGameStatus,
 		arg.Stage,
 		arg.RoundN,
 		arg.NextGameUpdateIn,
 		arg.GameID,
 	)
-	var i GameStatus
+	var i UpdateGameStatusRow
 	err := row.Scan(
 		&i.GameID,
 		&i.ThemeID,
@@ -311,6 +332,8 @@ func (q *Queries) UpdateGameStatus(ctx context.Context, arg UpdateGameStatusPara
 		&i.StateChangedAt,
 		&i.UpdateKey,
 		&i.NextGameUpdateAt,
+		&i.RemainingMs,
+		&i.PastMs,
 	)
 	return i, err
 }

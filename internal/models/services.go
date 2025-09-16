@@ -77,6 +77,7 @@ type GameUpdate struct {
 	StateChangeReason *StageChangeReason `json:"state_change_reason,omitempty"`
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
+	RemainingMs       int64              `json:"remaining_ms"`
 	Theme             *qg.Theme          `json:"theme,omitempty"`
 	Result            *json.RawMessage   `json:"resul,omitempty"`
 }
