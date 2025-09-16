@@ -532,7 +532,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 
 		fResult, err := gm.calculateFinalResult(ctx, q, game)
 		if err != nil {
-			return nil, gmDbError("failed to update game stage", err)
+			return nil, err
 		}
 
 		var rawResult *json.RawMessage
@@ -581,7 +581,12 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 
 	if len(votes) > 0 {
 		if game.Mode == qg.GameModeLikedislike {
-			result, err := getFinalLikeDislikeResult(votes)
+			likesDislikes, err := calculateLikesAndDislikes(votes)
+			if err != nil {
+				return nil, err
+			}
+
+			result, err := toRawLikeDislikeResult(likesDislikes)
 			if err != nil {
 				return nil, err
 			}
@@ -591,6 +596,17 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 				return nil, gmDbError("failed to create final result", err)
 			}
 
+			playerScores := calculatePlayerScores(likesDislikes, game.GameID)
+			for _, s := range playerScores {
+				if err := q.CreatePlayerScore(ctx, qg.CreatePlayerScoreParams{
+					PlayerID: s.PlayerID,
+					GameID: s.GameID,
+					Points: s.Points,
+				}); err != nil {
+					return nil, gmDbError("failed to create player score", err)
+				}
+			}
+
 			return &fResult, nil
 		}
 	}
@@ -598,7 +614,31 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 	return nil, nil
 }
 
-func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, error) {
+func calculatePlayerScores(likesDislikes []models.LikeDislikeVideoResult, gameId int64) []qg.PlayerStat {
+	playerScores := make(map[int64]qg.PlayerStat)
+
+	for _, ld := range likesDislikes {
+		player, ok := playerScores[ld.AuthorID]
+		if !ok {
+			player = qg.PlayerStat{
+				PlayerID: ld.AuthorID,
+				GameID:   gameId,
+			}
+		}
+
+		player.Points += int64(ld.Likes)
+		playerScores[ld.AuthorID] = player
+	}
+
+	fScores := make([]qg.PlayerStat, 0, len(playerScores))
+	for _, s := range playerScores {
+		fScores = append(fScores, s)
+	}
+
+	return fScores
+}
+
+func calculateLikesAndDislikes(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeVideoResult, error) {
 	votes := make(map[int64]models.LikeDislikeVideoResult)
 
 	for _, rawVote := range rawVotes {
@@ -632,7 +672,7 @@ func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, erro
 	}
 
 	if len(votes) == 0 {
-		return convertToLikeDislikeFinalResult([]models.LikeDislikeVideoResult{})
+		return []models.LikeDislikeVideoResult{}, nil
 	}
 
 	results := make([]models.LikeDislikeVideoResult, 0, len(votes))
@@ -647,10 +687,10 @@ func getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) (json.RawMessage, erro
 		return results[i].RoundN < results[j].RoundN
 	})
 
-	return convertToLikeDislikeFinalResult(results)
+	return results, nil
 }
 
-func convertToLikeDislikeFinalResult(results []models.LikeDislikeVideoResult) (json.RawMessage, error) {
+func toRawLikeDislikeResult(results []models.LikeDislikeVideoResult) (json.RawMessage, error) {
 	fResult := models.LikeDislikeFinalResult{
 		Results: results,
 	}

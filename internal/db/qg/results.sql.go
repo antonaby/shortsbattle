@@ -26,6 +26,25 @@ func (q *Queries) CreateFinalResult(ctx context.Context, gameID int64, result js
 	return i, err
 }
 
+const createPlayerScore = `-- name: CreatePlayerScore :exec
+INSERT INTO player_stats (player_id, game_id, points)
+VALUES ($1, $2, $3)
+ON CONFLICT (player_id, game_id) DO UPDATE
+SET points = EXCLUDED.points,
+    added_at = now()
+`
+
+type CreatePlayerScoreParams struct {
+	PlayerID int64 `json:"player_id"`
+	GameID   int64 `json:"game_id"`
+	Points   int64 `json:"points"`
+}
+
+func (q *Queries) CreatePlayerScore(ctx context.Context, arg CreatePlayerScoreParams) error {
+	_, err := q.db.Exec(ctx, createPlayerScore, arg.PlayerID, arg.GameID, arg.Points)
+	return err
+}
+
 const getFinalResult = `-- name: GetFinalResult :one
 SELECT f.game_id, f.result, f.calculated_at FROM game_final_results f
 WHERE f.game_id = $1

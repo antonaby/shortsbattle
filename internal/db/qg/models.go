@@ -204,6 +204,13 @@ type Player struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type PlayerStat struct {
+	PlayerID int64              `json:"player_id"`
+	GameID   int64              `json:"game_id"`
+	Points   int64              `json:"points"`
+	AddedAt  pgtype.Timestamptz `json:"added_at"`
+}
+
 type PlayerVideo struct {
 	PlayerID int64              `json:"player_id"`
 	VideoID  int64              `json:"video_id"`

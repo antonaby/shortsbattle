@@ -12,3 +12,10 @@ WHERE f.game_id = $1
   AND EXISTS (
     SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
   );
+
+-- name: CreatePlayerScore :exec
+INSERT INTO player_stats (player_id, game_id, points)
+VALUES ($1, $2, $3)
+ON CONFLICT (player_id, game_id) DO UPDATE
+SET points = EXCLUDED.points,
+    added_at = now();
