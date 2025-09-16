@@ -20,6 +20,12 @@ SET stage = $1
 WHERE game_id = $2
 RETURNING *;
 
+-- name: TestUpdateGameStageAndRound :one
+UPDATE game_status
+SET stage = $1, round_n = $3
+WHERE game_id = $2
+RETURNING *;
+
 -- name: TestUpdateGameStageAndUpdateAt :one
 UPDATE game_status
 SET stage = sqlc.arg(stage),

@@ -45,6 +45,7 @@ type Querier interface {
 	TestGetGameById(ctx context.Context, id int64) (Game, error)
 	TestGetGameStatusById(ctx context.Context, gameID int64) (TestGetGameStatusByIdRow, error)
 	TestUpdateGameStage(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error)
+	TestUpdateGameStageAndRound(ctx context.Context, arg TestUpdateGameStageAndRoundParams) (GameStatus, error)
 	TestUpdateGameStageAndUpdateAt(ctx context.Context, arg TestUpdateGameStageAndUpdateAtParams) (GameStatus, error)
 	TestUpdatePlayerMode(ctx context.Context, playerID int64, mode PlayerGameMode) (GamePlayer, error)
 	UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) (GamePlayer, error)

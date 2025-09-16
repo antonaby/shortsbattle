@@ -193,6 +193,35 @@ func (q *Queries) TestUpdateGameStage(ctx context.Context, stage GameStage, game
 	return i, err
 }
 
+const testUpdateGameStageAndRound = `-- name: TestUpdateGameStageAndRound :one
+UPDATE game_status
+SET stage = $1, round_n = $3
+WHERE game_id = $2
+RETURNING game_id, theme_id, mode, stage, round_n, state_changed_at, update_key, next_game_update_at
+`
+
+type TestUpdateGameStageAndRoundParams struct {
+	Stage  GameStage `json:"stage"`
+	GameID int64     `json:"game_id"`
+	RoundN int32     `json:"round_n"`
+}
+
+func (q *Queries) TestUpdateGameStageAndRound(ctx context.Context, arg TestUpdateGameStageAndRoundParams) (GameStatus, error) {
+	row := q.db.QueryRow(ctx, testUpdateGameStageAndRound, arg.Stage, arg.GameID, arg.RoundN)
+	var i GameStatus
+	err := row.Scan(
+		&i.GameID,
+		&i.ThemeID,
+		&i.Mode,
+		&i.Stage,
+		&i.RoundN,
+		&i.StateChangedAt,
+		&i.UpdateKey,
+		&i.NextGameUpdateAt,
+	)
+	return i, err
+}
+
 const testUpdateGameStageAndUpdateAt = `-- name: TestUpdateGameStageAndUpdateAt :one
 UPDATE game_status
 SET stage = $1,

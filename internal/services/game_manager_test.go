@@ -398,12 +398,126 @@ func TestGameActions(t *testing.T) {
 
 		require.Equal(t, 10, len(scores))
 		for _, s := range scores {
-			if s.PlayerID % 2 == 0 {
+			if s.PlayerID%2 == 0 {
 				assert.Equal(t, int64(9), s.Points)
 			} else {
 				assert.Equal(t, int64(0), s.Points)
 			}
 		}
+	})
+
+	t.Run("GetFinalResult2Rounds", func(t *testing.T) {
+		testVideos := []string{
+			"https://www.youtube.com/shorts/WYfhopYduI0",
+			"https://www.youtube.com/shorts/vjrDd1tg-7U",
+			"https://www.youtube.com/shorts/6l_SPhjdKnE",
+			"https://www.youtube.com/shorts/B2uK-mAY-GI",
+		}
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 2, qg.GameModeLikedislike)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 2, 40)
+		if err != nil {
+			t.Fatalf("failed to create test players: %v", err)
+		}
+
+		// 1) create game and add players
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobby, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		for _, p := range players {
+			_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, p.TgID, qg.PlayerGameModeSubmitAndVote)
+			if err != nil {
+				t.Fatalf("failed to add player to game (player %d): %v", p.TgID, err)
+			}
+		}
+
+		// 2) change game state to submit and add videos
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageSubmit)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		gameVideos := []qg.GameVideo{}
+		// round 1
+		for i, p := range players {
+			url := testVideos[i]
+			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 1)
+			if err != nil {
+				t.Fatalf("failed to submit video (player %d): %v", p.TgID, err)
+			}
+			gameVideos = append(gameVideos, *vd)
+		}
+		// round 2
+		for i, p := range players {
+			url := testVideos[i+2]
+			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 2)
+			if err != nil {
+				t.Fatalf("failed to submit video (player %d): %v", p.TgID, err)
+			}
+			gameVideos = append(gameVideos, *vd)
+		}
+
+		// 3) change game state to watch and vote
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageWatch)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		// round 1 player 1
+		vote := []byte(`{"value": "like"}`)
+		_, _, err = gm.VoteForVideo(ctx, gameVideos[1].ID, players[0].TgID, vote)
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 1): %v", err)
+		}
+		// round 1 player 2
+		vote = []byte(`{"value": "like"}`)
+		_, _, err = gm.VoteForVideo(ctx, gameVideos[0].ID, players[1].TgID, vote)
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 2): %v", err)
+		}
+
+		// round 2 player 1
+		vote = []byte(`{"value": "dislike"}`)
+		_, _, err = gm.VoteForVideo(ctx, gameVideos[3].ID, players[0].TgID, vote)
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 1): %v", err)
+		}
+		// round 2 player 2
+		vote = []byte(`{"value": "dislike"}`)
+		_, _, err = gm.VoteForVideo(ctx, gameVideos[2].ID, players[1].TgID, vote)
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 2): %v", err)
+		}
+
+		// 4) change game state to watch complete so it will calculate result
+		_, err = tests.ChangeGameStageWithRound(ctx, ts.DBManager, game.ID, qg.GameStageWatchComplete, 2)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+
+		// 5) advacne game and check result
+		time.Sleep(1 * time.Second)
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		require.NotNil(t, upd)
+		require.NotNil(t, upd.Result)
+
+		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get player scores (player 1): %v", err)
+		}
+
+		require.Equal(t, 2, len(scores))
+		require.Equal(t, int64(1), scores[0].Points)
+		require.Equal(t, int64(1), scores[1].Points)
 	})
 }
 
