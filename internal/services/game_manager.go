@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
@@ -273,24 +274,71 @@ func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage
 	return nil
 }
 
-func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) error {
-	return db.WithTxQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) error {
-		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageWatchComplete, qg.GameStageComplete})
+func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) (any, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (any, error) {
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		votes, err := q.GetVotes(ctx, gameId)
 		if err != nil {
-			return gmDbError("failed to get votes", err)
+			return nil, gmDbError("failed to get votes", err)
 		}
 
 		if len(votes) > 0 {
-
+			if game.Mode == qg.GameModeLikedislike {
+				return gm.getFinalLikeDislikeResult(votes)
+			}
 		}
 
-		return nil
+		return nil, gmError(common.ErrorNoData, "no votes for the game", nil)
 	})
+}
+
+func (gm *GameManager) getFinalLikeDislikeResult(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeVideoResult, error) {
+	votes := make(map[int64]models.LikeDislikeVideoResult)
+
+	for _, rawVote := range rawVotes {
+		if !rawVote.VotedAt.Valid {
+			continue
+		}
+
+		var voteValue models.LikeDislikeVote
+		err := json.Unmarshal(rawVote.Value, &voteValue)
+		if err != nil {
+			return nil, gmError(common.ErrorBadData, "bad vote data", err)
+		}
+
+		res, ok := votes[rawVote.GameVideoID]
+		if !ok {
+			res = models.LikeDislikeVideoResult{
+				GameVideoID: rawVote.GameVideoID,
+				RoundN:      rawVote.RoundN,
+				AuthorID:    rawVote.AuthorID,
+			}
+		}
+
+		switch voteValue.Value {
+		case models.LikeValue:
+			res.Likes += 1
+		case models.DislikeValue:
+			res.Dislikes += 1
+		}
+
+		votes[rawVote.GameVideoID] = res
+	}
+
+	results := make([]models.LikeDislikeVideoResult, 0, len(votes))
+	for _, v := range votes {
+		results = append(results, v)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].RoundN < results[j].RoundN
+	})
+
+	return results, nil
 }
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {

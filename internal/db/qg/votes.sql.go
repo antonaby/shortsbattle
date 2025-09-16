@@ -79,7 +79,7 @@ videos AS (
   WHERE gv.game_id = $1
 ),
 expected AS (
-  SELECT p.player_id, v.game_video_id, v.round_n
+  SELECT p.player_id, v.game_video_id, v.round_n, v.author_id
   FROM players p
   CROSS JOIN videos v
   WHERE p.player_id <> v.author_id
@@ -88,6 +88,7 @@ SELECT
   e.player_id,
   e.game_video_id,
   e.round_n,
+  e.author_id,
   gvt.value,
   gvt.voted_at
   FROM expected e
@@ -101,6 +102,7 @@ type GetVotesRow struct {
 	PlayerID    int64              `json:"player_id"`
 	GameVideoID int64              `json:"game_video_id"`
 	RoundN      int32              `json:"round_n"`
+	AuthorID    int64              `json:"author_id"`
 	Value       []byte             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
@@ -118,6 +120,7 @@ func (q *Queries) GetVotes(ctx context.Context, gameID int64) ([]GetVotesRow, er
 			&i.PlayerID,
 			&i.GameVideoID,
 			&i.RoundN,
+			&i.AuthorID,
 			&i.Value,
 			&i.VotedAt,
 		); err != nil {

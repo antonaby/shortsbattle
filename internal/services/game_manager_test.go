@@ -343,9 +343,15 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
 		for _, p := range players {
-			for _, vd := range gameVideos {
+			for i, vd := range gameVideos {
 				if vd.PlayerID != p.TgID {
-					vote := []byte(`{"value": "like"}`)
+					var vote []byte
+					if i%2 == 0 {
+						vote = []byte(`{"value": "like"}`)
+					} else {
+						vote = []byte(`{"value": "dislike"}`)
+					}
+
 					_, _, err = gm.VoteForVideo(ctx, vd.ID, p.TgID, vote)
 					if err != nil {
 						t.Fatalf("failed to vote, p:%d vd:%d : %v", p.TgID, vd.ID, err)
@@ -359,10 +365,13 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
-		err = gm.GetFinalResult(ctx, game.ID, players[0].TgID)
+		result, err := gm.GetFinalResult(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get final result: %v", err)
 		}
+
+		require.NotNil(t, result)
+		require.Equal(t, 10, len(result.([]models.LikeDislikeVideoResult)))
 	})
 }
 

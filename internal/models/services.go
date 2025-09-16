@@ -24,8 +24,23 @@ type ThemeWithRounds struct {
 	Rounds      []ThemeRound `json:"rounds"`
 }
 
+type LikeDislikeVoteValue string
+
+const (
+	LikeValue    LikeDislikeVoteValue = "like"
+	DislikeValue LikeDislikeVoteValue = "dislike"
+)
+
 type LikeDislikeVote struct {
-	Value string `json:"value" validate:"required,oneof=like dislike"`
+	Value LikeDislikeVoteValue `json:"value" validate:"required,oneof=like dislike"`
+}
+
+type LikeDislikeVideoResult struct {
+	GameVideoID int64 `json:"game_video_id"`
+	RoundN      int32 `json:"round_n"`
+	AuthorID    int64 `json:"author_id"`
+	Likes       int   `json:"likes"`
+	Dislikes    int   `json:"dislikes"`
 }
 
 type MessageType string

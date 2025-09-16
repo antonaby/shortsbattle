@@ -38,7 +38,7 @@ videos AS (
   WHERE gv.game_id = $1
 ),
 expected AS (
-  SELECT p.player_id, v.game_video_id, v.round_n
+  SELECT p.player_id, v.game_video_id, v.round_n, v.author_id
   FROM players p
   CROSS JOIN videos v
   WHERE p.player_id <> v.author_id
@@ -47,6 +47,7 @@ SELECT
   e.player_id,
   e.game_video_id,
   e.round_n,
+  e.author_id,
   gvt.value,
   gvt.voted_at
   FROM expected e

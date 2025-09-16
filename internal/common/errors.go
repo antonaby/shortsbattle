@@ -13,6 +13,7 @@ const (
 	ErrorInit
 	ErrorNotFound
 	ErrorBadData
+	ErrorNoData
 	ErrorWrongGameStage
 	ErrorConstraintViolation
 	ErrorOEmbedFailed
