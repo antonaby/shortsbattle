@@ -59,11 +59,13 @@ export interface Vote {
   value: VoteValue;
 }
 
+export type GameMode = "likedislike";
+
 export interface Theme {
   id: number;
-  name: string;
+  title: string;
   description: string;
-  created_at: string;
+  mode: GameMode;
 }
 
 export interface GameJoined {

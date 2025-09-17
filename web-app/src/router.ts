@@ -11,12 +11,18 @@ import OpenView from "@/components/game/subpages/OpenView.vue";
 import WatchView from "@/components/game/subpages/WatchView.vue";
 import CompleteView from "@/components/game/subpages/CompleteView.vue";
 import VideoPlayerWrapper from "@/components/game/players/VideoPlayerWrapper.vue";
+import Theme from "./pages/Theme.vue";
 
 let routes: RouteRecordRaw[] = [
   {
     path: "/",
     name: "hub",
     component: Hub,
+  },
+  {
+    path: "/theme/:id",
+    name: "theme",
+    component: Theme,
   },
   {
     path: "/game/:id",

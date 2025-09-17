@@ -6,7 +6,6 @@ import { GamesAPI } from "../api/games";
 
 export const useGameHubStore = defineStore("gamehub", () => {
   const themes = ref<Theme[]>([]);
-  const loadingGame = ref<boolean>(false);
   const uiStore = useUIStore();
 
   async function fetchThemes() {
@@ -17,17 +16,9 @@ export const useGameHubStore = defineStore("gamehub", () => {
     }
   }
 
-  async function joinGame(themeId: number): Promise<void> {
-    loadingGame.value = true;
-    try {
-      const game = await GamesAPI.joinGame(themeId);
-      uiStore.openGame(game.game_id);
-    } catch (error) {
-      uiStore.handleNetworkError(error);
-    } finally {
-      loadingGame.value = false;
-    }
+  async function openGameDetails(theme: Theme) {
+    uiStore.openTheme(theme.id);
   }
 
-  return { themes, loadingGame, fetchThemes, joinGame };
+  return { themes, fetchThemes, openGameDetails };
 });

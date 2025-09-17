@@ -5,6 +5,10 @@ import { NetworkError } from "../types/errors";
 export const useUIStore = defineStore("ui", () => {
   const router = useRouter();
 
+  function openTheme(themeId: number) {
+    router.push({ name: "theme", params: { id: themeId } });
+  }
+
   function openGame(gameId: number) {
     router.push({ name: "game-open", params: { id: gameId } });
   }
@@ -27,5 +31,5 @@ export const useUIStore = defineStore("ui", () => {
     console.log(error);
   }
 
-  return { openGame, returnToHub, handleNetworkError, handleWsError };
+  return { openTheme, openGame, returnToHub, handleNetworkError, handleWsError };
 });

@@ -3,7 +3,8 @@ import { api } from "./http";
 
 export const GamesAPI = {
   async fetchThemes(): Promise<Theme[]> {
-    const response = await api.get<Theme[]>("/api/v1/themes");
+    // TODO: use public endpoint instead
+    const response = await api.get<Theme[]>("/internal/v1/themes");
     return response.data;
   },
   async joinGame(themeId: number): Promise<GameJoined> {
