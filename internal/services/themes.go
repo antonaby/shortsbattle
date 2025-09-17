@@ -29,8 +29,8 @@ func NewThemeService(txm db.TxManager) *ThemeService {
 	}
 }
 
-func (ts *ThemeService) CreateTheme(ctx context.Context, title string, description pgtype.Text, mode qg.GameMode) (*qg.Theme, error) {
-	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*qg.Theme, error) {
+func (ts *ThemeService) CreateTheme(ctx context.Context, title string, description pgtype.Text, mode qg.GameMode) (*models.ThemeWithRounds, error) {
+	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*models.ThemeWithRounds, error) {
 		theme, err := q.CreateTheme(ctx, qg.CreateThemeParams{
 			Title:       title,
 			Description: description,
@@ -40,22 +40,37 @@ func (ts *ThemeService) CreateTheme(ctx context.Context, title string, descripti
 			return nil, tmError(common.GetDbErrorCode(err), "failed to create theme", err)
 		}
 
-		return &theme, nil
+		return &models.ThemeWithRounds{
+			ID:          theme.ID,
+			Title:       theme.Title,
+			Description: theme.Description.String,
+			Mode:        theme.Mode,
+		}, nil
 	})
 }
 
-func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]qg.Theme, error) {
-	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) ([]qg.Theme, error) {
+func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]models.ThemeWithRounds, error) {
+	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) ([]models.ThemeWithRounds, error) {
 		themes, err := q.ListAllThemes(ctx)
 		if err != nil {
 			return nil, tmError(common.GetDbErrorCode(err), "failed to list themes", err)
 		}
 
 		if len(themes) == 0 {
-			themes = []qg.Theme{}
+			return []models.ThemeWithRounds{}, nil
 		}
 
-		return themes, nil
+		result := make([]models.ThemeWithRounds, 0, len(themes))
+		for _, t := range themes {
+			result = append(result, models.ThemeWithRounds{
+				ID:          t.ID,
+				Title:       t.Title,
+				Description: t.Description.String,
+				Mode:        t.Mode,
+			})
+		}
+
+		return result, nil
 	})
 }
 
@@ -68,7 +83,7 @@ func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*models.Th
 
 		roundsRaw, err := q.GetRounds(ctx, theme.ID)
 		if err != nil {
-			return nil, tmError(common.GetDbErrorCode(err), "failed to get theme", err)
+			return nil, tmError(common.GetDbErrorCode(err), "failed to get rounds", err)
 		}
 
 		rounds := []models.ThemeRound{}
@@ -90,13 +105,17 @@ func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*models.Th
 	})
 }
 
-func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*qg.Round, error) {
-	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*qg.Round, error) {
-		request, err := q.CreateRound(ctx, params)
+func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*models.ThemeRound, error) {
+	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*models.ThemeRound, error) {
+		round, err := q.CreateRound(ctx, params)
 		if err != nil {
 			return nil, tmError(common.GetDbErrorCode(err), "failed to create round", err)
 		}
 
-		return &request, nil
+		return &models.ThemeRound{
+			RoundN:      round.RoundN,
+			Title:       round.Title,
+			Description: round.Description.String,
+		}, nil
 	})
 }

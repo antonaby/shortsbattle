@@ -8,7 +8,7 @@ SELECT
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = sqlc.arg(game_video_id)
-    AND gv.player_id <> sqlc.arg(player_id)
+    AND gv.player_id <> sqlc.arg(player_id) -- player can't vote for its own video
     AND EXISTS (
       SELECT 1
       FROM game_players gp

@@ -64,7 +64,7 @@ func (q *Queries) CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme
 }
 
 const getRounds = `-- name: GetRounds :many
-SELECT theme_id, round_n, title, description, created_at FROM rounds WHERE theme_id = $1
+SELECT theme_id, round_n, title, description, created_at FROM rounds WHERE theme_id = $1 ORDER BY round_n
 `
 
 func (q *Queries) GetRounds(ctx context.Context, themeID int64) ([]Round, error) {

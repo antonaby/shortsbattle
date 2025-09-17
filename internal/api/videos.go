@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// TODO: rewrite using tgId and helpers
 func (api *HttpApi) addVideo(c echo.Context) error {
 	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {

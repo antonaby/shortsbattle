@@ -12,12 +12,12 @@ import (
 func (api *HttpApi) joinGame(c echo.Context) error {
 	tgId, err := tgId(c)
 	if err != nil {
-		return err
+		return sendUnauthorized(c)
 	}
 
 	request, err := bindAndValidate[models.JoinGameRequest](c)
 	if err != nil {
-		return err
+		return sendInvalidReq(c)
 	}
 
 	ctx := c.Request().Context()
@@ -53,17 +53,17 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 func (api *HttpApi) updateGameMode(c echo.Context) error {
 	tgId, err := tgId(c)
 	if err != nil {
-		return err
+		return sendUnauthorized(c)
 	}
 
 	gameId, err := param64(c, "id")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	request, err := bindAndValidate[models.UpdateGameModeRequest](c)
 	if err != nil {
-		return err
+		return sendInvalidReq(c)
 	}
 
 	ctx := c.Request().Context()
@@ -101,22 +101,22 @@ func (api *HttpApi) updateGameMode(c echo.Context) error {
 func (api *HttpApi) submitVideo(c echo.Context) error {
 	tgId, err := tgId(c)
 	if err != nil {
-		return err
+		return sendUnauthorized(c)
 	}
 
 	roundN, err := queryParam32(c, "round")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	gameId, err := param64(c, "id")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	request, err := bindAndValidate[models.SubmitVideoRequest](c)
 	if err != nil {
-		return err
+		return sendInvalidReq(c)
 	}
 
 	if request.VideoID != nil {
@@ -187,17 +187,17 @@ func handleVideoSubmissionError(c echo.Context, err error) error {
 func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	gameId, err := param64(c, "id")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	roundN, err := queryParam32(c, "round")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	tgId, err := tgId(c)
 	if err != nil {
-		return err
+		return sendUnauthorized(c)
 	}
 
 	ctx := c.Request().Context()
@@ -224,17 +224,17 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 func (api *HttpApi) voteForVideo(c echo.Context) error {
 	gameVideoId, err := param64(c, "id")
 	if err != nil {
-		return err
+		return sendInvalidId(c)
 	}
 
 	tgId, err := tgId(c)
 	if err != nil {
-		return err
+		return sendUnauthorized(c)
 	}
 
 	request, err := bindAndValidate[models.VoteForVideoRequest](c)
 	if err != nil {
-		return err
+		return sendInvalidReq(c)
 	}
 
 	ctx := c.Request().Context()

@@ -22,7 +22,7 @@ type ThemeWithRounds struct {
 	Title       string       `json:"title"`
 	Description string       `json:"description"`
 	Mode        qg.GameMode  `json:"mode"`
-	Rounds      []ThemeRound `json:"rounds"`
+	Rounds      []ThemeRound `json:"rounds,omitempty"`
 }
 
 type LikeDislikeVoteValue string

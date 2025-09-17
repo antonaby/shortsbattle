@@ -22,7 +22,7 @@ SELECT
   FROM game_videos gv
   JOIN game_status gs ON gs.game_id = gv.game_id
   WHERE gv.id = $1
-    AND gv.player_id <> $2
+    AND gv.player_id <> $2 -- player can't vote for its own video
     AND EXISTS (
       SELECT 1
       FROM game_players gp

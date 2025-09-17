@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -90,9 +92,7 @@ func getTgUserIdFromToken(c echo.Context) (int64, error) {
 func queryParam32(c echo.Context, name string) (int32, error) {
 	param, err := parseInt32(c.QueryParam(name))
 	if err != nil {
-		return 0, c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return 0, err
 	}
 
 	return param, nil
@@ -101,38 +101,70 @@ func queryParam32(c echo.Context, name string) (int32, error) {
 func param64(c echo.Context, name string) (int64, error) {
 	param, err := parseInt64(c.Param(name))
 	if err != nil {
-		return 0, c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Error: InvalidIdFormatMsg,
-		})
+		return 0, err
 	}
 
 	return param, nil
 }
 
+func sendInvalidId(c echo.Context) error {
+	return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+		Error: InvalidIdFormatMsg,
+	})
+}
+
 func tgId(c echo.Context) (int64, error) {
 	tgId, err := getTgUserIdFromToken(c)
 	if err != nil {
-		return 0, c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return 0, err
 	}
 
 	return tgId, nil
 }
 
+func sendUnauthorized(c echo.Context) error {
+	return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+		Error: UnathorizedErrorMsg,
+	})
+}
+
 func bindAndValidate[T any](c echo.Context) (T, error) {
 	request := new(T)
 	if err := c.Bind(request); err != nil {
-		return *request, c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
+		return *request, err
 	}
 
 	if err := c.Validate(request); err != nil {
-		return *request, c.JSON(http.StatusBadRequest, models.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
+		return *request, err
 	}
 
 	return *request, nil
+}
+
+func sendInvalidReq(c echo.Context) error {
+	return c.JSON(http.StatusBadRequest, models.ErrorResponse{
+		Error: InvalidRequestFormatMsg,
+	})
+}
+
+func sendNotFound(c echo.Context, msg string) error {
+	return c.JSON(http.StatusNotFound, models.ErrorResponse{
+		Error: fmt.Sprintf("%s not found", msg),
+	})
+}
+
+func logAndSendUnknowError(c echo.Context, err error) error {
+	c.Echo().Logger.Errorf("request processing error: %w", err)
+	return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+		Error: "Something went wrong",
+	})
+}
+
+func isServErr(err error) (*common.ServiceError, bool) {
+	var sErr common.ServiceError
+	if errors.As(err, &sErr) {
+		return &sErr, true
+	}
+
+	return nil, false
 }
