@@ -11,14 +11,14 @@ export const useThemeStore = defineStore("theme", () => {
 
   async function joinGame(themeId: number): Promise<void> {
     joinGameLoader.value = true;
-    try {
-      const game = await GamesAPI.joinGame(themeId);
-      uiStore.openGame(game.game_id);
-    } catch (error) {
-      uiStore.handleNetworkError(error);
-    } finally {
-      joinGameLoader.value = false;
-    }
+    // try {
+    //   const game = await GamesAPI.joinGame(themeId);
+    //   uiStore.openGame(game.game_id);
+    // } catch (error) {
+    //   uiStore.handleNetworkError(error);
+    // } finally {
+    //   joinGameLoader.value = false;
+    // }
   }
 
   return {

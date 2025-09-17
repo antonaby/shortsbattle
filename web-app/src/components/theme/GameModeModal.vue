@@ -31,7 +31,8 @@ const options: ModalTextOptions = {
 }
 
 const props = defineProps<{
-  mode: string
+  mode: string,
+  loading: boolean
 }>();
 
 const modalText = computed(() => {
@@ -49,11 +50,14 @@ const modalText = computed(() => {
         {{ modalText.description }}
       </p>
       <div class="flex gap-2 w-full">
-        <button class="action-button flex-1" @click="emits('ok')">
+        <button class="load-button flex-1" v-if="loading">
+          <div class="loader"></div>
+        </button>
+        <button class="action-button flex-1" @click="emits('ok')" v-if="!loading">
           <span>👍</span>
           <span>OK</span>
         </button>
-        <button class="action-button flex-1" @click="emits('cancel')">
+        <button class="action-button flex-1" @click="emits('cancel')" v-if="!loading">
           <span>🙅</span>
           <span>Back</span>
         </button>

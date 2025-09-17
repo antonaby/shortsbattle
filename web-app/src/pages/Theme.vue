@@ -3,13 +3,32 @@ import { useThemeStore } from '@/stores/theme.store';
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue'
 import GameModeModal from '@/components/theme/GameModeModal.vue';
 import { ref } from 'vue';
+import { useRoute } from 'vue-router';
 
+const route = useRoute();
 const themeStore = useThemeStore()
 const selectedMode = ref<string | undefined>(undefined);
+
+function selectJoin() {
+  selectedMode.value = 'join';
+}
+
+function selectWatch() {
+  selectedMode.value = 'watch';
+}
+
+function unselectMode() {
+  selectedMode.value = undefined;
+}
+
+async function joinGame() {
+  let id = Number(route.params.id);
+  await themeStore.joinGame(id);
+}
 </script>
 <template>
-  <FullscreenLoaderView msg="Joining..." v-if="themeStore.joinGameLoader" />
-  <GameModeModal :mode="selectedMode" v-if="selectedMode" @cancel="selectedMode = undefined" />
+  <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode"
+    :loading="themeStore.joinGameLoader" />
   <div class="page-container">
     <!-- 1) Main image -->
     <img src="https://cdn2.thecatapi.com/images/8q1.jpg" alt="Main image" class="w-full h-48 object-cover rounded-lg" />
@@ -20,22 +39,15 @@ const selectedMode = ref<string | undefined>(undefined);
     </p>
     <!-- 4) Controls -->
     <div class="flex gap-2">
-      <button class="action-button flex-1" @click="selectedMode = 'join'">
+      <button class="action-button flex-1" @click="selectJoin">
         <span>🚀</span>
         <span>Join Game</span>
       </button>
-      <button class="action-button flex-1" @click="selectedMode = 'watch'">
+      <button class="action-button flex-1" @click="selectWatch">
         <span>👀</span>
         <span>Watch</span>
       </button>
     </div>
-    <!-- 
-    <p class="text-help">
-      <span class="font-medium">
-        Watch:
-      </span>
-      
-    </p> -->
     <!-- 5) List of rounds -->
     <h1 class="text-title-2 text-center">Rounds</h1>
     <ul class="space-y-2">
