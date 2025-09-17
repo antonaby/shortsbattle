@@ -1,32 +1,15 @@
 <script lang="ts" setup>
 import { useThemeStore } from '@/stores/theme.store';
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue'
+import GameModeModal from '@/components/theme/GameModeModal.vue';
+import { ref } from 'vue';
 
 const themeStore = useThemeStore()
-
+const selectedMode = ref<string | undefined>(undefined);
 </script>
 <template>
   <FullscreenLoaderView msg="Joining..." v-if="themeStore.joinGameLoader" />
-  <div class="modal-fullscreen">
-    <div class="modal-fullscreen-content">
-      <h1 class="text-4xl">🚀</h1>
-      <h1 class="text-title-2 text-center">Join Game Mode</h1>
-      <p class="text-description text-center">
-        Submit your own videos, watch others, and vote to decide the winners.
-      </p>
-      <div class="flex gap-2 w-full">
-        <button class="action-button flex-1">
-          <span>👍</span>
-          <span>OK</span>
-        </button>
-        <button class="action-button flex-1">
-          <span>🙅</span>
-          <span>Back</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
+  <GameModeModal :mode="selectedMode" v-if="selectedMode" @cancel="selectedMode = undefined" />
   <div class="page-container">
     <!-- 1) Main image -->
     <img src="https://cdn2.thecatapi.com/images/8q1.jpg" alt="Main image" class="w-full h-48 object-cover rounded-lg" />
@@ -37,11 +20,11 @@ const themeStore = useThemeStore()
     </p>
     <!-- 4) Controls -->
     <div class="flex gap-2">
-      <button class="action-button flex-1">
+      <button class="action-button flex-1" @click="selectedMode = 'join'">
         <span>🚀</span>
         <span>Join Game</span>
       </button>
-      <button class="action-button flex-1">
+      <button class="action-button flex-1" @click="selectedMode = 'watch'">
         <span>👀</span>
         <span>Watch</span>
       </button>
@@ -51,7 +34,7 @@ const themeStore = useThemeStore()
       <span class="font-medium">
         Watch:
       </span>
-      Sit back, watch the submissions, and cast your vote for your favorite videos.
+      
     </p> -->
     <!-- 5) List of rounds -->
     <h1 class="text-title-2 text-center">Rounds</h1>

@@ -5,7 +5,8 @@
 }
 
 .action-button {
-  @apply bg-blue-600 text-white p-2 font-semibold rounded-lg flex items-center justify-center gap-1;
+  @apply bg-blue-600 text-white p-2 font-semibold rounded-lg flex items-center justify-center gap-1 
+  transition-all duration-200 ease-in-out hover:bg-blue-800 active:bg-blue-800;
 }
 
 .text-title {
@@ -33,7 +34,7 @@
 }
 
 .modal-fullscreen-content {
-  @apply rounded-xl bg-gray-100 flex flex-col items-center justify-center p-4 w-2/3 gap-3;
+  @apply rounded-xl bg-gray-100 flex flex-col items-center justify-center p-4 w-2/3 gap-3 max-w-sm;
 }
 
 .video-wrapper {
