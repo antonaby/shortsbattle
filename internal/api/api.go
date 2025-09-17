@@ -47,21 +47,37 @@ func (api *HttpApi) NewEchoServer() *echo.Echo {
 	e.Validator = NewCustomValidator()
 
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogURI:    true,
-		LogStatus: true,
+		LogError:     true,
+		LogURI:       true,
+		LogStatus:    true,
+		LogMethod:    true,
+		LogHost:      true,
+		LogUserAgent: true,
+		LogLatency:   true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Error != nil {
-				log.Error().
+				log.
+					Error().
+					Timestamp().
 					Err(v.Error).
 					Stack().
 					Str("URI", v.URI).
 					Int("status", v.Status).
-					Msg("request")
+					Str("method", v.Method).
+					Str("host", v.Host).
+					Str("user-agent", v.UserAgent).
+					Dur("latency", v.Latency).
+					Send()
 			} else {
 				log.Debug().
+					Timestamp().
 					Str("URI", v.URI).
 					Int("status", v.Status).
-					Msg("request")
+					Str("method", v.Method).
+					Str("host", v.Host).
+					Str("user-agent", v.UserAgent).
+					Dur("latency", v.Latency).
+					Send()
 			}
 
 			return nil
@@ -113,7 +129,7 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 
 func (api *HttpApi) addInternalEndpoints(g *echo.Group) {
 	v1group := g.Group("/v1")
-	
+
 	// themes
 	v1group.POST("/themes", api.createTheme)
 	v1group.GET("/themes", api.listAllThemes)

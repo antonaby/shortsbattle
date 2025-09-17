@@ -201,6 +201,7 @@ func (watchdog *DBWatchdog) listen(ctx context.Context) error {
 			}
 		}
 
+		// TODO: handle panic if DB disconnected
 		go func(notification *pgconn.Notification) {
 			var event GameUpdateEvent
 			if err := json.Unmarshal([]byte(notification.Payload), &event); err != nil {
