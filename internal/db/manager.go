@@ -14,7 +14,34 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/db/migrations"
 	"github.com/antonaby/shortsbattle/game-server/internal/db/qg"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rs/zerolog/log"
 )
+
+type QueryTracer struct {
+}
+
+func (l *QueryTracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	log.Debug().
+		Str("query", data.SQL).
+		Any("args", data.Args).
+		Msg("query_start")
+
+	return ctx
+}
+
+func (l *QueryTracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+	if data.Err != nil {
+		log.Error().
+			Err(data.Err).
+			Str("command_tag", data.CommandTag.String()).
+			Msg("query_end")
+		return
+	}
+
+	log.Debug().
+		Str("command_tag", data.CommandTag.String()).
+		Msg("query_end")
+}
 
 var ErrorDbUrlNotDefined = errors.New("DATABASE_URL not defined")
 
@@ -42,7 +69,15 @@ func NewDbManager(dsn string) (*DbManager, error) {
 	defer cancelFunc()
 
 	// TODO: add connection params, like max/min connections
-	pool, err := pgxpool.New(ctx, dsn)
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: add flag for enabling/disabling logger
+	config.ConnConfig.Tracer = &QueryTracer{}
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err
 	}
