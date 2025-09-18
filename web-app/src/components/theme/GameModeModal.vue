@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { PlayerMode } from '@/types/game';
 import { computed } from 'vue';
 
 
@@ -13,17 +14,17 @@ interface ModalText {
   description: string
 }
 
-interface ModalTextOptions {
-  [key: string]: ModalText;
-}
+type ModalTextOptions = {
+  [key in PlayerMode]: ModalText;
+};
 
 const options: ModalTextOptions = {
-  "join": {
+  "submit_and_vote": {
     titleEmoji: "🚀",
     title: "Player Mode",
     description: "Submit your own videos, watch others, and vote to decide the winners."
   },
-  "watch": {
+  "only_vote": {
     titleEmoji: "👀",
     title: "Watch Mode",
     description: "Sit back, watch the submissions, and cast your vote for your favorite videos."
@@ -31,7 +32,7 @@ const options: ModalTextOptions = {
 }
 
 const props = defineProps<{
-  mode: string,
+  mode: PlayerMode,
   loading: boolean
 }>();
 

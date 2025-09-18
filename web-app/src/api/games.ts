@@ -1,4 +1,4 @@
-import type { GameJoined, Theme, Video, Vote, VoteValue } from "../types/game";
+import type { GameJoined, PlayerMode, Theme, Video, Vote, VoteValue } from "../types/game";
 import { api } from "./http";
 
 export const GamesAPI = {
@@ -10,9 +10,10 @@ export const GamesAPI = {
     const response = await api.get<Theme>(`/api/v1/themes/${themeId}`);
     return response.data;
   },
-  async joinGame(themeId: number): Promise<GameJoined> {
+  async joinGame(themeId: number, mode: PlayerMode): Promise<GameJoined> {
     const response = await api.put<GameJoined>("/api/v1/games/join", {
       theme_id: themeId,
+      mode: mode
     });
     return response.data;
   },

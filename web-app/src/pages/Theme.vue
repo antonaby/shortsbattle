@@ -4,19 +4,20 @@ import GameModeModal from '@/components/theme/GameModeModal.vue';
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import ThemeLoadingScreen from '@/components/theme/ThemeLoadingScreen.vue';
+import type { PlayerMode } from '@/types/game';
 
 const route = useRoute();
 const themeStore = useThemeStore()
-const selectedMode = ref<string | undefined>(undefined);
+const selectedMode = ref<PlayerMode | undefined>(undefined);
 
 let themeId = Number(route.params.id);
 
 function selectJoin() {
-  selectedMode.value = 'join';
+  selectedMode.value = 'submit_and_vote';
 }
 
 function selectWatch() {
-  selectedMode.value = 'watch';
+  selectedMode.value = 'only_vote';
 }
 
 function unselectMode() {
@@ -24,7 +25,9 @@ function unselectMode() {
 }
 
 async function joinGame() {
-  await themeStore.joinGame(themeId);
+  if (selectedMode.value) {
+    await themeStore.joinGame(themeId, selectedMode.value);
+  }
 }
 
 onMounted(() => {
@@ -32,7 +35,8 @@ onMounted(() => {
 })
 </script>
 <template>
-  <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode" :loading="themeStore.joinGameLoader" />
+  <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode"
+    :loading="themeStore.joinGameLoader" />
   <ThemeLoadingScreen v-if="!themeStore.theme" />
   <div class="page-container" v-else>
     <!-- 1) Main image -->
@@ -53,7 +57,8 @@ onMounted(() => {
       </button>
     </div>
     <!-- 5) List of rounds -->
-    <div class="flex flex-col gap-2 p-2 bg-gray-100 rounded-xl" v-if="themeStore.theme.rounds && themeStore.theme.rounds.length > 0">
+    <div class="flex flex-col gap-2 p-2 bg-gray-100 rounded-xl"
+      v-if="themeStore.theme.rounds && themeStore.theme.rounds.length > 0">
       <h1 class="text-title-2 text-center">Rounds</h1>
       <ul class="space-y-2">
         <li v-for="round in themeStore.theme.rounds" :key="round.round_n" class="flex items-center gap-4">

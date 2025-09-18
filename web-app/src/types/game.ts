@@ -59,6 +59,8 @@ export interface Vote {
   value: VoteValue;
 }
 
+export type PlayerMode = "submit_and_vote" | "only_vote";
+
 export type GameMode = "likedislike";
 
 export interface Round {

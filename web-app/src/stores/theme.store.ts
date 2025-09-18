@@ -1,5 +1,5 @@
 import { GamesAPI } from "@/api/games";
-import type { Theme } from "@/types/game";
+import type { PlayerMode, Theme } from "@/types/game";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useUIStore } from "./ui.store";
@@ -17,16 +17,16 @@ export const useThemeStore = defineStore("theme", () => {
     }
   }
 
-  async function joinGame(themeId: number): Promise<void> {
+  async function joinGame(themeId: number, mode: PlayerMode): Promise<void> {
     joinGameLoader.value = true;
-    // try {
-    //   const game = await GamesAPI.joinGame(themeId);
-    //   uiStore.openGame(game.game_id);
-    // } catch (error) {
-    //   uiStore.handleNetworkError(error);
-    // } finally {
-    //   joinGameLoader.value = false;
-    // }
+    try {
+      const game = await GamesAPI.joinGame(themeId, mode);
+      uiStore.openGame(game.game_id);
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    } finally {
+      joinGameLoader.value = false;
+    }
   }
 
   return {
