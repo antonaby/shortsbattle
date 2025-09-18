@@ -11,9 +11,12 @@ const showTimer = computed<boolean>(() => {
     return false;
   }
 
+  if (gameStore.formattedTime === "00:00") {
+    return true;
+  }
+
   return !!gameStore.formattedTime;
 })
-
 </script>
 
 <template>
@@ -32,11 +35,8 @@ const showTimer = computed<boolean>(() => {
       <span class="text-base font-light" v-if="showTimer">
         🎶😎 Hang tight, others are on their way!
       </span>
-      <Transition 
-        enter-from-class="opacity-0" 
-        enter-active-class="transition ease-out duration-400"
-        enter-to-class="opacity-100" 
-        leave-active-class="duration-0">
+      <Transition enter-from-class="opacity-0" enter-active-class="transition ease-out duration-400"
+        enter-to-class="opacity-100">
         <span class="text-base font-light" v-if="!showTimer">
           🎲⏳ Just a moment, the game begins shortly!
         </span>

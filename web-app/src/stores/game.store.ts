@@ -17,16 +17,19 @@ export const useGameStore = defineStore("game", () => {
 
   const theme = ref<Theme | undefined>(undefined);
   const lastUpdate = ref<GameUpdate | undefined>(undefined);
-  const remainingTimeMs = ref<number>(0);
+  const remainingTimeMs = ref<number>(-1);
 
   let gameSub: Subscription | null = null;
   let intervalId: number | null = null;
 
   const formattedTime = computed(() => {
-    const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
-    if (totalSeconds == 0) {
-      return ""
+    if (remainingTimeMs.value < 0) {
+      return "00:00";
+    } else if (remainingTimeMs.value == 0) {
+      return "";
     }
+
+    const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
 
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -57,6 +60,7 @@ export const useGameStore = defineStore("game", () => {
   function leaveGame() {
     theme.value = undefined;
     lastUpdate.value = undefined;
+    remainingTimeMs.value = -1;
 
     if (gameSub) {
       gameSub.unsubscribe();
@@ -96,7 +100,11 @@ export const useGameStore = defineStore("game", () => {
     remainingTimeMs.value = newRemainingTimeMs;
 
     intervalId = setInterval(() => {
-      remainingTimeMs.value -= 1000;
+      if (remainingTimeMs.value - 1000 > 0) {
+        remainingTimeMs.value -= 1000;
+      } else {
+        remainingTimeMs.value = 0;
+      }
     }, 1000);
   }
 
