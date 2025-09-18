@@ -28,10 +28,19 @@ gameStore.theme = {
 	]
 };
 
+gameStore.lastUpdate = {
+	"id": 27,
+	"msg_type": "details",
+	"stage": "lobby",
+	"round": 0,
+	"state_changed_at": "2025-09-18T15:36:44.804063+04:00",
+	"remaining_ms": 5000
+}
+
 onMounted(() => {
-	gameStore.startTimer(60000);
+	gameStore.startTimer(5000);
 })
 </script>
 <template>
-  <LobbyView />
+	<LobbyView />
 </template>

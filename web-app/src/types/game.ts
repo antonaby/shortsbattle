@@ -6,7 +6,7 @@ export interface GameUpdate {
   id: number;
   msg_type: MsgType;
   stage: GameState;
-  state_change_reason: string;
+  state_change_reason?: string;
   round: number;
   state_changed_at: string;
   remaining_ms: number;

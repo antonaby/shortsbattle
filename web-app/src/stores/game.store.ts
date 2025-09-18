@@ -4,15 +4,10 @@ import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useUIStore } from "./ui.store";
 import {
-  SubscriptionState,
-  type ErrorContext,
   type PublicationContext,
   type SubscribedContext,
   type Subscription,
-  type UnsubscribedContext,
 } from "centrifuge";
-import { GamesAPI } from "../api/games";
-import { NetworkError } from "@/types/errors";
 
 const SUB_READY_TIMEOUT = 10000; // 10 sec
 
@@ -21,6 +16,7 @@ export const useGameStore = defineStore("game", () => {
   const uiStore = useUIStore();
 
   const theme = ref<Theme | undefined>(undefined);
+  const lastUpdate = ref<GameUpdate | undefined>(undefined);
   const remainingTimeMs = ref<number>(0);
 
   let gameSub: Subscription | null = null;
@@ -28,6 +24,10 @@ export const useGameStore = defineStore("game", () => {
 
   const formattedTime = computed(() => {
     const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
+    if (totalSeconds == 0) {
+      return ""
+    }
+
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes.toString().padStart(2, "0")}:${seconds
@@ -56,29 +56,22 @@ export const useGameStore = defineStore("game", () => {
 
   function leaveGame() {
     theme.value = undefined;
-    if (gameSub && gameSub.state == SubscriptionState.Subscribed) {
+    lastUpdate.value = undefined;
+
+    if (gameSub) {
       gameSub.unsubscribe();
     }
-
     if (intervalId) {
       clearInterval(intervalId);
       intervalId = null;
     }
-
-    // gameId = null;
-    // lastGameUpdate.value = null;
-    // remainingTimeMs.value = 0;
-    // theme.value = null;
-    // playerVideos.value = [];
-    // selectedVideo.value = null;
-    // gameVideos.value = [];
-    // finalResult.value = null;
   }
 
   function handleSubscribed(ctx: SubscribedContext) {
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
       theme.value = upd.theme;
+      lastUpdate.value = upd;
       switch (upd.stage) {
         case "lobby":
           startTimer(upd.remaining_ms);
@@ -92,13 +85,7 @@ export const useGameStore = defineStore("game", () => {
 
   function handlePublication(ctx: PublicationContext) {
     var upd: GameUpdate = ctx.data;
-    // if (lastGameUpdate.value) {
-    //   if (lastGameUpdate.value.stage !== upd.stage) {
-    //     updateRemainingTime(upd);
-    //     navigateToGameState(upd);
-    //   }
-    //   setLastUpdate(upd);
-    // }
+    lastUpdate.value = upd;
   }
 
   function startTimer(newRemainingTimeMs: number) {
@@ -116,6 +103,7 @@ export const useGameStore = defineStore("game", () => {
   return {
     theme,
     formattedTime,
+    lastUpdate,
     joinGame,
     leaveGame,
     startTimer,

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import {
   Centrifuge,
   Subscription,
+  SubscriptionState,
   type ConnectionTokenContext,
   type PublicationContext,
   type SubscribedContext,
@@ -65,6 +66,10 @@ export const useWSStore = defineStore("ws", () => {
     }
 
     let sub = client.getSubscription(channel);
+    if (sub && sub.state == SubscriptionState.Subscribed) {
+      sub.unsubscribe();
+    }
+
     if (!sub) {
       sub = client.newSubscription(channel);
     }

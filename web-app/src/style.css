@@ -76,7 +76,7 @@
 .loader-big {
   width: 100px;
   aspect-ratio: 6;
-  --_g: no-repeat radial-gradient(circle closest-side, #2563EB 75%, transparent);
+  --_g: no-repeat radial-gradient(circle closest-side, #2563EB 90%, #0000);
   background: 
     var(--_g) 0%   50%,
     var(--_g) 50%  50%,
