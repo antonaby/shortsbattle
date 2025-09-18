@@ -73,13 +73,13 @@ const (
 type GameUpdate struct {
 	GameID            int64              `json:"id"`
 	MsgType           MessageType        `json:"msg_type"`
-	Stage             qg.GameStage       `json:"state"`
+	Stage             qg.GameStage       `json:"stage"`
 	StateChangeReason *StageChangeReason `json:"state_change_reason,omitempty"`
 	RoundN            int32              `json:"round"`
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	RemainingMs       int64              `json:"remaining_ms"`
-	Theme             *qg.Theme          `json:"theme,omitempty"`
-	Result            *json.RawMessage   `json:"resul,omitempty"`
+	Theme             *ThemeWithRounds   `json:"theme,omitempty"`
+	Result            *json.RawMessage   `json:"result,omitempty"`
 }
 
 func GetCfChannelName(gameId int64) string {

@@ -4,5 +4,5 @@ import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue';
 </script>
 
 <template>
-  <FullscreenLoaderView />
+  <FullscreenLoaderView msg="Opening the Game..." />
 </template>

@@ -5,6 +5,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE game_mode AS ENUM ('likedislike');
 
+-- TODO: add theme and round images
 -- games table
 CREATE TABLE
     themes (

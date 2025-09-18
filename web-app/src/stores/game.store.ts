@@ -44,21 +44,21 @@ export const useGameStore = defineStore("game", () => {
   });
 
   function updateRemainingTime(upd: GameUpdate) {
-    remainingTimeMs.value = upd.remaning_time_ms;
+    remainingTimeMs.value = upd.remaining_ms;
   }
 
   function navigateToGameState(upd: GameUpdate) {
-    switch (upd.state) {
+    switch (upd.stage) {
       case "lobby":
         router.push({ name: "game-lobby", params: { id: gameId } });
         break;
-      case "submitting":
+      case "submit":
         router.push({ name: "game-submit", params: { id: gameId } });
         break;
-      case "watching":
+      case "watch":
         router.push({ name: "game-watch", params: { id: gameId } });
         break;
-      case "completed":
+      case "complete":
         router.push({ name: "game-complete", params: { id: gameId } });
         break;
     }
@@ -69,9 +69,6 @@ export const useGameStore = defineStore("game", () => {
 
     if (upd.theme && upd.msg_type == "details") {
       theme.value = upd.theme;
-    }
-    if (upd.result && upd.msg_type == "complete") {
-      finalResult.value = upd.result;
     }
   }
 
@@ -98,7 +95,7 @@ export const useGameStore = defineStore("game", () => {
   function handlePublication(ctx: PublicationContext) {
     var upd: GameUpdate = ctx.data;
     if (lastGameUpdate.value) {
-      if (lastGameUpdate.value.state !== upd.state) {
+      if (lastGameUpdate.value.stage !== upd.stage) {
         updateRemainingTime(upd);
         navigateToGameState(upd);
       }

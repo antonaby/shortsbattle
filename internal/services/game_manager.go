@@ -296,7 +296,7 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 			return nil, gmDbError("failed to fetch game", err)
 		}
 
-		theme, err := q.GetTheme(ctx, game.ThemeID)
+		theme, err := getTheme(ctx, q, game.ThemeID)
 		if err != nil {
 			return nil, gmDbError("failed to fetch game theme", err)
 		}
@@ -307,7 +307,8 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 			Stage:          game.Stage,
 			RoundN:         game.RoundN,
 			StateChangedAt: game.StateChangedAt,
-			Theme:          &theme,
+			RemainingMs:    game.RemainingMs,
+			Theme:          theme,
 		}, nil
 	})
 }
@@ -615,8 +616,8 @@ func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, g
 			for _, s := range playerScores {
 				if err := q.CreatePlayerStat(ctx, qg.CreatePlayerStatParams{
 					PlayerID: s.PlayerID,
-					GameID: s.GameID,
-					Points: s.Points,
+					GameID:   s.GameID,
+					Points:   s.Points,
 				}); err != nil {
 					return nil, gmDbError("failed to create player score", err)
 				}

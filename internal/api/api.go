@@ -110,6 +110,7 @@ func (api *HttpApi) addUnsecuredEndpoints(g *echo.Group) {
 	v1group.POST("/auth", api.getTokenForTgUser)
 }
 
+// TODO: add an endpoint to mark unavailable video and exclude those video from the competition
 func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	v1group := g.Group("/v1")
 

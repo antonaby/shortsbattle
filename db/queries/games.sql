@@ -36,7 +36,20 @@ WHERE g.game_id = cte.game_id
 RETURNING g.*;
 
 -- name: GetGameShareLock :one
-SELECT gs.*, gp.player_id, gp.mode as player_mode, gp.is_active, gp.joined_at
+SELECT 
+  gs.*, 
+  gp.player_id, 
+  gp.mode as player_mode, 
+  gp.is_active, 
+  gp.joined_at,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
+    0
+  )::bigint AS past_ms
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id  = sqlc.arg(game_id)

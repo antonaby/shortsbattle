@@ -173,7 +173,20 @@ func (q *Queries) GetGameRounds(ctx context.Context, gameID int64) ([]Round, err
 }
 
 const getGameShareLock = `-- name: GetGameShareLock :one
-SELECT gs.game_id, gs.theme_id, gs.mode, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at, gp.player_id, gp.mode as player_mode, gp.is_active, gp.joined_at
+SELECT 
+  gs.game_id, gs.theme_id, gs.mode, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at, 
+  gp.player_id, 
+  gp.mode as player_mode, 
+  gp.is_active, 
+  gp.joined_at,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
+    0
+  )::bigint AS remaining_ms,
+  GREATEST(
+    COALESCE((EXTRACT(EPOCH FROM (now() - gs.state_changed_at)) * 1000)::bigint, 0),
+    0
+  )::bigint AS past_ms
 FROM game_players gp
 JOIN game_status gs ON gs.game_id = gp.game_id
 WHERE gp.game_id  = $1
@@ -194,6 +207,8 @@ type GetGameShareLockRow struct {
 	PlayerMode       PlayerGameMode     `json:"player_mode"`
 	IsActive         pgtype.Bool        `json:"is_active"`
 	JoinedAt         pgtype.Timestamptz `json:"joined_at"`
+	RemainingMs      int64              `json:"remaining_ms"`
+	PastMs           int64              `json:"past_ms"`
 }
 
 func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error) {
@@ -212,6 +227,8 @@ func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID i
 		&i.PlayerMode,
 		&i.IsActive,
 		&i.JoinedAt,
+		&i.RemainingMs,
+		&i.PastMs,
 	)
 	return i, err
 }

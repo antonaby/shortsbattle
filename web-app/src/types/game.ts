@@ -1,6 +1,52 @@
-export type GameState = "lobby" | "submitting" | "watching" | "completed";
+export type GameState = "lobby" | "lobby-full" | "submit" |  "submit-complete" | "watch" | "watch-complete" | "complete";
 
-export type MsgType = "details" | "state_change" | "complete";
+export type MsgType = "details" | "stage_updated";
+
+export interface GameUpdate {
+  id: number;
+  msg_type: MsgType;
+  stage: GameState;
+  state_change_reason: string;
+  round: number;
+  state_changed_at: string;
+  remaining_ms: number;
+  theme?: Theme;
+  result?: any;
+}
+
+export type PlayerMode = "submit_and_vote" | "only_vote";
+
+export type GameMode = "likedislike";
+
+export interface Round {
+  round_n: number;
+  title: string;
+  description: string;
+}
+
+export interface Theme {
+  id: number;
+  title: string;
+  description: string;
+  mode: GameMode;
+  rounds?: Round[];
+}
+
+export interface GameJoined {
+  game_id: number;
+  message: string;
+}
+
+
+
+
+
+
+
+// TODO: review
+export interface GameResult {
+  videos: VideoResult[];
+}
 
 export interface VideoResult {
   id: number;
@@ -8,20 +54,6 @@ export interface VideoResult {
   dislikes: number;
 }
 
-export interface GameResult {
-  videos: VideoResult[];
-}
-
-export interface GameUpdate {
-  id: number;
-  msg_type: MsgType;
-  state: GameState;
-  state_changed_at: string;
-  next_state_change_at: string;
-  remaning_time_ms: number;
-  theme?: Theme;
-  result?: GameResult;
-}
 
 export interface Video {
   id: number;
@@ -57,31 +89,4 @@ export interface Vote {
   video_id: number;
   voted_at: string;
   value: VoteValue;
-}
-
-export type PlayerMode = "submit_and_vote" | "only_vote";
-
-export type GameMode = "likedislike";
-
-export interface Round {
-  round_n: number;
-  title: string;
-  description: string;
-}
-
-export interface Theme {
-  id: number;
-  title: string;
-  description: string;
-  mode: GameMode;
-  rounds?: Round[];
-}
-
-export interface GameJoined {
-  game_id: number;
-  message: string;
-}
-
-export interface OkResponse {
-  message: string;
 }

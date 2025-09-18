@@ -76,33 +76,37 @@ func (ts *ThemeService) ListAllThemes(ctx context.Context) ([]models.ThemeWithRo
 
 func (ts *ThemeService) GetTheme(ctx context.Context, themeId int64) (*models.ThemeWithRounds, error) {
 	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*models.ThemeWithRounds, error) {
-		theme, err := q.GetTheme(ctx, themeId)
-		if err != nil {
-			return nil, tmError(common.GetDbErrorCode(err), "failed to get theme", err)
-		}
-
-		roundsRaw, err := q.GetRounds(ctx, theme.ID)
-		if err != nil {
-			return nil, tmError(common.GetDbErrorCode(err), "failed to get rounds", err)
-		}
-
-		rounds := []models.ThemeRound{}
-		for _, i := range roundsRaw {
-			rounds = append(rounds, models.ThemeRound{
-				RoundN:      i.RoundN,
-				Title:       i.Title,
-				Description: i.Description.String,
-			})
-		}
-
-		return &models.ThemeWithRounds{
-			ID:          theme.ID,
-			Title:       theme.Title,
-			Description: theme.Description.String,
-			Mode:        theme.Mode,
-			Rounds:      rounds,
-		}, nil
+		return getTheme(ctx, q, themeId)
 	})
+}
+
+func getTheme(ctx context.Context, q qg.Querier, themeId int64) (*models.ThemeWithRounds, error) {
+	theme, err := q.GetTheme(ctx, themeId)
+	if err != nil {
+		return nil, tmError(common.GetDbErrorCode(err), "failed to get theme", err)
+	}
+
+	roundsRaw, err := q.GetRounds(ctx, theme.ID)
+	if err != nil {
+		return nil, tmError(common.GetDbErrorCode(err), "failed to get rounds", err)
+	}
+
+	rounds := []models.ThemeRound{}
+	for _, i := range roundsRaw {
+		rounds = append(rounds, models.ThemeRound{
+			RoundN:      i.RoundN,
+			Title:       i.Title,
+			Description: i.Description.String,
+		})
+	}
+
+	return &models.ThemeWithRounds{
+		ID:          theme.ID,
+		Title:       theme.Title,
+		Description: theme.Description.String,
+		Mode:        theme.Mode,
+		Rounds:      rounds,
+	}, nil
 }
 
 func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*models.ThemeRound, error) {
