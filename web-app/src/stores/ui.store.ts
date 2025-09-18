@@ -13,6 +13,10 @@ export const useUIStore = defineStore("ui", () => {
     router.replace({ name: "hub" });
   }
 
+  function openGameLobby(gameId: number) {
+    router.push({ name: "game-lobby", params: { id: gameId } });
+  }
+
   // TODO: show error modal
   function handleNetworkError(error: any) {
     if (error instanceof NetworkError) {
@@ -27,5 +31,11 @@ export const useUIStore = defineStore("ui", () => {
     console.log(error);
   }
 
-  return { openTheme, returnToHub, handleNetworkError, handleWsError };
+  return {
+    openTheme,
+    returnToHub,
+    openGameLobby,
+    handleNetworkError,
+    handleWsError,
+  };
 });

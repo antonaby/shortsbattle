@@ -1,53 +1,52 @@
 import { defineStore } from "pinia";
-import type {
-  Theme,
-  GameUpdate,
-  Video,
-  VoteValue,
-  GameResult,
-} from "../types/game";
+import type { Theme, GameUpdate } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
-import { useRouter } from "vue-router";
 import { useUIStore } from "./ui.store";
-import type {
-  ErrorContext,
-  PublicationContext,
-  SubscribedContext,
-  UnsubscribedContext,
+import {
+  SubscriptionState,
+  type ErrorContext,
+  type PublicationContext,
+  type SubscribedContext,
+  type Subscription,
+  type UnsubscribedContext,
 } from "centrifuge";
 import { GamesAPI } from "../api/games";
 import { NetworkError } from "@/types/errors";
 
+const SUB_READY_TIMEOUT = 10000; // 10 sec
+
 export const useGameStore = defineStore("game", () => {
-  const router = useRouter();
   const wsStore = useWSStore();
   const uiStore = useUIStore();
 
   const theme = ref<Theme | undefined>(undefined);
+  let gameSub: Subscription | null = null;
 
   async function joinGame(gameId: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // TODO: handle sub
-      wsStore.subscribe(`game_${gameId}`, {
-        subscribed: (ctx) => {
-          resolve();
-          handleSubscribed(ctx);
-        },
-        // publication: handlePublication,
-        unsubscribed: (ctx) => {
-          if (ctx.reason == "permission denied") {
-            reject(new NetworkError(ctx.reason, 403));
-            leaveGame();
-            uiStore.returnToHub();
-          }
-        },
-        // error: hanldeError,
-      });
+    gameSub = wsStore.subscribe(`game_${gameId}`, {
+      subscribed: handleSubscribed,
+      publication: handlePublication,
+      unsubscribed: (ctx) => {
+        if (ctx.reason == "permission denied") {
+          leaveGame();
+          uiStore.returnToHub();
+        }
+      },
+      error: (ctx) => {
+        uiStore.handleWsError(ctx.type, ctx.error);
+      },
     });
+
+    return gameSub.ready(SUB_READY_TIMEOUT);
   }
 
   function leaveGame() {
+    theme.value = undefined;
+    if (gameSub && gameSub.state == SubscriptionState.Subscribed) {
+      gameSub.unsubscribe();
+    }
+
     // if (intervalId) {
     //   clearInterval(intervalId);
     //   intervalId = null;
@@ -68,7 +67,9 @@ export const useGameStore = defineStore("game", () => {
   function handleSubscribed(ctx: SubscribedContext) {
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
-      router.push({ name: "game-lobby", params: { id: upd.id } });
+      theme.value = upd.theme;
+
+      uiStore.openGameLobby(upd.id);
 
       // setLastUpdate(upd);
 
@@ -85,6 +86,17 @@ export const useGameStore = defineStore("game", () => {
     } else {
       uiStore.handleNetworkError("no subscription data");
     }
+  }
+
+  function handlePublication(ctx: PublicationContext) {
+    var upd: GameUpdate = ctx.data;
+    // if (lastGameUpdate.value) {
+    //   if (lastGameUpdate.value.stage !== upd.stage) {
+    //     updateRemainingTime(upd);
+    //     navigateToGameState(upd);
+    //   }
+    //   setLastUpdate(upd);
+    // }
   }
 
   return {
@@ -140,28 +152,6 @@ export const useGameStore = defineStore("game", () => {
   //   if (upd.theme && upd.msg_type == "details") {
   //     theme.value = upd.theme;
   //   }
-  // }
-
-  // function handlePublication(ctx: PublicationContext) {
-  //   var upd: GameUpdate = ctx.data;
-  //   if (lastGameUpdate.value) {
-  //     if (lastGameUpdate.value.stage !== upd.stage) {
-  //       updateRemainingTime(upd);
-  //       navigateToGameState(upd);
-  //     }
-  //     setLastUpdate(upd);
-  //   }
-  // }
-
-  // function handleUnsubscribed(ctx: UnsubscribedContext) {
-  //   if (ctx.reason == "permission denied") {
-  //     leaveGame();
-  //     uiStore.returnToHub();
-  //   }
-  // }
-
-  // function hanldeError(ctx: ErrorContext) {
-  //   uiStore.handleWsError(ctx.type, ctx.error);
   // }
 
   // async function reloadPlayerVideos() {

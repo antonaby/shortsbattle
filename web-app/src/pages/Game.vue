@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
-import { useRoute } from "vue-router";
 import { useGameStore } from "../stores/game.store";
+import { useRoute } from "vue-router";
+import FullscreenLoaderView from "@/components/common/FullscreenLoaderView.vue";
 
 const route = useRoute();
 const gameStore = useGameStore();
 
 onMounted(async () => {
-  let id = Number(route.params.id);
-  gameStore.joinGame(id);
+  if (!gameStore.theme) {
+    let id = Number(route.params.id);
+    gameStore.joinGame(id);
+  }
 })
 
 onUnmounted(() => {
@@ -17,5 +20,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <router-view />
+  <FullscreenLoaderView v-if="!gameStore.theme" />
+  <router-view v-else />
 </template>
