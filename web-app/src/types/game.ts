@@ -61,11 +61,18 @@ export interface Vote {
 
 export type GameMode = "likedislike";
 
+export interface Round {
+  round_n: number;
+  title: string;
+  description: string;
+}
+
 export interface Theme {
   id: number;
   title: string;
   description: string;
   mode: GameMode;
+  rounds?: Round[];
 }
 
 export interface GameJoined {

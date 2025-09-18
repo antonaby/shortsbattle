@@ -9,6 +9,14 @@ export const useThemeStore = defineStore("theme", () => {
   const joinGameLoader = ref<boolean>(false);
   const uiStore = useUIStore();
 
+  async function loadTheme(themeId: number) {
+    try {
+      theme.value = await GamesAPI.fetchTheme(themeId);
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
   async function joinGame(themeId: number): Promise<void> {
     joinGameLoader.value = true;
     // try {
@@ -24,6 +32,7 @@ export const useThemeStore = defineStore("theme", () => {
   return {
     theme,
     joinGameLoader,
-    joinGame
+    loadTheme,
+    joinGame,
   };
 });

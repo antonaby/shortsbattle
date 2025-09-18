@@ -3,8 +3,11 @@ import { api } from "./http";
 
 export const GamesAPI = {
   async fetchThemes(): Promise<Theme[]> {
-    // TODO: use public endpoint instead
-    const response = await api.get<Theme[]>("/internal/v1/themes");
+    const response = await api.get<Theme[]>("/api/v1/themes");
+    return response.data;
+  },
+  async fetchTheme(themeId: number): Promise<Theme> {
+    const response = await api.get<Theme>(`/api/v1/themes/${themeId}`);
     return response.data;
   },
   async joinGame(themeId: number): Promise<GameJoined> {
@@ -17,17 +20,25 @@ export const GamesAPI = {
     const response = await api.get<Video[]>("/api/v1/me/videos");
     return response.data;
   },
-  async submitExistingVideo(gameId: number, videoId: number, requestId: number): Promise<Video> {
+  async submitExistingVideo(
+    gameId: number,
+    videoId: number,
+    requestId: number
+  ): Promise<Video> {
     const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
       video_id: videoId,
-      video_request_id: requestId
+      video_request_id: requestId,
     });
     return response.data;
   },
-  async submitNewVideo(gameId: number, videoUrl: string, requestId: number): Promise<Video> {
+  async submitNewVideo(
+    gameId: number,
+    videoUrl: string,
+    requestId: number
+  ): Promise<Video> {
     const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
       video_url: videoUrl,
-      video_request_id: requestId
+      video_request_id: requestId,
     });
     return response.data;
   },

@@ -20,7 +20,7 @@ interface ModalTextOptions {
 const options: ModalTextOptions = {
   "join": {
     titleEmoji: "🚀",
-    title: "Join Game Mode",
+    title: "Player Mode",
     description: "Submit your own videos, watch others, and vote to decide the winners."
   },
   "watch": {
@@ -53,13 +53,13 @@ const modalText = computed(() => {
         <button class="load-button flex-1" v-if="loading">
           <div class="loader"></div>
         </button>
-        <button class="action-button flex-1" @click="emits('ok')" v-if="!loading">
-          <span>👍</span>
-          <span>OK</span>
-        </button>
         <button class="action-button flex-1" @click="emits('cancel')" v-if="!loading">
           <span>🙅</span>
           <span>Back</span>
+        </button>
+        <button class="action-button flex-1" @click="emits('ok')" v-if="!loading">
+          <span>👍</span>
+          <span>OK</span>
         </button>
       </div>
     </div>

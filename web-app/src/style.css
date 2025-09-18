@@ -41,6 +41,10 @@
   @apply rounded-xl bg-gray-100 flex flex-col items-center justify-center p-4 w-2/3 gap-3 max-w-sm;
 }
 
+.loading-rect {
+  @apply rounded-lg bg-gray-200 animate-pulse transition active:bg-gray-100;
+}
+
 .video-wrapper {
   position: relative;
   width: 100%;

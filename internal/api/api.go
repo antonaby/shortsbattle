@@ -119,6 +119,10 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 	v1group.PUT("/games/:id/mode", api.updateGameMode)
 	v1group.GET("/games/:id/videos", api.getVideosForGame)
 
+	// themes
+	v1group.GET("/themes", api.listAllThemes)
+	v1group.GET("/themes/:id", api.getTheme)
+
 	// votes
 	v1group.PUT("/votes/:id", api.voteForVideo)
 
@@ -132,8 +136,6 @@ func (api *HttpApi) addInternalEndpoints(g *echo.Group) {
 
 	// themes
 	v1group.POST("/themes", api.createTheme)
-	v1group.GET("/themes", api.listAllThemes)
-	v1group.GET("/themes/:id", api.getTheme)
 	v1group.POST("/themes/:id/rounds", api.createRound)
 }
 
