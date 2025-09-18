@@ -9,10 +9,6 @@ export const useUIStore = defineStore("ui", () => {
     router.push({ name: "theme", params: { id: themeId } });
   }
 
-  function openGame(gameId: number) {
-    router.push({ name: "game-open", params: { id: gameId } });
-  }
-
   function returnToHub() {
     router.replace({ name: "hub" });
   }
@@ -31,5 +27,5 @@ export const useUIStore = defineStore("ui", () => {
     console.log(error);
   }
 
-  return { openTheme, openGame, returnToHub, handleNetworkError, handleWsError };
+  return { openTheme, returnToHub, handleNetworkError, handleWsError };
 });

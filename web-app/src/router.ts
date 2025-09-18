@@ -12,6 +12,8 @@ import WatchView from "@/components/game/subpages/WatchView.vue";
 import CompleteView from "@/components/game/subpages/CompleteView.vue";
 import VideoPlayerWrapper from "@/components/game/players/VideoPlayerWrapper.vue";
 import Theme from "./pages/Theme.vue";
+import OpenGameDevWrapper from "./components/dev/OpenGameDevWrapper.vue";
+import LobbyGameDevWrapper from "./components/dev/LobbyGameDevWrapper.vue";
 
 let routes: RouteRecordRaw[] = [
   {
@@ -41,7 +43,15 @@ let routes: RouteRecordRaw[] = [
 if (import.meta.env.DEV) {
   routes = routes.concat([
     {
-      path: "/player-test",
+      path: "/dev/game/open",
+      component: OpenGameDevWrapper,
+    },
+    {
+      path: "/dev/game/lobby",
+      component: LobbyGameDevWrapper,
+    },
+    {
+      path: "/dev/player",
       component: VideoPlayerWrapper,
       props: {
         videos: [
@@ -55,11 +65,13 @@ if (import.meta.env.DEV) {
           },
           {
             id: 2,
-            video_url: "https://www.tiktok.com/@br0pics/video/7540625283531967776",
+            video_url:
+              "https://www.tiktok.com/@br0pics/video/7540625283531967776",
           },
           {
             id: 3,
-            video_url: "https://www.tiktok.com/@br0pics/video/7540986521684380960",
+            video_url:
+              "https://www.tiktok.com/@br0pics/video/7540986521684380960",
           },
           {
             id: 4,

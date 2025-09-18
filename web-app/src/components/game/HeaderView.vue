@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Theme } from '@/types/game';
 defineProps<{
-  theme: Theme | null
+  theme: Theme | undefined
 }>()
 
 const emit = defineEmits<{

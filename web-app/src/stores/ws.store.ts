@@ -39,7 +39,6 @@ export const useWSStore = defineStore("ws", () => {
     client.on("connecting", () => updateConnected(false));
     client.on("connected", () => updateConnected(true));
     client.on("disconnected", () => updateConnected(false));
-
     client.on("error", (ctx) => {
       updateConnected(false);
       uiStore.handleWsError(ctx.type, ctx.error);
@@ -80,7 +79,6 @@ export const useWSStore = defineStore("ws", () => {
     if (handlers.publication) {
       sub.on("publication", handlers.publication);
     }
-
     if (handlers.subscribed) {
       sub.on("subscribed", handlers.subscribed);
     }
