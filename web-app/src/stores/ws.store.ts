@@ -11,15 +11,10 @@ import {
 import { ref } from "vue";
 import { useUIStore } from "./ui.store";
 
-interface SubMap {
-  [channel: string]: Subscription;
-}
-
 export const useWSStore = defineStore("ws", () => {
   const uiStore = useUIStore();
 
   const connected = ref<boolean>(false);
-  const subs = {} as SubMap;
   let client: Centrifuge | null = null;
 
   function updateConnected(value: boolean) {
@@ -48,8 +43,10 @@ export const useWSStore = defineStore("ws", () => {
   }
 
   function disconnect() {
-    Object.values(subs).forEach((s) => s.unsubscribe());
-    client?.disconnect();
+    if (client) {
+      Object.values(client.subscriptions()).forEach((s) => s.unsubscribe());
+      client.disconnect();
+    }
     client = null;
     connected.value = false;
   }
@@ -65,10 +62,6 @@ export const useWSStore = defineStore("ws", () => {
   ): Subscription {
     if (!client) {
       throw new Error("Socket not connected");
-    }
-
-    if (subs[channel]) {
-      return subs[channel];
     }
 
     let sub = client.getSubscription(channel);
@@ -90,15 +83,8 @@ export const useWSStore = defineStore("ws", () => {
     }
 
     sub.subscribe();
-    subs[channel] = sub;
-
     return sub;
   }
 
-  function unsubscribe(channel: string) {
-    subs[channel]?.unsubscribe();
-    delete subs[channel];
-  }
-
-  return { connected, connect, disconnect, subscribe, unsubscribe };
+  return { connected, connect, disconnect, subscribe };
 });

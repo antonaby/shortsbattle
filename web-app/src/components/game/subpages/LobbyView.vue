@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { useUIStore } from '@/stores/ui.store';
 import { useGameStore } from '@/stores/game.store';
-import HeaderView from '@/components/game/HeaderView.vue';
-import TimerView from '@/components/game/TimerView.vue';
 
 const gameStore = useGameStore();
 const uiStore = useUIStore();
