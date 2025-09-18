@@ -32,17 +32,15 @@ onMounted(() => {
 })
 </script>
 <template>
-  <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode"
-    :loading="themeStore.joinGameLoader" />
+  <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode" :loading="themeStore.joinGameLoader" />
   <ThemeLoadingScreen v-if="!themeStore.theme" />
   <div class="page-container" v-else>
     <!-- 1) Main image -->
     <img src="https://cdn2.thecatapi.com/images/8q1.jpg" alt="Main image" class="w-full h-48 object-cover rounded-lg" />
     <!-- 2) Title -->
-    <h1 class="text-title text-center">Cat Clash</h1>
+    <h1 class="text-title text-center">{{ themeStore.theme.title }}</h1>
     <!-- 3) Description -->
-    <p class="text-description text-center">Share your funniest, cutest, or silliest cat videos and compete for votes.
-    </p>
+    <p class="text-description text-center">{{ themeStore.theme.description }}</p>
     <!-- 4) Controls -->
     <div class="flex gap-2">
       <button class="action-button flex-1" @click="selectJoin">
@@ -55,34 +53,14 @@ onMounted(() => {
       </button>
     </div>
     <!-- 5) List of rounds -->
-    <div class="flex flex-col gap-2 p-2 bg-gray-100 rounded-xl">
+    <div class="flex flex-col gap-2 p-2 bg-gray-100 rounded-xl" v-if="themeStore.theme.rounds && themeStore.theme.rounds.length > 0">
       <h1 class="text-title-2 text-center">Rounds</h1>
       <ul class="space-y-2">
-        <!-- Round 1 -->
-        <li class="flex items-center gap-4">
-          <img src="https://cdn2.thecatapi.com/images/bpc.jpg" alt="Round 1"
-            class="w-16 h-16 object-cover rounded-lg" />
+        <li v-for="round in themeStore.theme.rounds" :key="round.round_n" class="flex items-center gap-4">
+          <img src="https://cdn2.thecatapi.com/images/bpc.jpg" alt="Round" class="w-16 h-16 object-cover rounded-lg" />
           <div class="flex-1">
-            <h2 class="text-title-item">1. Curious Cats</h2>
-            <p class="text-description">Show cats exploring, investigating, or getting into unexpected places.</p>
-          </div>
-        </li>
-        <!-- Round 2 -->
-        <li class="flex items-center gap-4">
-          <img src="https://cdn2.thecatapi.com/images/MTY3ODIyMQ.jpg" alt="Round 2"
-            class="w-16 h-16 object-cover rounded-lg" />
-          <div class="flex-1">
-            <h2 class="text-title-item">2. Sleepy Whiskers</h2>
-            <p class="text-description">Share adorable moments of cats napping in funny or unusual spots.</p>
-          </div>
-        </li>
-        <!-- Round 3 -->
-        <li class="flex items-center gap-4">
-          <img src="https://cdn2.thecatapi.com/images/384.jpg" alt="Round 2"
-            class="w-16 h-16 object-cover rounded-lg" />
-          <div class="flex-1">
-            <h2 class="text-title-item">3. Playful Paws</h2>
-            <p class="text-description">Capture cats playing with toys, chasing, or just being mischievous.</p>
+            <h2 class="text-title-item">{{ round.round_n }}. {{ round.title }}</h2>
+            <p class="text-description">{{ round.description }}</p>
           </div>
         </li>
       </ul>
