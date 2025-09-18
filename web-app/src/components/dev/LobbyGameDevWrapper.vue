@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useGameStore } from '@/stores/game.store';
 import LobbyView from '../game/subpages/LobbyView.vue';
+import { onMounted } from 'vue';
 
 const gameStore = useGameStore();
 gameStore.theme = {
@@ -27,6 +28,9 @@ gameStore.theme = {
 	]
 };
 
+onMounted(() => {
+	gameStore.startTimer(60000);
+})
 </script>
 <template>
   <LobbyView />

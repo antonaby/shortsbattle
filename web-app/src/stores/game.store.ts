@@ -21,7 +21,19 @@ export const useGameStore = defineStore("game", () => {
   const uiStore = useUIStore();
 
   const theme = ref<Theme | undefined>(undefined);
+  const remainingTimeMs = ref<number>(0);
+
   let gameSub: Subscription | null = null;
+  let intervalId: number | null = null;
+
+  const formattedTime = computed(() => {
+    const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+  });
 
   async function joinGame(gameId: number): Promise<void> {
     gameSub = wsStore.subscribe(`game_${gameId}`, {
@@ -34,6 +46,7 @@ export const useGameStore = defineStore("game", () => {
         }
       },
       error: (ctx) => {
+        leaveGame();
         uiStore.handleWsError(ctx.type, ctx.error);
       },
     });
@@ -47,13 +60,11 @@ export const useGameStore = defineStore("game", () => {
       gameSub.unsubscribe();
     }
 
-    // if (intervalId) {
-    //   clearInterval(intervalId);
-    //   intervalId = null;
-    // }
-    // if (gameId) {
-    //   wsStore.unsubscribe(`game_${gameId}`);
-    // }
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+
     // gameId = null;
     // lastGameUpdate.value = null;
     // remainingTimeMs.value = 0;
@@ -68,21 +79,12 @@ export const useGameStore = defineStore("game", () => {
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
       theme.value = upd.theme;
-
-      uiStore.openGameLobby(upd.id);
-
-      // setLastUpdate(upd);
-
-      // if (intervalId) {
-      //   clearInterval(intervalId);
-      // }
-
-      // updateRemainingTime(upd);
-      // intervalId = setInterval(() => {
-      //   remainingTimeMs.value -= 1000;
-      // }, 1000);
-
-      // navigateToGameState(upd);
+      switch (upd.stage) {
+        case "lobby":
+          startTimer(upd.remaining_ms);
+          uiStore.openGameLobby(upd.id);
+          break;
+      }
     } else {
       uiStore.handleNetworkError("no subscription data");
     }
@@ -99,10 +101,24 @@ export const useGameStore = defineStore("game", () => {
     // }
   }
 
+  function startTimer(newRemainingTimeMs: number) {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+
+    remainingTimeMs.value = newRemainingTimeMs;
+
+    intervalId = setInterval(() => {
+      remainingTimeMs.value -= 1000;
+    }, 1000);
+  }
+
   return {
     theme,
+    formattedTime,
     joinGame,
     leaveGame,
+    startTimer,
   };
 
   // const lastGameUpdate = ref<GameUpdate | null>(null);
@@ -116,14 +132,7 @@ export const useGameStore = defineStore("game", () => {
   // const finalResult = ref<GameResult | null>(null);
 
   // let gameId: number | null = null;
-  // let intervalId: number | null = null;
-
-  // const formattedTime = computed(() => {
-  //   const totalSeconds = Math.max(0, Math.floor(remainingTimeMs.value / 1000));
-  //   const minutes = Math.floor(totalSeconds / 60);
-  //   const seconds = totalSeconds % 60;
-  //   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  // });
+  //
 
   // function updateRemainingTime(upd: GameUpdate) {
   //   remainingTimeMs.value = upd.remaining_ms;
