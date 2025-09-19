@@ -1,11 +1,11 @@
-export type GameState = "lobby" | "lobby-full" | "submit" |  "submit-complete" | "watch" | "watch-complete" | "complete";
+export type GameStage = "lobby" | "lobby-full" | "submit" |  "submit-complete" | "watch" | "watch-complete" | "complete";
 
 export type MsgType = "details" | "stage_updated";
 
 export interface GameUpdate {
   id: number;
   msg_type: MsgType;
-  stage: GameState;
+  stage: GameStage;
   state_change_reason?: string;
   round: number;
   state_changed_at: string;

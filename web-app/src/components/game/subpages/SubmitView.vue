@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import AddVideoFormView from '@/components/common/AddVideoFormView.vue';
 import TabView from '@/components/common/TabView.vue';
+import TimerView from '@/components/common/TimerView.vue';
 import VideoListView from '@/components/common/VideoListView.vue';
 import { useGameStore } from '@/stores/game.store';
 import { useUIStore } from '@/stores/ui.store';
 import { useVideoStore } from '@/stores/video.store';
 import type { Tab } from '@/types/components';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const videoStore = useVideoStore();
 const gameStore = useGameStore();
@@ -32,7 +33,6 @@ function onTabSelect(tab: Tab) {
 </script>
 <template>
   <div class="page-container">
-    <!-- <img src="https://cdn2.thecatapi.com/images/8q1.jpg" alt="Main image" class="w-full h-48 object-cover rounded-lg" /> -->
     <p class="text-2xl font-medium text-center">😎 Time to Drop a Video!</p>
     <div class="default-card">
       <p>✨ This Round`s Challenge</p>
@@ -44,9 +44,10 @@ function onTabSelect(tab: Tab) {
         </div>
       </div>
       <hr class="border-t-2 border-gray-200 h-1 w-full" />
-      <span class="text-4xl font-mono font-semibold">
-        00:50
-      </span>
+      <TimerView 
+        :formatted-time="gameStore.formattedTime" 
+        :stage="gameStore.lastUpdate?.stage"
+        complete-stage="submit-complete" />
       <span class="text-base font-light">
         🔗 Paste URL or 📂 Pick a Video
       </span>
