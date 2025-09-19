@@ -2,13 +2,12 @@
 import { ref, type Ref } from 'vue';
 
 const url: Ref<string> = ref("")
-
-function submit() {
-
-}
+const emits = defineEmits<{
+  (e: 'submit', url: string): void
+}>();
 </script>
 <template>
-  <form class="space-y-4 mt-2" @submit.prevent="submit">
+  <form class="space-y-4 mt-2" @submit.prevent="emits('submit', url)">
     <p>
       Share a <span class="font-medium">YouTube Shorts</span> or 
       <span class="font-medium">TikTok</span> with the <span class="font-medium">Bot</span> 🤖

@@ -8,7 +8,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <ul class="space-y-4">
+  <ul class="space-y-4 mt-4">
     <li v-for="video in videos">
       <VideoButton :video="video" />
     </li>

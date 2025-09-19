@@ -43,6 +43,14 @@ const showTimer = ref<boolean>(true);
 function onShowTimer(value: boolean) {
   showTimer.value = value;
 }
+
+const uploadingVideo = ref<boolean>(false);
+function onSubmitUrl(url: string) {
+  uploadingVideo.value = true;
+  console.log(url);
+  //uploadingVideo.value = false;
+}
+
 </script>
 <template>
   <div class="page-container">
@@ -56,7 +64,7 @@ function onShowTimer(value: boolean) {
           <p class="text-description">{{ round.description }}</p>
         </div>
       </div>
-      <div class="flex flex-col items-center justify-center h-16" v-else>
+      <div class="loader-container h-16" v-else>
         <div class="loader-big"></div>
       </div>
       <hr class="border-t-2 border-gray-200 h-1 w-full" />
@@ -72,8 +80,14 @@ function onShowTimer(value: boolean) {
         </span>
       </Transition>
     </div>
-    <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
-    <AddVideoFormView v-if="activeTab.key == 'new'" />
-    <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" />
+    <div class="sub-container" v-if="!uploadingVideo">
+      <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
+      <AddVideoFormView v-if="activeTab.key == 'new'" @submit="onSubmitUrl" />
+      <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" />
+    </div>
+    <div class="loader-container gap-4 py-4" v-else>
+      <p class="text-2xl font-medium text-center">🚀 Submit & Go!</p>
+      <div class="loader-big"></div>
+    </div>
   </div>
 </template>

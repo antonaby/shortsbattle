@@ -4,6 +4,10 @@
   @apply flex flex-col justify-start items-stretch gap-2 p-4 max-w-md w-full mx-auto;
 }
 
+.sub-container {
+  @apply flex flex-col justify-start items-stretch gap-2 w-full;
+}
+
 .action-button {
   @apply bg-blue-600 text-white p-2 font-semibold rounded-lg flex items-center justify-center gap-2 h-9
   transition-all duration-200 ease-in-out hover:bg-blue-800 active:bg-blue-800;
@@ -47,6 +51,10 @@
 
 .default-card {
   @apply bg-gray-100 rounded-lg p-4 flex flex-col justify-start items-center gap-2;
+}
+
+.loader-container {
+  @apply flex flex-col items-center justify-center;
 }
 
 .video-wrapper {

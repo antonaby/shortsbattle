@@ -29,7 +29,7 @@ watch(showTimer, (newValue) => {
   <span class="text-4xl font-mono font-semibold" v-if="showTimer">
     {{ formattedTime }}
   </span>
-  <div class="flex flex-col items-center justify-center h-10" v-else>
+  <div class="loader-container h-10" v-else>
     <div class="loader-big"></div>
   </div>
 </template>
