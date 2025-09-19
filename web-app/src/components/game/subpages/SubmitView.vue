@@ -6,7 +6,7 @@ import VideoListView from '@/components/common/VideoListView.vue';
 import { useGameStore } from '@/stores/game.store';
 import { useVideoStore } from '@/stores/video.store';
 import type { Tab } from '@/types/components';
-import type { Round } from '@/types/game';
+import type { Round, Video } from '@/types/game';
 import { computed, ref } from 'vue';
 
 const videoStore = useVideoStore();
@@ -45,12 +45,17 @@ function onShowTimer(value: boolean) {
 }
 
 const uploadingVideo = ref<boolean>(false);
+
 function onSubmitUrl(url: string) {
   uploadingVideo.value = true;
   console.log(url);
   //uploadingVideo.value = false;
 }
 
+function onSubmitVideo(video: Video) {
+  uploadingVideo.value = true;
+  console.log(video);
+}
 </script>
 <template>
   <div class="page-container">
@@ -83,7 +88,7 @@ function onSubmitUrl(url: string) {
     <div class="sub-container" v-if="!uploadingVideo">
       <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
       <AddVideoFormView v-if="activeTab.key == 'new'" @submit="onSubmitUrl" />
-      <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" />
+      <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" @select="onSubmitVideo" />
     </div>
     <div class="loader-container gap-4 py-4" v-else>
       <p class="text-2xl font-medium text-center">🚀 Submit & Go!</p>
