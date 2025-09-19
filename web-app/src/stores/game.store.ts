@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { Theme, GameUpdate } from "../types/game";
+import type { Theme, GameUpdate, Video } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useUIStore } from "./ui.store";
@@ -8,6 +8,7 @@ import {
   type SubscribedContext,
   type Subscription,
 } from "centrifuge";
+import { GamesAPI } from "@/api/games";
 
 const SUB_READY_TIMEOUT = 10000; // 10 sec
 
@@ -126,6 +127,38 @@ export const useGameStore = defineStore("game", () => {
     }, 1000);
   }
 
+  async function submitVideo(video: Video) {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      await GamesAPI.submitExistingVideo(
+        lastUpdate.value.id,
+        video.id,
+        lastUpdate.value.round
+      );
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
+  async function submitNewVideo(url: string) {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      await GamesAPI.submitNewVideo(
+        lastUpdate.value.id,
+        url,
+        lastUpdate.value.round
+      );
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
   return {
     theme,
     formattedTime,
@@ -133,41 +166,11 @@ export const useGameStore = defineStore("game", () => {
     joinGame,
     leaveGame,
     startTimer,
+    submitVideo,
+    submitNewVideo
   };
 
   // // TODO: show loading element
-  // async function selectVideo(videoId: number) {
-  //   if (!gameId) {
-  //     return;
-  //   }
-
-  //   sendingRequest.value = true;
-  //   try {
-  //     const video = await GamesAPI.submitExistingVideo(gameId, videoId, 1);
-  //     selectedVideo.value = video;
-  //   } catch (error) {
-  //     uiStore.handleNetworkError(error);
-  //   } finally {
-  //     sendingRequest.value = false;
-  //   }
-  // }
-
-  // // TODO: show loading element
-  // async function newVideo(url: string) {
-  //   if (!gameId) {
-  //     return;
-  //   }
-
-  //   sendingRequest.value = true;
-  //   try {
-  //     const video = await GamesAPI.submitNewVideo(gameId, url, 1);
-  //     selectedVideo.value = video;
-  //   } catch (error) {
-  //     uiStore.handleNetworkError(error);
-  //   } finally {
-  //     sendingRequest.value = false;
-  //   }
-  // }
 
   // function unselectVideo() {
   //   selectedVideo.value = null;

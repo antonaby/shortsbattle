@@ -9,6 +9,7 @@ import type { PlayerMode } from '@/types/game';
 const route = useRoute();
 const themeStore = useThemeStore()
 const selectedMode = ref<PlayerMode | undefined>(undefined);
+const joinGameLoader = ref<boolean>(false);
 
 let themeId = Number(route.params.id);
 
@@ -26,7 +27,9 @@ function unselectMode() {
 
 async function joinGame() {
   if (selectedMode.value) {
+    joinGameLoader.value = true;
     await themeStore.joinGame(themeId, selectedMode.value);
+    joinGameLoader.value = false;
   }
 }
 
@@ -36,7 +39,7 @@ onMounted(() => {
 </script>
 <template>
   <GameModeModal :mode="selectedMode" v-if="selectedMode" @ok="joinGame" @cancel="unselectMode"
-    :loading="themeStore.joinGameLoader" />
+    :loading="joinGameLoader" />
   <ThemeLoadingScreen v-if="!themeStore.theme" />
   <div class="page-container" v-else>
     <!-- 1) Main image -->

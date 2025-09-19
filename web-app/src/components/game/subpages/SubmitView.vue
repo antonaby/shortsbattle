@@ -46,15 +46,16 @@ function onShowTimer(value: boolean) {
 
 const uploadingVideo = ref<boolean>(false);
 
-function onSubmitUrl(url: string) {
+async function onSubmitUrl(url: string) {
   uploadingVideo.value = true;
-  console.log(url);
-  //uploadingVideo.value = false;
+  await gameStore.submitNewVideo(url);
+  uploadingVideo.value = false;
 }
 
-function onSubmitVideo(video: Video) {
+async function onSubmitVideo(video: Video) {
   uploadingVideo.value = true;
-  console.log(video);
+  await gameStore.submitVideo(video);
+  uploadingVideo.value = false;
 }
 </script>
 <template>

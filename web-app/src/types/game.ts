@@ -1,4 +1,11 @@
-export type GameStage = "lobby" | "lobby-full" | "submit" |  "submit-complete" | "watch" | "watch-complete" | "complete";
+export type GameStage =
+  | "lobby"
+  | "lobby-full"
+  | "submit"
+  | "submit-complete"
+  | "watch"
+  | "watch-complete"
+  | "complete";
 
 export type MsgType = "details" | "stage_updated";
 
@@ -63,6 +70,14 @@ export interface OEmbed {
   [key: string]: unknown;
 }
 
+export interface GameVideo {
+  id: number;
+  game_id: number;
+  player_id: number;
+  video_id: number;
+  round_n: number;
+  submitted_at: string;
+}
 
 
 
@@ -77,9 +92,6 @@ export interface VideoResult {
   likes: number;
   dislikes: number;
 }
-
-
-
 
 export type VoteValue = "like" | "dislike" | "skip";
 

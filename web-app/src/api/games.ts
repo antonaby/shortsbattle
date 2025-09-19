@@ -1,4 +1,12 @@
-import type { GameJoined, PlayerMode, Theme, Video, Vote, VoteValue } from "../types/game";
+import type {
+  GameJoined,
+  GameVideo,
+  PlayerMode,
+  Theme,
+  Video,
+  Vote,
+  VoteValue,
+} from "../types/game";
 import { api } from "./http";
 
 export const GamesAPI = {
@@ -13,7 +21,7 @@ export const GamesAPI = {
   async joinGame(themeId: number, mode: PlayerMode): Promise<GameJoined> {
     const response = await api.put<GameJoined>("/api/v1/games/join", {
       theme_id: themeId,
-      mode: mode
+      mode: mode,
     });
     return response.data;
   },
@@ -24,23 +32,37 @@ export const GamesAPI = {
   async submitExistingVideo(
     gameId: number,
     videoId: number,
-    requestId: number
-  ): Promise<Video> {
-    const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
-      video_id: videoId,
-      video_request_id: requestId,
-    });
+    round: number
+  ): Promise<GameVideo> {
+    const response = await api.put<GameVideo>(
+      `/api/v1/games/${gameId}/submit`,
+      {
+        video_id: videoId,
+      },
+      {
+        params: {
+          round: round,
+        },
+      }
+    );
     return response.data;
   },
   async submitNewVideo(
     gameId: number,
     videoUrl: string,
-    requestId: number
-  ): Promise<Video> {
-    const response = await api.put<Video>(`/api/v1/games/${gameId}/submit`, {
-      video_url: videoUrl,
-      video_request_id: requestId,
-    });
+    round: number
+  ): Promise<GameVideo> {
+    const response = await api.put<GameVideo>(
+      `/api/v1/games/${gameId}/submit`,
+      {
+        video_url: videoUrl,
+      },
+      {
+        params: {
+          round: round,
+        },
+      }
+    );
     return response.data;
   },
   async fetchVideosToWatch(gameId: number): Promise<Video[]> {

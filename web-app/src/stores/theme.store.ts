@@ -7,7 +7,7 @@ import { useGameStore } from "./game.store";
 
 export const useThemeStore = defineStore("theme", () => {
   const theme = ref<Theme | undefined>(undefined);
-  const joinGameLoader = ref<boolean>(false);
+ 
   const gameStore = useGameStore();
   const uiStore = useUIStore();
 
@@ -20,20 +20,16 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   async function joinGame(themeId: number, mode: PlayerMode): Promise<void> {
-    joinGameLoader.value = true;
     try {
       const game = await GamesAPI.joinGame(themeId, mode);
       await gameStore.joinGame(game.game_id);
     } catch (error) {
       uiStore.handleNetworkError(error);
-    } finally {
-      joinGameLoader.value = false;
-    }
+    } 
   }
 
   return {
     theme,
-    joinGameLoader,
     loadTheme,
     joinGame,
   };
