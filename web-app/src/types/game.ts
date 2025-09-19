@@ -37,7 +37,31 @@ export interface GameJoined {
   message: string;
 }
 
+export interface Video {
+  id: number;
+  video_url: string;
+  oembed: OEmbed;
+  added_at: string;
+  updated_at: string;
+}
 
+export interface OEmbed {
+  html?: string;
+  type?: string;
+  title?: string;
+  width?: number | string;
+  height?: number | string;
+  version?: string;
+  author_url?: string;
+  author_name?: string;
+  provider_url?: string;
+  provider_name?: string;
+  thumbnail_url?: string;
+  thumbnail_width?: number;
+  thumbnail_height?: number;
+
+  [key: string]: unknown;
+}
 
 
 
@@ -55,31 +79,7 @@ export interface VideoResult {
 }
 
 
-export interface Video {
-  id: number;
-  player_id: number;
-  video_url: string;
-  oembed: OEmbed;
-  added_at: string;
-}
 
-export interface OEmbed {
-  html?: string;
-  type?: string;
-  title?: string;
-  width?: number;
-  height?: number;
-  version?: string;
-  author_url?: string;
-  author_name?: string;
-  provider_url?: string;
-  provider_name?: string;
-  thumbnail_url?: string;
-  thumbnail_width?: number;
-  thumbnail_height?: number;
-
-  [key: string]: unknown;
-}
 
 export type VoteValue = "like" | "dislike" | "skip";
 

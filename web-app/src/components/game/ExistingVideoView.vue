@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useGameStore } from '@/stores/game.store';
-import VideoButton from './VideoButton.vue';
+import VideoButton from '../common/VideoButton.vue';
 import type { Video } from '@/types/game';
 
 const gameStore = useGameStore();

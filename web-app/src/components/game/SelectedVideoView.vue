@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import VideoButton from './VideoButton.vue';
+import VideoButton from '../common/VideoButton.vue';
 import type { Video } from '@/types/game';
 
 defineProps<{

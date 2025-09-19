@@ -12,8 +12,9 @@ import WatchView from "@/components/game/subpages/WatchView.vue";
 import CompleteView from "@/components/game/subpages/CompleteView.vue";
 import VideoPlayerWrapper from "@/components/game/players/VideoPlayerWrapper.vue";
 import Theme from "./pages/Theme.vue";
-import OpenGameDevWrapper from "./components/dev/OpenGameDevWrapper.vue";
-import LobbyGameDevWrapper from "./components/dev/LobbyGameDevWrapper.vue";
+import OpenDevWrapper from "./components/dev/OpenDevWrapper.vue";
+import LobbyDevWrapper from "./components/dev/LobbyDevWrapper.vue";
+import SubmitDevWrapper from "./components/dev/SubmitDevWrapper.vue";
 
 let routes: RouteRecordRaw[] = [
   {
@@ -44,11 +45,15 @@ if (import.meta.env.DEV) {
   routes = routes.concat([
     {
       path: "/dev/game/open",
-      component: OpenGameDevWrapper,
+      component: OpenDevWrapper,
     },
     {
       path: "/dev/game/lobby",
-      component: LobbyGameDevWrapper,
+      component: LobbyDevWrapper,
+    },
+    {
+      path: "/dev/game/submit",
+      component: SubmitDevWrapper,
     },
     {
       path: "/dev/player",

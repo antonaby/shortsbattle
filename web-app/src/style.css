@@ -45,6 +45,10 @@
   @apply rounded-lg bg-gray-200 animate-pulse transition active:bg-gray-100;
 }
 
+.default-card {
+  @apply bg-gray-100 rounded-lg p-4 flex flex-col justify-start items-center gap-2;
+}
+
 .video-wrapper {
   position: relative;
   width: 100%;
