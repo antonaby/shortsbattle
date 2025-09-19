@@ -17,6 +17,10 @@ export const useUIStore = defineStore("ui", () => {
     router.push({ name: "game-lobby", params: { id: gameId } });
   }
 
+  function openGameSubmit(gameId: number) {
+    router.push({ name: "game-submit", params: { id: gameId } });
+  }
+
   // TODO: show error modal
   function handleNetworkError(error: any) {
     if (error instanceof NetworkError) {
@@ -35,6 +39,7 @@ export const useUIStore = defineStore("ui", () => {
     openTheme,
     returnToHub,
     openGameLobby,
+    openGameSubmit,
     handleNetworkError,
     handleWsError,
   };

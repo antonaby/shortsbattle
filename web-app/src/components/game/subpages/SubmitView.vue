@@ -49,7 +49,7 @@ function onShowTimer(value: boolean) {
     <p class="text-2xl font-medium text-center">😎 Time to Drop a Video!</p>
     <div class="default-card">
       <p>✨ This Round`s Challenge</p>
-      <div class="flex items-center gap-4" v-if="round">
+      <div class="flex items-center gap-4 w-full" v-if="round">
         <img src="https://cdn2.thecatapi.com/images/bpc.jpg" alt="Round" class="w-16 h-16 object-cover rounded-lg" />
         <div class="flex-1">
           <h2 class="text-title-item">{{ round.round_n }}. {{ round.title }}</h2>

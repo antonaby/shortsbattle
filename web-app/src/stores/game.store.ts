@@ -74,14 +74,12 @@ export const useGameStore = defineStore("game", () => {
   function handleSubscribed(ctx: SubscribedContext) {
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
-      theme.value = upd.theme;
-      lastUpdate.value = upd;
-      switch (upd.stage) {
-        case "lobby":
-          startTimer(upd.remaining_ms);
-          uiStore.openGameLobby(upd.id);
-          break;
+      if (!upd.theme) {
+        uiStore.handleNetworkError("no subscription data");
+        return;
       }
+      theme.value = upd.theme;
+      handleGameUpdate(upd);
     } else {
       uiStore.handleNetworkError("no subscription data");
     }
@@ -89,7 +87,29 @@ export const useGameStore = defineStore("game", () => {
 
   function handlePublication(ctx: PublicationContext) {
     var upd: GameUpdate = ctx.data;
+    handleGameUpdate(upd);
+  }
+
+  function handleGameUpdate(upd: GameUpdate) {
     lastUpdate.value = upd;
+    switch (upd.stage) {
+      case "lobby":
+        startTimer(upd.remaining_ms);
+        uiStore.openGameLobby(upd.id);
+        break;
+      case "lobby-full":
+        remainingTimeMs.value = -1;
+        uiStore.openGameLobby(upd.id);
+        break;
+      case "submit":
+        startTimer(upd.remaining_ms);
+        uiStore.openGameSubmit(upd.id);
+        break;
+      case "submit-complete":
+        remainingTimeMs.value = -1;
+        uiStore.openGameSubmit(upd.id);
+        break;
+    }
   }
 
   function startTimer(newRemainingTimeMs: number) {
