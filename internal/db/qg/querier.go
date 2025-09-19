@@ -31,6 +31,7 @@ type Querier interface {
 	GetRounds(ctx context.Context, themeID int64) ([]Round, error)
 	GetSubmittedVideosByPlayers(ctx context.Context, gameID int64, roundN int32) ([]GetSubmittedVideosByPlayersRow, error)
 	GetTheme(ctx context.Context, id int64) (Theme, error)
+	GetVideo(ctx context.Context, id int64) (Video, error)
 	GetVideosByPlayer(ctx context.Context, playerID int64) ([]Video, error)
 	GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error)
 	GetVotes(ctx context.Context, gameID int64) ([]GetVotesRow, error)

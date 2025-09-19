@@ -140,21 +140,21 @@ func TestGameActions(t *testing.T) {
 		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been updated not added
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo2.ID)
-		require.NotEqual(t, player1GameVideo1.VideoID, player1GameVideo2.VideoID)
+		require.NotEqual(t, player1GameVideo1.Video.ID, player1GameVideo2.Video.ID)
 
 		// add new video
 		_, player1GameVideo3, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl3, players[0].TgID, 1)
 		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been added as it's new
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo3.ID)
-		require.NotEqual(t, player1GameVideo1.VideoID, player1GameVideo3.VideoID)
+		require.NotEqual(t, player1GameVideo1.Video.ID, player1GameVideo3.Video.ID)
 
 		// add new video, but the one that already exist in DB
 		_, player1GameVideo4, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[0].TgID, 1)
 		fatalIfError(t, err, "failed to submit video (player 1)")
 		// check that video has been updated not added, the video is the same as video 1
 		require.Equal(t, player1GameVideo1.ID, player1GameVideo4.ID)
-		require.Equal(t, player1video1.ID, player1GameVideo4.VideoID)
+		require.Equal(t, player1video1.ID, player1GameVideo4.Video.ID)
 
 		// add video for player 2
 		_, player2GameVideo1, err := gm.SubmitNewVideo(ctx, game1.ID, testUrl1, players[1].TgID, 1)
@@ -162,7 +162,7 @@ func TestGameActions(t *testing.T) {
 		// should be different game vidoes but the same video
 		require.NotEqual(t, player1GameVideo4.ID, player2GameVideo1.ID)
 		require.NotEqual(t, player1GameVideo4.PlayerID, player2GameVideo1.PlayerID)
-		require.Equal(t, player1GameVideo4.VideoID, player2GameVideo1.VideoID)
+		require.Equal(t, player1GameVideo4.Video.ID, player2GameVideo1.Video.ID)
 
 		// player 2 can't submit video owned by player 1
 		_, _, rawErr := gm.SubmitExistingVideo(ctx, game1.ID, player1video3.ID, players[1].TgID, 1)
@@ -210,16 +210,16 @@ func TestGameActions(t *testing.T) {
 		fatalIfError(t, err, "failed to get videos to watch (player 1)")
 		// should be videos from player 2 and 3
 		require.Equal(t, 2, len(videosToWatchP1))
-		require.Equal(t, player2GameVideo1.VideoID, videosToWatchP1[0].VideoID)
-		require.Equal(t, player3GameVideo1.VideoID, videosToWatchP1[1].VideoID)
+		require.Equal(t, player2GameVideo1.Video.ID, videosToWatchP1[0].VideoID)
+		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP1[1].VideoID)
 
 		// get videos for player 2
 		videosToWatchP2, err := gm.GetVideosToWatch(ctx, game1.ID, players[1].TgID, 1)
 		fatalIfError(t, err, "failed to get videos to watch (player 2)")
 		// should be videos from player 1 and 3
 		require.Equal(t, 2, len(videosToWatchP2))
-		require.Equal(t, player1GameVideo4.VideoID, videosToWatchP2[0].VideoID)
-		require.Equal(t, player3GameVideo1.VideoID, videosToWatchP2[1].VideoID)
+		require.Equal(t, player1GameVideo4.Video.ID, videosToWatchP2[0].VideoID)
+		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP2[1].VideoID)
 	})
 
 	t.Run("VoteForVideo", func(t *testing.T) {
@@ -328,7 +328,7 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
-		gameVideos := []qg.GameVideo{}
+		gameVideos := []models.SubmitGameVideo{}
 		for i, p := range players {
 			url := testVideos[i]
 			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 1)
@@ -444,7 +444,7 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
-		gameVideos := []qg.GameVideo{}
+		gameVideos := []models.SubmitGameVideo{}
 		// round 1
 		for i, p := range players {
 			url := testVideos[i]

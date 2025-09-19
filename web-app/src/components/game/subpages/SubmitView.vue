@@ -2,6 +2,7 @@
 import AddVideoFormView from '@/components/common/AddVideoFormView.vue';
 import TabView from '@/components/common/TabView.vue';
 import TimerView from '@/components/common/TimerView.vue';
+import VideoButton from '@/components/common/VideoButton.vue';
 import VideoListView from '@/components/common/VideoListView.vue';
 import { useGameStore } from '@/stores/game.store';
 import { useVideoStore } from '@/stores/video.store';
@@ -45,7 +46,6 @@ function onShowTimer(value: boolean) {
 }
 
 const uploadingVideo = ref<boolean>(false);
-
 async function onSubmitUrl(url: string) {
   uploadingVideo.value = true;
   await gameStore.submitNewVideo(url);
@@ -79,19 +79,32 @@ async function onSubmitVideo(video: Video) {
       <span class="text-base font-light" v-if="showTimer">
         🔗 Paste URL or 📂 Pick a Video
       </span>
-      <Transition enter-from-class="opacity-0" enter-active-class="transition ease-out duration-400"
+      <Transition enter-from-class="opacity-100" enter-active-class="transition ease-out duration-400"
         enter-to-class="opacity-100">
         <span class="text-base font-light" v-if="!showTimer">
           ⚡ Almost time — get ready!
         </span>
       </Transition>
     </div>
-    <div class="sub-container" v-if="!uploadingVideo">
+    <div class="sub-container" v-if="gameStore.playerVideo">
+      <p class="w-full text-center">✨ Your Video</p>
+      <VideoButton :video="gameStore.playerVideo.video" />
+      <Transition 
+        leave-active-class="transition ease-out duration-400" 
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0">
+        <button class="text-blue-600" @click="gameStore.playerVideo = undefined"
+          v-if="gameStore.lastUpdate?.stage == 'submit'">
+          <span>🔁 Use Antother</span>
+        </button>
+      </Transition>
+    </div>
+    <div class="sub-container" v-if="!uploadingVideo && !gameStore.playerVideo">
       <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
       <AddVideoFormView v-if="activeTab.key == 'new'" @submit="onSubmitUrl" />
       <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" @select="onSubmitVideo" />
     </div>
-    <div class="loader-container gap-4 py-4" v-else>
+    <div class="loader-container gap-4 py-4" v-if="uploadingVideo && !gameStore.playerVideo">
       <p class="text-2xl font-medium text-center">🚀 Submit & Go!</p>
       <div class="loader-big"></div>
     </div>

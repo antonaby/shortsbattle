@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { GameStage } from '@/types/game';
-import { computed, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 
 const props = defineProps<{
   formattedTime: string,
@@ -23,6 +23,10 @@ const showTimer = computed<boolean>(() => {
 watch(showTimer, (newValue) => {
   emits('showTimer', newValue);
 });
+
+onMounted(() => {
+  emits('showTimer', showTimer.value);
+})
 </script>
 
 <template>

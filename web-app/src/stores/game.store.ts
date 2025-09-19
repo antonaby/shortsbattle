@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { Theme, GameUpdate, Video } from "../types/game";
+import type { Theme, GameUpdate, Video, GameVideo } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useUIStore } from "./ui.store";
@@ -19,6 +19,7 @@ export const useGameStore = defineStore("game", () => {
   const theme = ref<Theme | undefined>(undefined);
   const lastUpdate = ref<GameUpdate | undefined>(undefined);
   const remainingTimeMs = ref<number>(-1);
+  const playerVideo = ref<GameVideo | undefined>(undefined); 
 
   let gameSub: Subscription | null = null;
   let intervalId: number | null = null;
@@ -59,6 +60,7 @@ export const useGameStore = defineStore("game", () => {
   function leaveGame() {
     theme.value = undefined;
     lastUpdate.value = undefined;
+    playerVideo.value = undefined;
     remainingTimeMs.value = -1;
 
     if (gameSub) {
@@ -133,7 +135,7 @@ export const useGameStore = defineStore("game", () => {
     }
 
     try {
-      await GamesAPI.submitExistingVideo(
+      playerVideo.value = await GamesAPI.submitExistingVideo(
         lastUpdate.value.id,
         video.id,
         lastUpdate.value.round
@@ -149,7 +151,7 @@ export const useGameStore = defineStore("game", () => {
     }
 
     try {
-      await GamesAPI.submitNewVideo(
+      playerVideo.value = await GamesAPI.submitNewVideo(
         lastUpdate.value.id,
         url,
         lastUpdate.value.round
@@ -163,6 +165,7 @@ export const useGameStore = defineStore("game", () => {
     theme,
     formattedTime,
     lastUpdate,
+    playerVideo,
     joinGame,
     leaveGame,
     startTimer,

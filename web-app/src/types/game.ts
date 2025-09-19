@@ -74,13 +74,10 @@ export interface GameVideo {
   id: number;
   game_id: number;
   player_id: number;
-  video_id: number;
   round_n: number;
   submitted_at: string;
+  video: Video;
 }
-
-
-
 
 // TODO: review
 export interface GameResult {

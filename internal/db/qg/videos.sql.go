@@ -81,6 +81,23 @@ func (q *Queries) GetSubmittedVideosByPlayers(ctx context.Context, gameID int64,
 	return items, nil
 }
 
+const getVideo = `-- name: GetVideo :one
+SELECT id, video_url, oembed, added_at, updated_at FROM videos WHERE id = $1
+`
+
+func (q *Queries) GetVideo(ctx context.Context, id int64) (Video, error) {
+	row := q.db.QueryRow(ctx, getVideo, id)
+	var i Video
+	err := row.Scan(
+		&i.ID,
+		&i.VideoUrl,
+		&i.Oembed,
+		&i.AddedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
 SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at 
 FROM videos AS v
