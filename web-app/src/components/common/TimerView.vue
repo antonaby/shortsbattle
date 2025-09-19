@@ -17,10 +17,6 @@ const showTimer = computed<boolean>(() => {
     return false;
   }
 
-  if (props.formattedTime === "00:00") {
-    return true;
-  }
-
   return !!props.formattedTime;
 })
 

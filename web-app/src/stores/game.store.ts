@@ -23,9 +23,7 @@ export const useGameStore = defineStore("game", () => {
   let intervalId: number | null = null;
 
   const formattedTime = computed(() => {
-    if (remainingTimeMs.value < 0) {
-      return "00:00";
-    } else if (remainingTimeMs.value == 0) {
+    if (remainingTimeMs.value <= 0) {
       return "";
     }
 
@@ -136,59 +134,6 @@ export const useGameStore = defineStore("game", () => {
     leaveGame,
     startTimer,
   };
-
-  // const lastGameUpdate = ref<GameUpdate | null>(null);
-  // const remainingTimeMs = ref<number>(0);
-  // const theme = ref<Theme | null>(null);
-  // const selectedVideo = ref<Video | null>(null);
-  // const playerVideos = ref<Video[]>([]);
-  // const loadingData = ref<boolean>(false);
-  // const sendingRequest = ref<boolean>(false);
-  // const gameVideos = ref<Video[]>([]);
-  // const finalResult = ref<GameResult | null>(null);
-
-  // let gameId: number | null = null;
-  //
-
-  // function updateRemainingTime(upd: GameUpdate) {
-  //   remainingTimeMs.value = upd.remaining_ms;
-  // }
-
-  // function navigateToGameState(upd: GameUpdate) {
-  //   switch (upd.stage) {
-  //     case "lobby":
-  //       router.push({ name: "game-lobby", params: { id: gameId } });
-  //       break;
-  //     case "submit":
-  //       router.push({ name: "game-submit", params: { id: gameId } });
-  //       break;
-  //     case "watch":
-  //       router.push({ name: "game-watch", params: { id: gameId } });
-  //       break;
-  //     case "complete":
-  //       router.push({ name: "game-complete", params: { id: gameId } });
-  //       break;
-  //   }
-  // }
-
-  // function setLastUpdate(upd: GameUpdate) {
-  //   lastGameUpdate.value = upd;
-
-  //   if (upd.theme && upd.msg_type == "details") {
-  //     theme.value = upd.theme;
-  //   }
-  // }
-
-  // async function reloadPlayerVideos() {
-  //   loadingData.value = true;
-  //   try {
-  //     playerVideos.value = await GamesAPI.getMyVideos();
-  //   } catch (error) {
-  //     uiStore.handleNetworkError(error);
-  //   } finally {
-  //     loadingData.value = false;
-  //   }
-  // }
 
   // // TODO: show loading element
   // async function selectVideo(videoId: number) {

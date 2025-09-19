@@ -60,6 +60,7 @@ func NewWatchdogWorker(redisHost string, advanceAtProcessor *AdvanceGameAtProces
 		asynq.RedisClientOpt{Addr: redisHost},
 		asynq.Config{
 			Concurrency: 10,
+			TaskCheckInterval: 200 * time.Millisecond,
 			Logger: WatchdogWorkerLogger{
 				log: log.Logger,
 			},
