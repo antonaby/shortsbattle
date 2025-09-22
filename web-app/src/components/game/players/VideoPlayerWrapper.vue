@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import YTPlayer from './YTPlayer.vue'
 import TikTokPlayer from './TikTokPlayer.vue';
 import { detectVideoPlatform, type VideoPlatform } from '@/utils/players';
@@ -12,7 +12,8 @@ interface CurrentVideo {
 }
 
 const props = defineProps<{
-  videos: GameVideo[]
+  videos: GameVideo[],
+  completed: boolean
 }>();
 
 const emits = defineEmits<{
@@ -23,6 +24,10 @@ const emits = defineEmits<{
 const showMenu = ref<boolean>(false);
 const pinMenu = ref<boolean>(false);
 const currentVideoIndex = ref<number>(0);
+
+watch(props.videos, () => {
+  currentVideoIndex.value = 0;
+});
 
 let currentVideo = computed<CurrentVideo>(() => {
   let video = props.videos[currentVideoIndex.value];
@@ -64,7 +69,7 @@ function handleError(error: any) {
 </script>
 
 <template>
-  <div class="video-player-container" v-if="currentVideoIndex >= 0">
+  <div class="video-player-container" v-if="currentVideoIndex >= 0 && !completed">
     <div class="transition-[width] duration-500 ease-in-out" :class="[showMenu || pinMenu ? 'w-10/11' : 'w-full']">
       <YTPlayer v-if="currentVideo.platform == 'youtube'" :video-url="currentVideo.videoUrl"
         @state-change="handleStateChange" @error="handleError" />
@@ -89,8 +94,8 @@ function handleError(error: any) {
       </div>
     </Transition>
   </div>
-  <div class="video-player-container" v-else> 
-    <div class="bg-white/90 rounded-xl p-4" >
+  <div class="video-player-container" v-if="currentVideoIndex == -1 || completed">
+    <div class="bg-white/90 rounded-xl p-4">
       <span class="text-2xl font-medium">
         You have watched all videos 🥳
       </span>
@@ -100,6 +105,7 @@ function handleError(error: any) {
 
 <style>
 @import "tailwindcss";
+
 .video-player-container {
   @apply flex flex-col items-center justify-center bg-gray-600 min-h-screen gap-2
 }

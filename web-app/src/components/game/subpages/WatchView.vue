@@ -18,6 +18,7 @@ onMounted(() => {
   <VideoPlayerWrapper 
     v-if="gameStore.videosToWatch.length > 0" 
     :videos="gameStore.videosToWatch" 
+    :completed="gameStore.lastUpdate?.stage == 'submit-complete'"
     @vote="gameStore.voteForVideo"
    />
 </template>
