@@ -41,7 +41,7 @@ const modalText = computed(() => {
 })
 </script>
 <template>
-  <div class="modal-fullscreen fixed bg-black/10">
+  <div class="modal-fullscreen bg-black/10">
     <div class="modal-fullscreen-content">
       <h1 class="text-4xl">{{ modalText.titleEmoji }}</h1>
       <h1 class="text-title-2 text-center">
