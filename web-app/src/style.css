@@ -38,7 +38,7 @@
 }
 
 .modal-fullscreen {
-  @apply fixed bg-black/10 flex items-center justify-center min-h-screen min-w-screen flex-col;
+  @apply flex items-center justify-center min-h-screen min-w-screen flex-col gap-4;
 }
 
 .modal-fullscreen-content {

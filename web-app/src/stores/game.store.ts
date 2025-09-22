@@ -16,9 +16,10 @@ export const useGameStore = defineStore("game", () => {
   const wsStore = useWSStore();
   const uiStore = useUIStore();
 
+  const remainingTimeMs = ref<number>(-1);
+
   const theme = ref<Theme | undefined>(undefined);
   const lastUpdate = ref<GameUpdate | undefined>(undefined);
-  const remainingTimeMs = ref<number>(-1);
   const playerVideo = ref<GameVideo | undefined>(undefined);
   const videosToWatch = ref<GameVideo[]>([]);
 
@@ -59,17 +60,15 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function leaveGame() {
+    stopTimer();
+
     theme.value = undefined;
     lastUpdate.value = undefined;
     playerVideo.value = undefined;
-    remainingTimeMs.value = -1;
+    videosToWatch.value = [];
 
     if (gameSub) {
       gameSub.unsubscribe();
-    }
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
     }
   }
 
@@ -100,7 +99,7 @@ export const useGameStore = defineStore("game", () => {
         uiStore.openGameLobby(upd.id);
         break;
       case "lobby-full":
-        remainingTimeMs.value = -1;
+        stopTimer();
         uiStore.openGameLobby(upd.id);
         break;
       case "submit":
@@ -109,9 +108,12 @@ export const useGameStore = defineStore("game", () => {
         uiStore.openGameSubmit(upd.id);
         break;
       case "submit-complete":
-        remainingTimeMs.value = -1;
+        stopTimer();
         uiStore.openGameSubmit(upd.id);
         break;
+      case "watch":
+        stopTimer();
+        uiStore.openGameWatch(upd.id);
     }
   }
 
@@ -129,6 +131,15 @@ export const useGameStore = defineStore("game", () => {
         remainingTimeMs.value = 0;
       }
     }, 1000);
+  }
+
+  function stopTimer() {
+    remainingTimeMs.value = -1;
+
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
   }
 
   async function submitVideo(video: Video) {
@@ -163,6 +174,21 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  async function loadVideosToWatch() {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      videosToWatch.value = await GamesAPI.fetchVideosToWatch(
+        lastUpdate.value.id,
+        lastUpdate.value.round
+      );
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
   return {
     theme,
     formattedTime,
@@ -174,26 +200,8 @@ export const useGameStore = defineStore("game", () => {
     startTimer,
     submitVideo,
     submitNewVideo,
+    loadVideosToWatch,
   };
-
-  // // TODO: show loading element
-
-  // function unselectVideo() {
-  //   selectedVideo.value = null;
-  // }
-
-  // async function loadVideosToWatch() {
-  //   if (!gameId) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const videos = await GamesAPI.fetchVideosToWatch(gameId);
-  //     gameVideos.value = videos;
-  //   } catch (error) {
-  //     uiStore.handleNetworkError(error);
-  //   }
-  // }
 
   // async function voteForVideo(video: Video, value: VoteValue) {
   //   if (!gameId) {
@@ -205,15 +213,5 @@ export const useGameStore = defineStore("game", () => {
   //   } catch (error) {
   //     uiStore.handleNetworkError(error);
   //   }
-  // }
-
-  // // TODO: handle error
-  // function handleVideoError(error: any) {
-  //   console.log(`Video error: ${error}`)
-  // }
-
-  // // TODO: handle finished
-  // function handleFinished() {
-  //   console.log("Player finished")
   // }
 });

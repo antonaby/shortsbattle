@@ -77,6 +77,8 @@ export const GamesAPI = {
     });
     return response.data;
   },
+
+  // TODO: review
   async voteForVideo(
     gameId: number,
     videoId: number,
