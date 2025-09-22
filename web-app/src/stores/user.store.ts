@@ -3,10 +3,12 @@ import { ref } from "vue";
 import { useUIStore } from "./ui.store";
 import { AuthAPI } from "../api/auth";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
+import { useRoute } from "vue-router";
 
 export const useUserStore = defineStore("auth", () => {
   const token = ref<string | null>(null);
   const uiStore = useUIStore();
+  const route = useRoute();
 
   let decodedToken: JwtPayload | null = null;
 
@@ -16,11 +18,23 @@ export const useUserStore = defineStore("auth", () => {
     }
 
     try {
-      let newToken = await AuthAPI.getToken("userId=1&username=test&languageCode=ru"); // TODO: get user from TG
+      // TODO: get init data from TG
+      let initData = "userId=1&username=test&languageCode=ru";
+
+      if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_USER) {
+        const params = new URLSearchParams(window.location.search);
+        let userId = params.get("userId") || "1";
+        let username = params.get("username") || "test";
+        let languageCode = params.get("languageCode") || "ru";
+
+        initData = `userId=${userId}&username=${username}&languageCode=${languageCode}`
+      }
+
+      let newToken = await AuthAPI.getToken(initData);
       decodedToken = jwtDecode<JwtPayload>(newToken);
       token.value = newToken;
     } catch (error) {
-      uiStore.handleNetworkError(error);
+      uiStore.handleAuthError(error);
     }
 
     return token.value || "";
@@ -34,7 +48,7 @@ export const useUserStore = defineStore("auth", () => {
     const exp = decodedToken.exp;
     const now = Math.floor(Date.now() / 1000);
 
-    return exp <= now + cooldown
+    return exp <= now + cooldown;
   }
 
   return { token, getToken };

@@ -31,6 +31,10 @@ export const useUIStore = defineStore("ui", () => {
     }
   }
 
+  function handleAuthError(error: any) {
+    console.log(error);
+  }
+
   // TODO: show error modal
   function handleWsError(type: string, error: any) {
     console.log(error);
@@ -43,5 +47,6 @@ export const useUIStore = defineStore("ui", () => {
     openGameSubmit,
     handleNetworkError,
     handleWsError,
+    handleAuthError,
   };
 });
