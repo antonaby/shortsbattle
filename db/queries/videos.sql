@@ -8,7 +8,8 @@ SELECT * FROM add_video_for_player(sqlc.arg(player_id), sqlc.arg(video_url), sql
 SELECT v.* 
 FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
-WHERE pv.player_id = $1;
+WHERE pv.player_id = $1
+ORDER BY pv.added_at DESC;
 
 -- name: UpsertGameVideoIfOwned :one
 INSERT INTO game_videos (game_id, player_id, video_id, round_n)

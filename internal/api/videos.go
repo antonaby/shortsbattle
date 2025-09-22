@@ -1,73 +1,54 @@
 package api
 
 import (
-	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
-	m "github.com/antonaby/shortsbattle/game-server/internal/models"
+	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/labstack/echo/v4"
 )
 
-// TODO: rewrite using tgId and helpers
 func (api *HttpApi) addVideo(c echo.Context) error {
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return sendUnauthorized(c)
 	}
 
-	request := new(m.AddVideoRequest)
-	if err := c.Bind(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: InvalidRequestFormatMsg,
-		})
-	}
-
-	if err := c.Validate(request); err != nil {
-		return c.JSON(http.StatusBadRequest, m.ErrorResponse{
-			Error: RequestValidationErrorMsg,
-		})
+	request, err := bindAndValidate[models.AddVideoRequest](c)
+	if err != nil {
+		return sendInvalidReq(c)
 	}
 
 	ctx := c.Request().Context()
 	video, err := api.videos.AddVideo(ctx, tgId, request.VideoUrl)
 
 	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
+		if sErr, ok := isServErr(err); ok {
 			if sErr.Code == common.ErrorOEmbedFailed {
-				return c.JSON(http.StatusBadRequest, m.ErrorResponse{
+				return c.JSON(http.StatusBadRequest, models.ErrorResponse{
 					Error: "wrong video url",
 				})
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to add video: %v", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, video)
 }
 
 func (api *HttpApi) getVideosForPlayer(c echo.Context) error {
-	tgId, err := getTgUserIdFromToken(c)
+	tgId, err := tgId(c)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, m.ErrorResponse{
-			Error: UnathorizedErrorMsg,
-		})
+		return sendUnauthorized(c)
 	}
 
+	query := c.QueryParam("query")
 	ctx := c.Request().Context()
-	videos, err := api.videos.GetVideosByPlayer(ctx, tgId)
+	videos, err := api.videos.GetVideosByPlayer(ctx, tgId, strings.TrimSpace(query))
 	if err != nil {
-		c.Echo().Logger.Errorf("failed to fetch video: %v", err)
-		return c.JSON(http.StatusInternalServerError, m.ErrorResponse{
-			Error: "Something went wrong",
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, videos)

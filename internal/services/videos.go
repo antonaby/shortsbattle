@@ -65,7 +65,7 @@ func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId 
 }
 
 // TODO: add pagination and search
-func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64) ([]qg.Video, error) {
+func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64, query string) ([]qg.Video, error) {
 	return db.WithTxVQ(ctx, vs.txm, func(ctx context.Context, q qg.Querier) ([]qg.Video, error) {
 		videos, err := q.GetVideosByPlayer(ctx, playerId)
 		if err != nil {

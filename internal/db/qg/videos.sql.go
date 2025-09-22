@@ -103,6 +103,7 @@ SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at
 FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1
+ORDER BY pv.added_at DESC
 `
 
 func (q *Queries) GetVideosByPlayer(ctx context.Context, playerID int64) ([]Video, error) {

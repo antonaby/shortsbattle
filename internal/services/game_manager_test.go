@@ -111,7 +111,7 @@ func TestGameActions(t *testing.T) {
 		player1video3, err := vs.AddVideo(ctx, players[0].TgID, testUrl2)
 		fatalIfError(t, err, "failed to add video (player 1)")
 
-		videos, err := vs.GetVideosByPlayer(ctx, players[0].TgID)
+		videos, err := vs.GetVideosByPlayer(ctx, players[0].TgID, "")
 		fatalIfError(t, err, "failed to get videos (player 1)")
 		// check that 2 video has been added (as 1 and 2 video are the same)
 		require.Equal(t, 2, len(videos))
