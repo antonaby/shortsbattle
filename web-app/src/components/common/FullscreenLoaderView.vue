@@ -11,7 +11,7 @@ withDefaults(defineProps<{
 
 <template>
   <div class="modal-fullscreen" :class="[
-    grayBackground ? 'bg-black/10' : ''
+    grayBackground ? 'bg-black/10' : 'bg-white'
   ]">
     <div class="loader-big"></div>
     <div v-if="msg" class="text-lg text-gray-600">

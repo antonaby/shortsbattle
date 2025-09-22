@@ -114,6 +114,11 @@ export const useGameStore = defineStore("game", () => {
       case "watch":
         stopTimer();
         uiStore.openGameWatch(upd.id);
+        break;
+      case "watch-complete":
+        stopTimer();
+        uiStore.openGameWatch(upd.id);
+        break;
     }
   }
 

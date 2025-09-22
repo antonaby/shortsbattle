@@ -64,37 +64,48 @@ function handleError(error: any) {
 </script>
 
 <template>
-  <div class="flex flex-col items-center bg-gray-800 w-screen h-screen space-y-2"
-    :class="[currentVideoIndex >= 0 ? 'justify-start' : 'justify-center']">
-    <div v-if="currentVideoIndex >= 0" class="transition-[width] duration-500 ease-in-out"
-      :class="[showMenu || pinMenu ? 'w-10/11' : 'w-full']">
+  <div class="video-player-container" v-if="currentVideoIndex >= 0">
+    <div class="transition-[width] duration-500 ease-in-out" :class="[showMenu || pinMenu ? 'w-10/11' : 'w-full']">
       <YTPlayer v-if="currentVideo.platform == 'youtube'" :video-url="currentVideo.videoUrl"
         @state-change="handleStateChange" @error="handleError" />
       <TikTokPlayer v-if="currentVideo.platform == 'tiktok'" :video-url="currentVideo.videoUrl"
         @state-change="handleStateChange" @error="handleError" />
     </div>
-    <Transition v-if="currentVideoIndex >= 0" enter-active-class="transition duration-300 ease-out"
-      enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-2">
+    <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-2">
       <div v-if="showMenu || pinMenu"
         class="bg-white/90 rounded-xl p-2 flex justify-center items-center space-x-2 shadow mb-2">
-        <button class="w-16 rounded-md p-2 font-medium" @click="pinMenu = !pinMenu">
+        <button class="like-control" @click="pinMenu = !pinMenu">
           <span v-if="pinMenu">📍</span>
           <span v-else>📌</span>
         </button>
-        <button class="w-16 rounded-md p-2" @click="vote('like')">
+        <button class="like-control" @click="vote('like')">
           <span>👍</span>
         </button>
-        <button class="w-16 rounded-md p-2" @click="vote('dislike')">
+        <button class="like-control" @click="vote('dislike')">
           <span>👎</span>
         </button>
       </div>
     </Transition>
-    <div v-else class="bg-white/90 rounded-xl p-4 shadow flex flex-col items-center">
+  </div>
+  <div class="video-player-container" v-else> 
+    <div class="bg-white/90 rounded-xl p-4" >
       <span class="text-2xl font-medium">
         You have watched all videos 🥳
       </span>
     </div>
   </div>
 </template>
+
+<style>
+@import "tailwindcss";
+.video-player-container {
+  @apply flex flex-col items-center justify-center bg-gray-600 min-h-screen gap-2
+}
+
+
+.like-control {
+  @apply w-16 rounded-md p-2
+}
+</style>
