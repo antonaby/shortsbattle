@@ -82,45 +82,60 @@ func (q *Queries) GetSubmittedVideosByPlayers(ctx context.Context, gameID int64,
 }
 
 const getVideo = `-- name: GetVideo :one
-SELECT id, video_url, oembed, added_at, updated_at FROM videos WHERE id = $1
+SELECT v.id, v.video_url, v.oembed, pv.added_at
+FROM videos v
+JOIN player_videos pv ON pv.video_id = v.id
+WHERE v.id = $1 AND pv.player_id = $2
 `
 
-func (q *Queries) GetVideo(ctx context.Context, id int64) (Video, error) {
-	row := q.db.QueryRow(ctx, getVideo, id)
-	var i Video
+type GetVideoRow struct {
+	ID       int64              `json:"id"`
+	VideoUrl string             `json:"video_url"`
+	Oembed   json.RawMessage    `json:"oembed"`
+	AddedAt  pgtype.Timestamptz `json:"added_at"`
+}
+
+func (q *Queries) GetVideo(ctx context.Context, iD int64, playerID int64) (GetVideoRow, error) {
+	row := q.db.QueryRow(ctx, getVideo, iD, playerID)
+	var i GetVideoRow
 	err := row.Scan(
 		&i.ID,
 		&i.VideoUrl,
 		&i.Oembed,
 		&i.AddedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getVideosByPlayer = `-- name: GetVideosByPlayer :many
-SELECT v.id, v.video_url, v.oembed, v.added_at, v.updated_at 
+SELECT v.id, v.video_url, v.oembed, pv.added_at
 FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1
 ORDER BY pv.added_at DESC
 `
 
-func (q *Queries) GetVideosByPlayer(ctx context.Context, playerID int64) ([]Video, error) {
+type GetVideosByPlayerRow struct {
+	ID       int64              `json:"id"`
+	VideoUrl string             `json:"video_url"`
+	Oembed   json.RawMessage    `json:"oembed"`
+	AddedAt  pgtype.Timestamptz `json:"added_at"`
+}
+
+func (q *Queries) GetVideosByPlayer(ctx context.Context, playerID int64) ([]GetVideosByPlayerRow, error) {
 	rows, err := q.db.Query(ctx, getVideosByPlayer, playerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Video
+	var items []GetVideosByPlayerRow
 	for rows.Next() {
-		var i Video
+		var i GetVideosByPlayerRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.VideoUrl,
 			&i.Oembed,
 			&i.AddedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -137,13 +152,15 @@ SELECT
     gv.id as game_video_id,
     gv.game_id,
     gv.round_n,
+    gv.player_id,
+    gv.submitted_at,
     v.id AS video_id,
     v.video_url,
     v.oembed,
-    v.added_at,
-    v.updated_at
+    pv.added_at
 FROM game_videos gv
 JOIN videos v ON gv.video_id = v.id
+JOIN player_videos pv ON pv.player_id = gv.player_id AND pv.video_id = v.id
 WHERE gv.game_id = $1
   AND gv.round_n = $2
   AND gv.player_id <> $3
@@ -159,11 +176,12 @@ type GetVideosToWatchRow struct {
 	GameVideoID int64              `json:"game_video_id"`
 	GameID      int64              `json:"game_id"`
 	RoundN      int32              `json:"round_n"`
+	PlayerID    int64              `json:"player_id"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 	VideoID     int64              `json:"video_id"`
 	VideoUrl    string             `json:"video_url"`
 	Oembed      json.RawMessage    `json:"oembed"`
 	AddedAt     pgtype.Timestamptz `json:"added_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error) {
@@ -179,11 +197,12 @@ func (q *Queries) GetVideosToWatch(ctx context.Context, arg GetVideosToWatchPara
 			&i.GameVideoID,
 			&i.GameID,
 			&i.RoundN,
+			&i.PlayerID,
+			&i.SubmittedAt,
 			&i.VideoID,
 			&i.VideoUrl,
 			&i.Oembed,
 			&i.AddedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

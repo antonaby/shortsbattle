@@ -112,8 +112,8 @@ func (gm *GameManager) UpdateGameMode(ctx context.Context, gameId, playerId int6
 // TODO: check duplicate videos (the same video can be submitted only once)
 func (gm *GameManager) SubmitExistingVideo(
 	ctx context.Context, gameId, videoId, playerId int64, roundN int32,
-) (*qg.GetGameShareLockRow, *models.SubmitGameVideo, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *models.SubmitGameVideo, error) {
+) (*qg.GetGameShareLockRow, *models.GameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *models.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit, qg.GameStageSubmitComplete})
 		if err != nil {
 			return nil, nil, err
@@ -129,18 +129,23 @@ func (gm *GameManager) SubmitExistingVideo(
 			return nil, nil, err
 		}
 
-		video, err := q.GetVideo(ctx, gv.VideoID)
+		video, err := q.GetVideo(ctx, gv.VideoID, playerId)
 		if err != nil {
 			return nil, nil, gmDbError("failed to get video", err)
 		}
 
-		return game, &models.SubmitGameVideo{
+		return game, &models.GameVideo{
 			ID:          gv.ID,
 			GameID:      gv.GameID,
 			PlayerID:    gv.PlayerID,
 			RoundN:      gv.RoundN,
 			SubmittedAt: gv.SubmittedAt,
-			Video:       video,
+			Video: models.Video{
+				ID:       video.ID,
+				VideoUrl: video.VideoUrl,
+				OEmbed:   video.Oembed,
+				AddedAt:  video.AddedAt,
+			},
 		}, nil
 	})
 }
@@ -148,13 +153,13 @@ func (gm *GameManager) SubmitExistingVideo(
 // TODO: check duplicate videos (the same video can be submitted only once)
 func (gm *GameManager) SubmitNewVideo(
 	ctx context.Context, gameId int64, videoUrl string, playerId int64, roundN int32,
-) (*qg.GetGameShareLockRow, *models.SubmitGameVideo, error) {
+) (*qg.GetGameShareLockRow, *models.GameVideo, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *models.SubmitGameVideo, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameShareLockRow, *models.GameVideo, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageSubmit, qg.GameStageSubmitComplete})
 		if err != nil {
 			return nil, nil, err
@@ -164,7 +169,7 @@ func (gm *GameManager) SubmitNewVideo(
 			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
-		video, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
+		origVideo, err := q.AddVideoToPlayer(ctx, qg.AddVideoToPlayerParams{
 			PlayerID: playerId,
 			VideoUrl: videoUrl,
 			Oembed:   oembed,
@@ -174,18 +179,28 @@ func (gm *GameManager) SubmitNewVideo(
 			return nil, nil, gmDbError("failed to add video to player", err)
 		}
 
-		gv, err := gm.addVideoToGame(ctx, q, gameId, video.ID, playerId, roundN)
+		gv, err := gm.addVideoToGame(ctx, q, gameId, origVideo.ID, playerId, roundN)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		return game, &models.SubmitGameVideo{
+		video, err := q.GetVideo(ctx, gv.VideoID, playerId)
+		if err != nil {
+			return nil, nil, gmDbError("failed to get video", err)
+		}
+
+		return game, &models.GameVideo{
 			ID:          gv.ID,
 			GameID:      gv.GameID,
 			PlayerID:    gv.PlayerID,
 			RoundN:      gv.RoundN,
 			SubmittedAt: gv.SubmittedAt,
-			Video:       video,
+			Video: models.Video{
+				ID:       video.ID,
+				VideoUrl: video.VideoUrl,
+				OEmbed:   video.Oembed,
+				AddedAt:  video.AddedAt,
+			},
 		}, nil
 	})
 }
@@ -223,8 +238,8 @@ func (gm *GameManager) addVideoToGame(ctx context.Context, q qg.Querier, gameId,
 	return &gv, nil
 }
 
-func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]qg.GetVideosToWatchRow, error) {
-	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.GetVideosToWatchRow, error) {
+func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId int64, roundN int32) ([]models.GameVideo, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]models.GameVideo, error) {
 		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageWatch})
 		if err != nil {
 			return nil, err
@@ -241,10 +256,27 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 		}
 
 		if len(videos) == 0 {
-			videos = []qg.GetVideosToWatchRow{}
+			return []models.GameVideo{}, nil
 		}
 
-		return videos, nil
+		vModels := make([]models.GameVideo, 0, len(videos))
+		for _, v := range videos {
+			vModels = append(vModels, models.GameVideo{
+				ID:          v.GameVideoID,
+				GameID:      v.GameID,
+				PlayerID:    v.PlayerID,
+				RoundN:      v.RoundN,
+				SubmittedAt: v.SubmittedAt,
+				Video: models.Video{
+					ID:       v.VideoID,
+					VideoUrl: v.VideoUrl,
+					OEmbed:   v.Oembed,
+					AddedAt:  v.AddedAt,
+				},
+			})
+		}
+
+		return vModels, nil
 	})
 }
 

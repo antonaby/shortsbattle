@@ -115,8 +115,8 @@ func TestGameActions(t *testing.T) {
 		fatalIfError(t, err, "failed to get videos (player 1)")
 		// check that 2 video has been added (as 1 and 2 video are the same)
 		require.Equal(t, 2, len(videos))
-		require.Equal(t, player1video1.ID, videos[0].ID)
-		require.Equal(t, player1video3.ID, videos[1].ID)
+		require.Equal(t, player1video1.ID, videos[1].ID) // desc order
+		require.Equal(t, player1video3.ID, videos[0].ID)
 
 		// create game and add player to it
 		game1, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageSubmit, 1)
@@ -210,16 +210,16 @@ func TestGameActions(t *testing.T) {
 		fatalIfError(t, err, "failed to get videos to watch (player 1)")
 		// should be videos from player 2 and 3
 		require.Equal(t, 2, len(videosToWatchP1))
-		require.Equal(t, player2GameVideo1.Video.ID, videosToWatchP1[0].VideoID)
-		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP1[1].VideoID)
+		require.Equal(t, player2GameVideo1.Video.ID, videosToWatchP1[0].Video.ID)
+		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP1[1].Video.ID)
 
 		// get videos for player 2
 		videosToWatchP2, err := gm.GetVideosToWatch(ctx, game1.ID, players[1].TgID, 1)
 		fatalIfError(t, err, "failed to get videos to watch (player 2)")
 		// should be videos from player 1 and 3
 		require.Equal(t, 2, len(videosToWatchP2))
-		require.Equal(t, player1GameVideo4.Video.ID, videosToWatchP2[0].VideoID)
-		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP2[1].VideoID)
+		require.Equal(t, player1GameVideo4.Video.ID, videosToWatchP2[0].Video.ID)
+		require.Equal(t, player3GameVideo1.Video.ID, videosToWatchP2[1].Video.ID)
 	})
 
 	t.Run("VoteForVideo", func(t *testing.T) {
@@ -328,7 +328,7 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
-		gameVideos := []models.SubmitGameVideo{}
+		gameVideos := []models.GameVideo{}
 		for i, p := range players {
 			url := testVideos[i]
 			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 1)
@@ -444,7 +444,7 @@ func TestGameActions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
-		gameVideos := []models.SubmitGameVideo{}
+		gameVideos := []models.GameVideo{}
 		// round 1
 		for i, p := range players {
 			url := testVideos[i]

@@ -5,17 +5,17 @@ import VideoPlayerWrapper from '../players/VideoPlayerWrapper.vue';
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue';
 
 const gameStore = useGameStore();
-onMounted(async () => {
-  await gameStore.loadVideosToWatch();
-});
+
 </script>
 
 <template>
-  <VideoPlayerWrapper 
+  <FullscreenLoaderView />
+  
+  <!-- <VideoPlayerWrapper 
     v-if="gameStore.gameVideos.length > 0" 
     :videos="gameStore.gameVideos" 
     @vote="gameStore.voteForVideo" 
     @error="gameStore.handleVideoError" 
-    @finished="gameStore.handleFinished" />
-  <FullscreenLoaderView v-else />
+    @finished="gameStore.handleFinished" /> -->
+  
 </template>

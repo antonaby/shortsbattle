@@ -19,7 +19,8 @@ export const useGameStore = defineStore("game", () => {
   const theme = ref<Theme | undefined>(undefined);
   const lastUpdate = ref<GameUpdate | undefined>(undefined);
   const remainingTimeMs = ref<number>(-1);
-  const playerVideo = ref<GameVideo | undefined>(undefined); 
+  const playerVideo = ref<GameVideo | undefined>(undefined);
+  const videosToWatch = ref<GameVideo[]>([]);
 
   let gameSub: Subscription | null = null;
   let intervalId: number | null = null;
@@ -103,6 +104,7 @@ export const useGameStore = defineStore("game", () => {
         uiStore.openGameLobby(upd.id);
         break;
       case "submit":
+        playerVideo.value = undefined;
         startTimer(upd.remaining_ms);
         uiStore.openGameSubmit(upd.id);
         break;
@@ -166,11 +168,12 @@ export const useGameStore = defineStore("game", () => {
     formattedTime,
     lastUpdate,
     playerVideo,
+    videosToWatch,
     joinGame,
     leaveGame,
     startTimer,
     submitVideo,
-    submitNewVideo
+    submitNewVideo,
   };
 
   // // TODO: show loading element

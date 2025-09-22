@@ -48,13 +48,20 @@ type LikeDislikeFinalResult struct {
 	Results []LikeDislikeVideoResult `json:"results"`
 }
 
-type SubmitGameVideo struct {
+type Video struct {
+	ID       int64              `json:"id"`
+	VideoUrl string             `json:"video_url"`
+	OEmbed   json.RawMessage    `json:"oembed"`
+	AddedAt  pgtype.Timestamptz `json:"added_at"`
+}
+
+type GameVideo struct {
 	ID          int64              `json:"id"`
 	GameID      int64              `json:"game_id"`
 	PlayerID    int64              `json:"player_id"`
 	RoundN      int32              `json:"round_n"`
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
-	Video       qg.Video           `json:"video"`
+	Video       Video              `json:"video"`
 }
 
 type MessageType string

@@ -39,6 +39,7 @@ func NewVideosService(txm db.TxManager) *VideoService {
 	}
 }
 
+// TODO: return something like GetVideosByPlayerRow instead of plain video model
 func (vs *VideoService) AddVideo(ctx context.Context, playerId int64, videoUrl string) (*qg.Video, error) {
 	oembed, err := fetchOEmbed(ctx, videoUrl)
 	if err != nil {
@@ -65,15 +66,15 @@ func (vs *VideoService) createVideo(ctx context.Context, q qg.Querier, playerId 
 }
 
 // TODO: add pagination and search
-func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64, query string) ([]qg.Video, error) {
-	return db.WithTxVQ(ctx, vs.txm, func(ctx context.Context, q qg.Querier) ([]qg.Video, error) {
+func (vs *VideoService) GetVideosByPlayer(ctx context.Context, playerId int64, query string) ([]qg.GetVideosByPlayerRow, error) {
+	return db.WithTxVQ(ctx, vs.txm, func(ctx context.Context, q qg.Querier) ([]qg.GetVideosByPlayerRow, error) {
 		videos, err := q.GetVideosByPlayer(ctx, playerId)
 		if err != nil {
 			return nil, vsDbError("failed to fetch video", err)
 		}
 
 		if len(videos) == 0 {
-			videos = []qg.Video{}
+			videos = []qg.GetVideosByPlayerRow{}
 		}
 
 		return videos, nil

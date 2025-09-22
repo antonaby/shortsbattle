@@ -1,11 +1,14 @@
 -- name: GetVideo :one
-SELECT * FROM videos WHERE id = $1;
+SELECT v.id, v.video_url, v.oembed, pv.added_at
+FROM videos v
+JOIN player_videos pv ON pv.video_id = v.id
+WHERE v.id = $1 AND pv.player_id = $2;
 
 -- name: AddVideoToPlayer :one  
 SELECT * FROM add_video_for_player(sqlc.arg(player_id), sqlc.arg(video_url), sqlc.arg(oembed));
 
 -- name: GetVideosByPlayer :many
-SELECT v.* 
+SELECT v.id, v.video_url, v.oembed, pv.added_at
 FROM videos AS v
 JOIN player_videos AS pv ON pv.video_id = v.id
 WHERE pv.player_id = $1
@@ -50,13 +53,15 @@ SELECT
     gv.id as game_video_id,
     gv.game_id,
     gv.round_n,
+    gv.player_id,
+    gv.submitted_at,
     v.id AS video_id,
     v.video_url,
     v.oembed,
-    v.added_at,
-    v.updated_at
+    pv.added_at
 FROM game_videos gv
 JOIN videos v ON gv.video_id = v.id
+JOIN player_videos pv ON pv.player_id = gv.player_id AND pv.video_id = v.id
 WHERE gv.game_id = $1
   AND gv.round_n = $2
   AND gv.player_id <> $3;

@@ -11,10 +11,11 @@ import OpenView from "@/components/game/subpages/OpenView.vue";
 import WatchView from "@/components/game/subpages/WatchView.vue";
 import CompleteView from "@/components/game/subpages/CompleteView.vue";
 import VideoPlayerWrapper from "@/components/game/players/VideoPlayerWrapper.vue";
-import Theme from "./pages/Theme.vue";
-import OpenDevWrapper from "./components/dev/OpenDevWrapper.vue";
-import LobbyDevWrapper from "./components/dev/LobbyDevWrapper.vue";
-import SubmitDevWrapper from "./components/dev/SubmitDevWrapper.vue";
+import Theme from "@/pages/Theme.vue";
+import OpenDevWrapper from "@/components/dev/OpenDevWrapper.vue";
+import LobbyDevWrapper from "@/components/dev/LobbyDevWrapper.vue";
+import SubmitDevWrapper from "@/components/dev/SubmitDevWrapper.vue";
+import WatchDevWrapper from "@/components/dev/WatchDevWrapper.vue";
 
 let routes: RouteRecordRaw[] = [
   {
@@ -54,6 +55,10 @@ if (import.meta.env.DEV) {
     {
       path: "/dev/game/submit",
       component: SubmitDevWrapper,
+    },
+    {
+      path: "/dev/game/watch",
+      component: WatchDevWrapper,
     },
     {
       path: "/dev/player",

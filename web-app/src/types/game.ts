@@ -49,7 +49,6 @@ export interface Video {
   video_url: string;
   oembed: OEmbed;
   added_at: string;
-  updated_at: string;
 }
 
 export interface OEmbed {
