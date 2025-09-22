@@ -2,7 +2,7 @@
 import type { Video } from '@/types/game';
 import VideoButton from './VideoButton.vue';
 import debounce from 'lodash.debounce'
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 defineProps<{
   videos: Video[],
@@ -27,6 +27,10 @@ watch(query, value => onInput(value));
 function onClear() {
   query.value = "";
 }
+
+onMounted(() => {
+  emits('search', query.value);
+})
 </script>
 
 <template>
@@ -48,7 +52,7 @@ function onClear() {
   <div class="loader-container h-16" v-if="loading">
     <div class="loader-big"></div>
   </div>
-  <ul class="space-y-4 mt-4" v-if="!loading && videos.length > 0">
+  <ul class="space-y-4 mt-2" v-if="!loading && videos.length > 0">
     <li v-for="video in videos">
       <VideoButton :video="video" @click="onClick" />
     </li>

@@ -40,8 +40,11 @@ const round = computed<Round | null>(() => {
   return found || null;
 });
 
-function onSearchVideo(query: string) {
-  console.log(query);
+const loadPlayerVideos = ref<boolean>(false);
+async function onSearchVideo(query: string) {
+  loadPlayerVideos.value = true;
+  await videoStore.loadVideos(query);
+  loadPlayerVideos.value = false;
 }
 
 const showTimer = ref<boolean>(true);
@@ -113,7 +116,7 @@ async function onSubmitVideo(video: Video) {
         :videos="videoStore.playerVideos" 
         @select="onSubmitVideo" 
         @search="onSearchVideo" 
-        :loading="false" />
+        :loading="loadPlayerVideos" />
     </div>
     <div class="loader-container gap-4 py-4" v-if="uploadingVideo && !gameStore.playerVideo">
       <p class="text-2xl font-medium text-center">🚀 Submit & Go!</p>

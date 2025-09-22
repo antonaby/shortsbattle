@@ -25,7 +25,7 @@ export const GamesAPI = {
     });
     return response.data;
   },
-  async getPayerVideos(): Promise<Video[]> {
+  async getPayerVideos(query: string): Promise<Video[]> {
     const response = await api.get<Video[]>("/api/v1/me/videos");
     return response.data;
   },

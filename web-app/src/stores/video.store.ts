@@ -4,7 +4,6 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useUIStore } from "./ui.store";
 
-
 export const useVideoStore = defineStore("video", () => {
   const uiStore = useUIStore();
 
@@ -12,14 +11,14 @@ export const useVideoStore = defineStore("video", () => {
 
   async function loadVideos(query: string) {
     try {
-     playerVideos.value = await GamesAPI.getPayerVideos();
+      playerVideos.value = await GamesAPI.getPayerVideos(query);
     } catch (error) {
       uiStore.handleNetworkError(error);
-    }   
+    }
   }
 
   return {
     playerVideos,
-    loadVideos
-  }
-})
+    loadVideos,
+  };
+});
