@@ -42,7 +42,7 @@
 }
 
 .modal-fullscreen-content {
-  @apply rounded-xl bg-gray-100 flex flex-col items-center justify-center p-4 w-2/3 gap-3 max-w-sm;
+  @apply rounded-xl bg-white flex flex-col items-center justify-center p-4 w-2/3 gap-3 max-w-sm;
 }
 
 .loading-rect {
