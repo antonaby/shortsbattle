@@ -55,7 +55,7 @@ func main() {
 		MaxLobbyFullStage:      3 * time.Second,
 		MaxSubmitStage:         60 * time.Second,
 		MaxSubmitCompleteStage: 3 * time.Second,
-		MaxWatchState:          600 * time.Second,
+		MaxWatchStage:          600 * time.Second,
 		MaxWatchCompleteStage:  3 * time.Second,
 	}
 

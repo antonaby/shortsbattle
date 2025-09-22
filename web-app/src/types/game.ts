@@ -78,13 +78,15 @@ export interface GameVideo {
   video: Video;
 }
 
-// TODO: review
-export type VoteValue = "like" | "dislike" | "skip";
+export type VoteValue = "like" | "dislike";
+
+export interface LikeDislikeVote {
+  value: VoteValue;
+}
 
 export interface Vote {
-  game_id: number;
+  game_video_id: number;
   player_id: number;
-  video_id: number;
+  value: LikeDislikeVote;
   voted_at: string;
-  value: VoteValue;
 }

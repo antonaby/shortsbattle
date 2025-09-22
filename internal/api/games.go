@@ -235,29 +235,19 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 	game, vote, err := api.games.VoteForVideo(ctx, gameVideoId, tgId, request.Value)
 
 	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
+		if sErr, ok := isServErr(err); ok {
 			if sErr.Code == common.ErrorForbidden {
-				return c.JSON(http.StatusForbidden, models.ErrorResponse{
-					Error: GameActionForbiddenMsg,
-				})
+				return sendForbidden(c)
 			}
 			if sErr.Code == common.ErrorBadData {
-				return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-					Error: "invalid vote value",
-				})
+				return sendInvalidReq(c)
 			}
 			if sErr.Code == common.ErrorNotFound {
-				return c.JSON(http.StatusNotFound, models.ErrorResponse{
-					Error: "game video not found",
-				})
+				return sendNotFound(c, "game video")
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to vote for video: %w", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	err = api.watchdog.AdvanceGameNow(ctx, game.GameID)

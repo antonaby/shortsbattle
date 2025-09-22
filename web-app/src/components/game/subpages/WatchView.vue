@@ -5,6 +5,7 @@ import VideoPlayerWrapper from '../players/VideoPlayerWrapper.vue';
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue';
 
 const gameStore = useGameStore();
+
 onMounted(() => {
   gameStore.loadVideosToWatch()
 })
@@ -12,8 +13,11 @@ onMounted(() => {
 
 <template>
   <FullscreenLoaderView v-if="gameStore.videosToWatch.length == 0" :gray-background="false" msg="⚡ Loading videos..." />
+  <!-- TODO: handle video errors! -->
+  <!-- TODO: check player errors -->
   <VideoPlayerWrapper 
     v-if="gameStore.videosToWatch.length > 0" 
     :videos="gameStore.videosToWatch" 
+    @vote="gameStore.voteForVideo"
    />
 </template>

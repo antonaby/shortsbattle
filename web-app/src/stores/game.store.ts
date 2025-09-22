@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { Theme, GameUpdate, Video, GameVideo } from "../types/game";
+import type { Theme, GameUpdate, Video, GameVideo, VoteValue } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useUIStore } from "./ui.store";
@@ -189,6 +189,18 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  async function voteForVideo(gameVideo: GameVideo, value: VoteValue) {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      await GamesAPI.voteForVideo(gameVideo.id, value);
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
   return {
     theme,
     formattedTime,
@@ -201,17 +213,6 @@ export const useGameStore = defineStore("game", () => {
     submitVideo,
     submitNewVideo,
     loadVideosToWatch,
+    voteForVideo
   };
-
-  // async function voteForVideo(video: Video, value: VoteValue) {
-  //   if (!gameId) {
-  //     return;
-  //   }
-
-  //   try {
-  //     await GamesAPI.voteForVideo(gameId, video.id, value);
-  //   } catch (error) {
-  //     uiStore.handleNetworkError(error);
-  //   }
-  // }
 });

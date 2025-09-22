@@ -35,7 +35,7 @@ func TestGameActions(t *testing.T) {
 		MaxLobbyFullStage:      1 * time.Second,
 		MaxSubmitStage:         2 * time.Second,
 		MaxSubmitCompleteStage: 1 * time.Second,
-		MaxWatchState:          2 * time.Second,
+		MaxWatchStage:          2 * time.Second,
 		MaxWatchCompleteStage:  1 * time.Second,
 	})
 
@@ -530,7 +530,7 @@ func TestAdvanceGame(t *testing.T) {
 		MaxLobbyFullStage:      1 * time.Second,
 		MaxSubmitStage:         2 * time.Second,
 		MaxSubmitCompleteStage: 1 * time.Second,
-		MaxWatchState:          2 * time.Second,
+		MaxWatchStage:          2 * time.Second,
 		MaxWatchCompleteStage:  1 * time.Second,
 	})
 

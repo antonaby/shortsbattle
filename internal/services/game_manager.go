@@ -46,7 +46,7 @@ type GameConfig struct {
 	MaxLobbyFullStage      time.Duration
 	MaxSubmitStage         time.Duration
 	MaxSubmitCompleteStage time.Duration
-	MaxWatchState          time.Duration
+	MaxWatchStage          time.Duration
 	MaxWatchCompleteStage  time.Duration
 }
 
@@ -325,9 +325,11 @@ func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage
 		if err != nil {
 			return gmError(common.ErrorBadData, "bad vote data", err)
 		}
+
+		return nil
 	}
 
-	return nil
+	return gmError(common.ErrorBadData, "unknown game mode", nil)
 }
 
 func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) (*qg.GameFinalResult, error) {
@@ -530,7 +532,7 @@ func (gm *GameManager) handleSubmit(ctx context.Context, q qg.Querier, game qg.G
 func (gm *GameManager) handleSubmitComplete(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	probablyTimeout := game.PastMs >= gm.config.MaxSubmitCompleteStage.Milliseconds() || isTimeout
 	if probablyTimeout {
-		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageWatch, game.RoundN, gm.config.MaxWatchState)
+		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageWatch, game.RoundN, gm.config.MaxWatchStage)
 		if err != nil {
 			return nil, err
 		}
@@ -544,7 +546,7 @@ func (gm *GameManager) handleSubmitComplete(ctx context.Context, q qg.Querier, g
 
 // TODO: increase time as players vote
 func (gm *GameManager) handleWatch(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
-	probablyTimeout := game.PastMs >= gm.config.MaxWatchState.Milliseconds() || isTimeout
+	probablyTimeout := game.PastMs >= gm.config.MaxWatchStage.Milliseconds() || isTimeout
 	if probablyTimeout {
 		status, err := gm.updateGameStatus(ctx, q, game.GameID, qg.GameStageWatchComplete, game.RoundN, gm.config.MaxWatchCompleteStage)
 		if err != nil {

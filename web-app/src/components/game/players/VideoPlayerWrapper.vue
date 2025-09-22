@@ -18,7 +18,6 @@ const props = defineProps<{
 const emits = defineEmits<{
   (e: 'vote', video: GameVideo, value: VoteValue): void
   (e: 'error', video: GameVideo, error: any): void
-  (e: 'finished'): void
 }>();
 
 const showMenu = ref<boolean>(false);
@@ -40,7 +39,6 @@ function nextVideo() {
     currentVideoIndex.value += 1;
   } else {
     currentVideoIndex.value = -1;
-    emits('finished');
   }
 }
 
@@ -84,9 +82,6 @@ function handleError(error: any) {
         <button class="w-16 rounded-md p-2 font-medium" @click="pinMenu = !pinMenu">
           <span v-if="pinMenu">📍</span>
           <span v-else>📌</span>
-        </button>
-        <button class="w-16 rounded-md p-2" @click="vote('skip')">
-          <span>🙈</span>
         </button>
         <button class="w-16 rounded-md p-2" @click="vote('like')">
           <span>👍</span>

@@ -69,26 +69,27 @@ export const GamesAPI = {
     );
     return response.data;
   },
-  async fetchVideosToWatch(gameId: number, round: number): Promise<GameVideo[]> {
-    const response = await api.get<GameVideo[]>(`/api/v1/games/${gameId}/videos`, {
-      params: {
-        round,
-      },
-    });
+  async fetchVideosToWatch(
+    gameId: number,
+    round: number
+  ): Promise<GameVideo[]> {
+    const response = await api.get<GameVideo[]>(
+      `/api/v1/games/${gameId}/videos`,
+      {
+        params: {
+          round,
+        },
+      }
+    );
     return response.data;
   },
-
-  // TODO: review
-  async voteForVideo(
-    gameId: number,
-    videoId: number,
-    value: VoteValue
-  ): Promise<Vote> {
+  async voteForVideo(gameVideoId: number, value: VoteValue): Promise<Vote> {
     const response = await api.put<Vote>(
-      `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/vote`,
+      `${import.meta.env.VITE_BASE_URL}/api/v1/votes/${gameVideoId}`,
       {
-        video_id: videoId,
-        value: value,
+        value: {
+          value: value
+        },
       }
     );
     return response.data;
