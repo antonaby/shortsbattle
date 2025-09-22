@@ -14,9 +14,13 @@ const emits = defineEmits<{
 
 let player: YT.Player | null = null;
 
-watch(() => props.videoUrl, (newVal) => {
+watch(() => props.videoUrl, async (newVal) => {
   if (player) {
-    player.loadVideoById(extractYTVideoId(newVal));
+    if (!!player.loadVideoById) {
+      player.loadVideoById(extractYTVideoId(newVal));
+    } else {
+      console.log("YT Player not reasy") // TODO: verify why
+    }
   }
 });
 
