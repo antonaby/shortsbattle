@@ -28,8 +28,8 @@ export const GamesAPI = {
   async getPayerVideos(query: string): Promise<Video[]> {
     const response = await api.get<Video[]>("/api/v1/me/videos", {
       params: {
-        query: query
-      }
+        query: query,
+      },
     });
     return response.data;
   },
@@ -69,10 +69,12 @@ export const GamesAPI = {
     );
     return response.data;
   },
-  async fetchVideosToWatch(gameId: number): Promise<Video[]> {
-    const response = await api.get<Video[]>(
-      `${import.meta.env.VITE_BASE_URL}/api/v1/games/${gameId}/videos`
-    );
+  async fetchVideosToWatch(gameId: number, round: number): Promise<GameVideo[]> {
+    const response = await api.get<GameVideo[]>(`/api/v1/games/${gameId}/videos`, {
+      params: {
+        round,
+      },
+    });
     return response.data;
   },
   async voteForVideo(

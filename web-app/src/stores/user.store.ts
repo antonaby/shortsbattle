@@ -3,12 +3,10 @@ import { ref } from "vue";
 import { useUIStore } from "./ui.store";
 import { AuthAPI } from "../api/auth";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
-import { useRoute } from "vue-router";
 
 export const useUserStore = defineStore("auth", () => {
   const token = ref<string | null>(null);
   const uiStore = useUIStore();
-  const route = useRoute();
 
   let decodedToken: JwtPayload | null = null;
 

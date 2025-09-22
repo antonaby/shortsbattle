@@ -79,16 +79,6 @@ export interface GameVideo {
 }
 
 // TODO: review
-export interface GameResult {
-  videos: VideoResult[];
-}
-
-export interface VideoResult {
-  id: number;
-  likes: number;
-  dislikes: number;
-}
-
 export type VoteValue = "like" | "dislike" | "skip";
 
 export interface Vote {

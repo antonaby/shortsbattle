@@ -128,6 +128,12 @@ func sendUnauthorized(c echo.Context) error {
 	})
 }
 
+func sendForbidden(c echo.Context) error {
+	return c.JSON(http.StatusForbidden, models.ErrorResponse{
+		Error: GameActionForbiddenMsg,
+	})
+}
+
 func bindAndValidate[T any](c echo.Context) (T, error) {
 	request := new(T)
 	if err := c.Bind(request); err != nil {

@@ -203,19 +203,13 @@ func (api *HttpApi) getVideosForGame(c echo.Context) error {
 	ctx := c.Request().Context()
 	videos, err := api.games.GetVideosToWatch(ctx, gameId, tgId, roundN)
 	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
+		if sErr, ok := isServErr(err); ok {
 			if sErr.Code == common.ErrorForbidden {
-				return c.JSON(http.StatusForbidden, models.ErrorResponse{
-					Error: GameActionForbiddenMsg,
-				})
+				return sendForbidden(c)
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to submit video: %w", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, videos)

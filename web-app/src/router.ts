@@ -67,25 +67,35 @@ if (import.meta.env.DEV) {
         videos: [
           {
             id: 0,
-            video_url: "https://www.youtube.com/shorts/wve9udh3qM4",
+            video: {
+              video_url: "https://www.youtube.com/shorts/wve9udh3qM4",
+            },
           },
           {
             id: 1,
-            video_url: "https://www.youtube.com/shorts/Z5Jlxowr4IM",
+            video: {
+              video_url: "https://www.youtube.com/shorts/Z5Jlxowr4IM",
+            },
           },
           {
             id: 2,
-            video_url:
-              "https://www.tiktok.com/@br0pics/video/7540625283531967776",
+            video: {
+              video_url:
+                "https://www.tiktok.com/@br0pics/video/7540625283531967776",
+            },
           },
           {
             id: 3,
-            video_url:
-              "https://www.tiktok.com/@br0pics/video/7540986521684380960",
+            video: {
+              video_url:
+                "https://www.tiktok.com/@br0pics/video/7540986521684380960",
+            },
           },
           {
             id: 4,
-            video_url: "https://www.youtube.com/shorts/XUretomgAAA",
+            video: {
+              video_url: "https://www.youtube.com/shorts/XUretomgAAA",
+            },
           },
         ],
       },
