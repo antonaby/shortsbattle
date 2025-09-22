@@ -15,7 +15,7 @@ const emits = defineEmits<{
     </p>
     <label class="block">
       <span class="block mb-1 text-sm">🔗 URL</span>
-      <input v-model="url" type="url" name="url" placeholder="https://www.youtube.com/shorts/xyz" required class="w-full border rounded-lg p-2" />
+      <input v-model="url" type="url" name="url" placeholder="https://www.youtube.com/shorts/xyz" required class="w-full border rounded-lg p-2 outline-none" />
     </label>
     <button type="submit" class="action-button w-full">⚡ Submit</button>
   </form>

@@ -81,6 +81,8 @@ const (
 
 type GameUpdate struct {
 	GameID            int64              `json:"id"`
+	PlayerMode        qg.PlayerGameMode  `json:"player_mode,omitempty"`
+	GameMode          qg.GameMode        `json:"game_mode,omitempty"`
 	MsgType           MessageType        `json:"msg_type"`
 	Stage             qg.GameStage       `json:"stage"`
 	StateChangeReason *StageChangeReason `json:"state_change_reason,omitempty"`

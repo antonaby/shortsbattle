@@ -40,12 +40,17 @@ const round = computed<Round | null>(() => {
   return found || null;
 });
 
+function onSearchVideo(query: string) {
+  console.log(query);
+}
+
 const showTimer = ref<boolean>(true);
 function onShowTimer(value: boolean) {
   showTimer.value = value;
 }
 
 const uploadingVideo = ref<boolean>(false);
+
 async function onSubmitUrl(url: string) {
   uploadingVideo.value = true;
   await gameStore.submitNewVideo(url);
@@ -82,10 +87,11 @@ async function onSubmitVideo(video: Video) {
       <Transition enter-from-class="opacity-100" enter-active-class="transition ease-out duration-400"
         enter-to-class="opacity-100">
         <span class="text-base font-light" v-if="!showTimer">
-          ⚡ Almost time — get ready!
+          ⚡ Almost done — get ready!
         </span>
       </Transition>
     </div>
+    <!--TODO: handle the case when a user hasn't submitted any video -->
     <div class="sub-container" v-if="gameStore.playerVideo">
       <p class="w-full text-center">✨ Your Video</p>
       <VideoButton :video="gameStore.playerVideo.video" />
@@ -102,7 +108,12 @@ async function onSubmitVideo(video: Video) {
     <div class="sub-container" v-if="!uploadingVideo && !gameStore.playerVideo">
       <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
       <AddVideoFormView v-if="activeTab.key == 'new'" @submit="onSubmitUrl" />
-      <VideoListView v-if="activeTab.key == 'library'" :videos="videoStore.playerVideos" @select="onSubmitVideo" />
+      <VideoListView 
+        v-if="activeTab.key == 'library'" 
+        :videos="videoStore.playerVideos" 
+        @select="onSubmitVideo" 
+        @search="onSearchVideo" 
+        :loading="false" />
     </div>
     <div class="loader-container gap-4 py-4" v-if="uploadingVideo && !gameStore.playerVideo">
       <p class="text-2xl font-medium text-center">🚀 Submit & Go!</p>

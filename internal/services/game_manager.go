@@ -120,6 +120,7 @@ func (gm *GameManager) SubmitExistingVideo(
 		}
 
 		if game.PlayerMode != qg.PlayerGameModeSubmitAndVote {
+			// TODO: return another error
 			return nil, nil, gmError(common.ErrorForbidden, "player joined in only watching mode", nil)
 		}
 
@@ -326,6 +327,8 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 
 		return &models.GameUpdate{
 			GameID:         game.GameID,
+			PlayerMode:     game.PlayerMode,
+			GameMode:       game.Mode,
 			MsgType:        models.GameDetailsMsg,
 			Stage:          game.Stage,
 			RoundN:         game.RoundN,
@@ -745,6 +748,7 @@ func toRawLikeDislikeResult(results []models.LikeDislikeVideoResult) (json.RawMe
 func statusToGameUpdate(status *qg.UpdateGameStatusRow, reason models.StageChangeReason) models.GameUpdate {
 	return models.GameUpdate{
 		GameID:            status.GameID,
+		GameMode:          status.Mode,
 		MsgType:           models.GameUpdateMsg,
 		Stage:             status.Stage,
 		StateChangeReason: &reason,
