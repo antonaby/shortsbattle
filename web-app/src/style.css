@@ -57,6 +57,10 @@
   @apply flex flex-col items-center justify-center;
 }
 
+.stage-header {
+  @apply text-2xl font-medium text-center;
+}
+
 .video-wrapper {
   position: relative;
   width: 100%;

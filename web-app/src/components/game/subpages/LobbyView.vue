@@ -15,7 +15,7 @@ function onShowTimer(value: boolean) {
 
 <template>
   <div class="page-container">
-    <p class="text-2xl font-medium text-center">⏳ Waiting Room</p>
+    <p class="stage-header">⏳ Waiting Room</p>
     <div class="bg-gray-100 rounded-lg p-4 flex flex-col justify-center items-center gap-2">
       <p class="text-title-2">⚔️ Players Joined: 5</p> <!-- TODO: add real number of players joined -->
       <hr class="border-t-2 border-gray-200 h-1 w-full" />

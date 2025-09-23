@@ -68,7 +68,7 @@ async function onSubmitVideo(video: Video) {
 </script>
 <template>
   <div class="page-container">
-    <p class="text-2xl font-medium text-center">😎 Time to Drop a Video!</p>
+    <p class="stage-header">😎 Time to Drop a Video!</p>
     <div class="default-card">
       <p>✨ This Round`s Challenge</p>
       <div class="flex items-center gap-4 w-full" v-if="round">

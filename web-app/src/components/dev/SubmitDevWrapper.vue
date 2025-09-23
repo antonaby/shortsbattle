@@ -69,7 +69,7 @@ gameStore.lastUpdate = {
 // };
 
 const videoStore = useVideoStore();
-//videoStore.playerVideos = data;
+videoStore.playerVideos = data;
 
 onMounted(() => {
 	gameStore.startTimer(5000);
