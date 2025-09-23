@@ -4,13 +4,17 @@ import ytIcon from '@/assets/youtube.png';
 import type { VideoPlatform } from '@/utils/players';
 
 defineProps<{
-  platform: VideoPlatform
+  platform: VideoPlatform,
+  author: string
 }>();
 </script>
 
 <template>
-  <img :src="tkIcon" alt="TikTok Icon" v-if="platform == 'tiktok'" class="vh-icon"/>
-  <img :src="ytIcon" alt="YouTube Icon" v-else class="vh-icon"/>
+  <div class="flex items-center">
+    <img :src="tkIcon" alt="TikTok Icon" v-if="platform == 'tiktok'" class="vh-icon" />
+    <img :src="ytIcon" alt="YouTube Icon" v-else class="vh-icon" />
+    <span class="text-description">{{ author }}</span>
+  </div>
 </template>
 
 <style>

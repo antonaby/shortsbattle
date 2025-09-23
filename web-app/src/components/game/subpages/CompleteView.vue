@@ -112,12 +112,7 @@ const gameStore = useGameStore();
               <span>👤</span>
               <span class="font-semibold max-w-[120px] truncate">PlayerOne</span>
             </div>
-            <div class="flex items-center">
-              <VHIcon platform="tiktok" />
-              <span class="text-description">
-                Leovannn
-              </span>
-            </div>
+            <VHIcon platform="tiktok" author="Lennovan" />
           </div>
           <span class="text-sm">that is not his first time #memes #funny #shorts"</span>
           <div class="w-full flex gap-2">
@@ -143,10 +138,7 @@ text-white">
             <span class="font-semibold max-w-[120px] truncate">PlayerTwo</span>
           </div>
           <div class="flex justify-start items-center gap-2">
-            <VHIcon platform="youtube" />
-            <span class="text-description">
-              ХЛЕБЕЦ
-            </span>
+            <VHIcon platform="youtube" author="ХЛЕБЕЦ"/>
           </div>
           <span class="text-sm">that is not his first time #memes #funny #shorts"</span>
           <div class="w-full flex gap-2">
@@ -171,10 +163,7 @@ text-white">
             <span class="font-semibold max-w-[120px] truncate">Yours</span>
           </div>
           <div class="flex justify-start items-center gap-2">
-            <VHIcon platform="youtube" />
-            <span class="text-description">
-              ХЛЕБЕЦ
-            </span>
+            <VHIcon platform="youtube" author="TTTTTTT" />
           </div>
           <span class="text-sm">that is not his first time #memes #funny #shorts"</span>
           <div class="w-full flex gap-2">
@@ -203,10 +192,7 @@ text-white">
         </div>
         <div class="flex-1 flex flex-col items-start">
           <div class="flex justify-start items-center gap-2">
-            <VHIcon platform="youtube" />
-            <span class="text-description">
-              ХЛЕБЕЦ
-            </span>
+            <VHIcon platform="youtube" author="ХЛЕБЕЦ" />
           </div>
           <span class="text-sm">that is not his first time #memes #funny #shorts"</span>
           <div class="w-full flex gap-2 mt-2">
