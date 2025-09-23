@@ -2,7 +2,27 @@
 import { useGameStore } from '@/stores/game.store';
 import { useUIStore } from '@/stores/ui.store';
 import VHIcon from '@/components/common/VHIcon.vue';
+import TabView from '@/components/common/TabView.vue';
+import type { Tab } from '@/types/components';
+import { ref } from 'vue';
 
+const tabs: Tab[] = [
+  {
+    position: 0,
+    label: "🎥 All Videos",
+    key: "new"
+  },
+  {
+    position: 1,
+    label: "👤 My Videos",
+    key: "library"
+  },
+];
+
+const activeTab = ref<Tab>(tabs[0]);
+function onTabSelect(tab: Tab) {
+  activeTab.value = tab;
+}
 
 const uiStore = useUIStore();
 const gameStore = useGameStore();
@@ -13,21 +33,9 @@ const gameStore = useGameStore();
     <div class="stage-header">
       <span>🎉 Game Complete</span>
     </div>
-    <div class="p-4 flex flex-col justify-start items-center gap-2">
-      <span class="text-lg font-medium w-full text-center">Your Stats</span>
-      <div class="text-lg font-semibold flex flex-wrap items-center gap-1 text-center">
-        <span class="min-w-4">👍</span>
-        <span class="text-green-700 min-w-6">10</span>
-        <span class="min-w-4">👎</span>
-        <span class="text-red-700 min-w-6">2</span>
-        <span  class="min-w-4">⚡</span>
-        <span class="text-green-700 min-w-6">+200</span>
-      </div>
-      <hr class="border-t-2 border-gray-200 h-1 w-full" />
+    <div class="py-2 flex flex-col justify-start items-center gap-2">
       <span class="text-lg font-medium">⚡Score⚡</span>
-      <div class="grid grid-cols-[24px_24px_1fr_1fr] place-items-start gap-1">
-
-        <span>&nbsp;</span>
+      <div class="grid grid-cols-[24px_1fr_1fr] place-items-start gap-1">
         <span>🥇</span>
         <span class="text-start text-gray-700">Player</span>
         <div class="flex gap-1 text-xs place-self-center">
@@ -37,7 +45,6 @@ const gameStore = useGameStore();
           <span class="text-red-700">2</span>
         </div>
 
-        <span>&nbsp;</span>
         <span>🥈</span>
         <span class=" text-gray-700">Player 1</span>
         <div class="flex gap-1 text-xs place-self-center">
@@ -47,7 +54,6 @@ const gameStore = useGameStore();
           <span class="text-red-700">2</span>
         </div>
 
-        <span>👉</span>
         <span>🥉</span>
         <span class="text-gray-700 font-semibold">Player PPP</span>
         <div class="flex gap-1 text-xs place-self-center">
@@ -57,7 +63,6 @@ const gameStore = useGameStore();
           <span class="text-red-700">2</span>
         </div>
 
-        <span>&nbsp;</span>
         <span>&nbsp;</span>
         <span class="text-start">Player Three</span>
         <div class="flex gap-1 text-xs place-self-center">
@@ -69,15 +74,25 @@ const gameStore = useGameStore();
 
       </div>
     </div>
+    <div class="sub-container p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
+      <div class="text-lg font-medium w-full text-center text-gray-900">Your Stats</div>
+      <div class="text-lg font-semibold flex flex-wrap items-center justify-center gap-1 text-center">
+        <span class="min-w-4">👍</span>
+        <span class="text-emerald-700 min-w-6">10</span>
+        <span class="min-w-4">👎</span>
+        <span class="text-rose-700 min-w-6">2</span>
+        <span class="min-w-4">⚡</span>
+        <span class="text-emerald-700 min-w-6">+200</span>
+      </div>
+    </div>
     <button
       class="text-white p-2 font-semibold rounded-lg flex items-center justify-center gap-2 h-9 bg-gradient-to-r from-green-400 to-green-600 w-full"
       @click="uiStore.returnToHub()">
       🎉 Finish
     </button>
-
-    <span class="text-lg font-medium w-full text-center">⚡Rounds⚡</span>
-
     <div class="sub-container">
+      <span class="text-lg font-medium w-full text-center">⚡Rounds⚡</span>
+      <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
       <div class="flex items-center gap-4 bg-gray-100 px-2 py-2 rounded-lg my-2">
         <img src="https://cdn2.thecatapi.com/images/bpc.jpg" alt="Round" class="w-16 h-16 object-cover rounded-lg" />
         <div class="flex-1">
