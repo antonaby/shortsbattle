@@ -1,5 +1,11 @@
 import { defineStore } from "pinia";
-import type { Theme, GameUpdate, Video, GameVideo, VoteValue } from "../types/game";
+import type {
+  Theme,
+  GameUpdate,
+  Video,
+  GameVideo,
+  VoteValue,
+} from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
 import { useUIStore } from "./ui.store";
@@ -60,19 +66,25 @@ export const useGameStore = defineStore("game", () => {
   }
 
   function leaveGame() {
-    stopTimer();
-
-    theme.value = undefined;
-    lastUpdate.value = undefined;
-    playerVideo.value = undefined;
-    videosToWatch.value = [];
+    clearGameState();
 
     if (gameSub) {
       gameSub.unsubscribe();
     }
   }
 
+  function clearGameState() {
+    stopTimer();
+
+    theme.value = undefined;
+    lastUpdate.value = undefined;
+    playerVideo.value = undefined;
+    videosToWatch.value = [];
+  }
+
   function handleSubscribed(ctx: SubscribedContext) {
+    clearGameState();
+
     if (ctx.data) {
       var upd: GameUpdate = ctx.data;
       if (!upd.theme) {
@@ -120,6 +132,10 @@ export const useGameStore = defineStore("game", () => {
         videosToWatch.value = [];
         stopTimer();
         uiStore.openGameWatch(upd.id);
+        break;
+      case "complete":
+        stopTimer();
+        uiStore.openGameComplete(upd.id);
         break;
     }
   }
@@ -226,6 +242,6 @@ export const useGameStore = defineStore("game", () => {
     submitNewVideo,
     loadVideosToWatch,
     voteForVideo,
-    videoError
+    videoError,
   };
 });

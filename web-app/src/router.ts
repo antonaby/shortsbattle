@@ -16,6 +16,7 @@ import OpenDevWrapper from "@/components/dev/OpenDevWrapper.vue";
 import LobbyDevWrapper from "@/components/dev/LobbyDevWrapper.vue";
 import SubmitDevWrapper from "@/components/dev/SubmitDevWrapper.vue";
 import WatchDevWrapper from "@/components/dev/WatchDevWrapper.vue";
+import CompleteDevWrapper from "@/components/dev/CompleteDevWrapper.vue";
 
 let routes: RouteRecordRaw[] = [
   {
@@ -59,6 +60,10 @@ if (import.meta.env.DEV) {
     {
       path: "/dev/game/watch",
       component: WatchDevWrapper,
+    },
+    {
+      path: "/dev/game/complete",
+      component: CompleteDevWrapper,
     },
     {
       path: "/dev/player",

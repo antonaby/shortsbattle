@@ -26,6 +26,10 @@ export const useUIStore = defineStore("ui", () => {
     router.push({ name: "game-watch", params: { id: gameId } });
   }
 
+  function openGameComplete(gameId: number) {
+    router.push({ name: "game-complete", params: { id: gameId } });
+  }
+
   // TODO: show error modal
   function handleNetworkError(error: any) {
     if (error instanceof NetworkError) {
@@ -50,6 +54,7 @@ export const useUIStore = defineStore("ui", () => {
     openGameLobby,
     openGameSubmit,
     openGameWatch,
+    openGameComplete,
     handleNetworkError,
     handleWsError,
     handleAuthError,
