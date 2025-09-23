@@ -1,24 +1,33 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useGameStore } from '../../../stores/game.store';
 import VideoPlayerWrapper from '../players/VideoPlayerWrapper.vue';
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue';
 
 const gameStore = useGameStore();
 
+const isComplete = computed<boolean>(() => {
+  return gameStore.lastUpdate?.stage == 'watch-complete';
+})
+
+const isReady = computed<boolean>(() => {
+  return gameStore.videosToWatch.length > 0
+})
+
 onMounted(() => {
-  gameStore.loadVideosToWatch()
+  if (gameStore.lastUpdate?.stage == 'watch') {
+    gameStore.loadVideosToWatch()
+  }
 })
 </script>
 
 <template>
-  <FullscreenLoaderView v-if="gameStore.videosToWatch.length == 0" :gray-background="false" msg="⚡ Loading videos..." />
-  <!-- TODO: handle video errors! -->
-  <!-- TODO: check player errors -->
+  <FullscreenLoaderView v-if="!isReady && !isComplete" :gray-background="false" msg="⚡ Loading videos..." />
   <VideoPlayerWrapper 
-    v-if="gameStore.videosToWatch.length > 0" 
-    :videos="gameStore.videosToWatch" 
-    :completed="gameStore.lastUpdate?.stage == 'submit-complete'"
-    @vote="gameStore.voteForVideo"
-   />
+    v-if="isReady || isComplete" 
+    :videos="gameStore.videosToWatch"
+    :completed="isComplete" 
+    @vote="gameStore.voteForVideo" 
+    @error="gameStore.videoError" />
+  <!-- TODO: add view for Ad -->
 </template>

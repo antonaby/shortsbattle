@@ -94,6 +94,7 @@ function handleError(error: any) {
       </div>
     </Transition>
   </div>
+  <!-- TODO: update the element, so the parent element can handle the state when all videos have been watched -->
   <div class="video-player-container" v-if="currentVideoIndex == -1 || completed">
     <div class="bg-white/90 rounded-xl p-4">
       <span class="text-2xl font-medium">
@@ -109,7 +110,6 @@ function handleError(error: any) {
 .video-player-container {
   @apply flex flex-col items-center justify-center bg-gray-600 min-h-screen gap-2
 }
-
 
 .like-control {
   @apply w-16 rounded-md p-2

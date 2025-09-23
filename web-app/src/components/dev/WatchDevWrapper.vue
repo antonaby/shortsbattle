@@ -3,6 +3,16 @@ import { useGameStore } from '@/stores/game.store';
 import WatchView from '../game/subpages/WatchView.vue';
 
 const gameStore = useGameStore();
+
+gameStore.lastUpdate = {
+	"id": 27,
+	"msg_type": "stage_updated",
+	"stage": "watch-complete",
+	"round": 2,
+	"state_changed_at": "2025-09-18T15:36:44.804063+04:00",
+	"remaining_ms": 5000
+}
+
 gameStore.videosToWatch = [
   // {
 	// 	"id": 22,

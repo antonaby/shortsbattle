@@ -112,10 +112,12 @@ export const useGameStore = defineStore("game", () => {
         uiStore.openGameSubmit(upd.id);
         break;
       case "watch":
+        videosToWatch.value = [];
         stopTimer();
         uiStore.openGameWatch(upd.id);
         break;
       case "watch-complete":
+        videosToWatch.value = [];
         stopTimer();
         uiStore.openGameWatch(upd.id);
         break;
@@ -206,6 +208,11 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
+  async function videoError(gameVideo: GameVideo, error: any) {
+    console.log(gameVideo, error);
+    // TODO: send to the backend
+  }
+
   return {
     theme,
     formattedTime,
@@ -218,6 +225,7 @@ export const useGameStore = defineStore("game", () => {
     submitVideo,
     submitNewVideo,
     loadVideosToWatch,
-    voteForVideo
+    voteForVideo,
+    videoError
   };
 });
