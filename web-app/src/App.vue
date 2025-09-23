@@ -26,7 +26,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <FullscreenLoaderView v-if="!isReady" :gray-background="false" msg="🌐 Connection to Server..." />
+  <FullscreenLoaderView v-if="!isReady" :gray-background="false" msg="🌐 Connecting to Server..." />
   <main v-else>
     <router-view />
   </main>
