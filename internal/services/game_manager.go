@@ -620,6 +620,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 		upd := models.GameUpdate{
 			GameID:            status.GameID,
 			MsgType:           models.GameUpdateMsg,
+			GameMode:          status.Mode,
 			Stage:             status.Stage,
 			StateChangeReason: &reason,
 			RoundN:            status.RoundN,

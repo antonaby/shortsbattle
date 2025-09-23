@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import FullscreenLoaderView from '@/components/common/FullscreenLoaderView.vue';
-import Game from '@/pages/Game.vue';
 
 </script>
 
