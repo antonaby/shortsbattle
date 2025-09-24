@@ -494,14 +494,32 @@ func TestGameActions(t *testing.T) {
 		}
 		require.NotNil(t, upd)
 
+		// 6) get player scores
 		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
 		}
 
+		// check points
 		require.Equal(t, 2, len(scores))
 		require.Equal(t, int64(1), scores[0].Points)
 		require.Equal(t, int64(1), scores[1].Points)
+
+		// check likes & dislikes
+		// player 1
+		var count models.LikeDislikeCount
+		if err := json.Unmarshal(scores[0].Result, &count); err != nil {
+			t.Fatalf("failed to unmarchal like dislike count (player 1): %v", err)
+		}
+		require.Equal(t, 1, count.Likes)
+		require.Equal(t, 1, count.Dislikes)
+
+		// player 2
+		if err := json.Unmarshal(scores[1].Result, &count); err != nil {
+			t.Fatalf("failed to unmarchal like dislike count (player 2): %v", err)
+		}
+		require.Equal(t, 1, count.Likes)
+		require.Equal(t, 1, count.Dislikes)
 	})
 }
 

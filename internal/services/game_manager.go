@@ -726,6 +726,8 @@ func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []mo
 
 		ldCount.Likes += ld.Likes
 		ldCount.Dislikes += ld.Dislikes
+
+		playerLDCount[ld.AuthorID] = ldCount
 	}
 
 	for playerId, result := range playerResults {
