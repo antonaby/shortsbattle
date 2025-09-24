@@ -108,6 +108,20 @@ export interface RoundResult {
   videos: VideoResult[];
 }
 
+export interface PlayerResult {
+  tgId: number;
+  username: string;
+  place: number;
+  likes: number;
+  dislikes: number;
+}
+
+export interface PlayerOutcome {
+  plusEnergy: number;
+}
+
 export interface GameResult {
+  players: PlayerResult[];
   rounds: RoundResult[];
+  outcome: PlayerOutcome;
 }

@@ -5,7 +5,7 @@ import TabView from '@/components/common/TabView.vue';
 import type { Tab } from '@/types/components';
 import { computed, ref } from 'vue';
 import VideoScoreView from '@/components/common/VideoScoreView.vue';
-import type { RoundResult } from '@/types/game';
+import type { PlayerResult, RoundResult } from '@/types/game';
 import RoundView from '@/components/common/RoundView.vue';
 import BottomView from '@/components/common/BottomView.vue';
 import { useUserStore } from '@/stores/user.store';
@@ -49,6 +49,27 @@ const rounds = computed<RoundResult[]>(() => {
     .filter(round => round.videos.length > 0)
 })
 
+const players = computed<PlayerResult[]>(() => {
+  if (!gameStore.gameResult) {
+    return [];
+  }
+
+  return [...gameStore.gameResult.players].sort((a, b) => a.place - b.place);
+});
+
+function getPlaceMedal(place: number): string {
+  switch (place) {
+    case 1:
+      return "🥇";
+    case 2:
+      return "🥈";
+    case 3:
+      return "🥉";    
+  }
+
+  return "\u00A0"
+}
+
 </script>
 
 <template>
@@ -56,45 +77,22 @@ const rounds = computed<RoundResult[]>(() => {
     <div class="stage-header">
       <span>🎉 Game Complete</span>
     </div>
-    <div class="py-2 flex flex-col justify-start items-center gap-2">
-      <span class="text-lg font-medium">⚡Score⚡</span>
-      <div class="grid grid-cols-[24px_1fr_1fr] place-items-start gap-1">
-        <span>🥇</span>
-        <span class="text-start text-gray-700">Player</span>
-        <div class="flex gap-1 text-xs place-self-center">
-          <span>👍</span>
-          <span class="text-green-700">10</span>
-          <span>👎</span>
-          <span class="text-red-700">2</span>
-        </div>
-
-        <span>🥈</span>
-        <span class=" text-gray-700">Player 1</span>
-        <div class="flex gap-1 text-xs place-self-center">
-          <span>👍</span>
-          <span class="text-green-700">10</span>
-          <span>👎</span>
-          <span class="text-red-700">2</span>
-        </div>
-
-        <span>🥉</span>
-        <span class="text-gray-700 font-semibold">Player PPP</span>
-        <div class="flex gap-1 text-xs place-self-center">
-          <span>👍</span>
-          <span class="text-green-700">10</span>
-          <span>👎</span>
-          <span class="text-red-700">2</span>
-        </div>
-
-        <span>&nbsp;</span>
-        <span class="text-start">Player Three</span>
-        <div class="flex gap-1 text-xs place-self-center">
-          <span>👍</span>
-          <span class="text-green-700">10</span>
-          <span>👎</span>
-          <span class="text-red-700">2</span>
-        </div>
-
+    <div class="flex flex-col items-center" v-if="players.length > 0">
+      <div class="grid grid-cols-[25px_1fr_50px_50px] place-items-start gap-1">
+        <template v-for="player in players" :key="player.tgId">
+          <span>{{ getPlaceMedal(player.place) }}</span>
+          <span class="text-gray-700" :class="{'font-medium' : player.tgId == userStore.userId}">
+            {{ player.username }}
+          </span>
+          <div class="ld-table">
+            <span>👍</span>
+            <span class="text-green-700">{{ player.likes }}</span>
+          </div>
+          <div class="ld-table">
+            <span>👎</span>
+            <span class="text-red-700">{{ player.dislikes }}</span>
+          </div>
+        </template>
       </div>
     </div>
     <div class="sub-container p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
@@ -125,3 +123,12 @@ const rounds = computed<RoundResult[]>(() => {
     <BottomView />
   </div>
 </template>
+
+<style>
+@import "tailwindcss";
+
+.ld-table {
+  @apply flex gap-1 text-xs place-self-center w-full;
+}
+
+</style>

@@ -16,7 +16,6 @@ const platform = computed<VideoPlatform>(() => {
 const videoFrom = computed<string>(() => {
   return props.videoResult.video.oembed.author_name || "unknown";
 });
-
 </script>
 
 <template>
