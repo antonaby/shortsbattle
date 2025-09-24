@@ -66,7 +66,7 @@ type GameVideo struct {
 }
 
 type VideoAuthor struct {
-	TgID     int64  `json:"tgId"`
+	TgID     int64  `json:"tg_id"`
 	Username string `json:"username"`
 }
 
@@ -83,7 +83,7 @@ type RoundResult struct {
 }
 
 type PlayerResult struct {
-	TgID     int64  `json:"tgId"`
+	TgID     int64  `json:"tg_id"`
 	Username string `json:"username"`
 	Place    int    `json:"place"`
 	Likes    int    `json:"likes"`

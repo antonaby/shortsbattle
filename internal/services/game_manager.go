@@ -387,6 +387,26 @@ func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64
 				}
 			}
 
+			var ldCount models.LikeDislikeCount
+			if err := json.Unmarshal(gv.Result, &ldCount); err != nil {
+				return nil, gmError(common.ErrorBadData, "bad result data", err)
+			}
+
+			round.Videos = append(round.Videos, models.VideoResult{
+				Video: models.Video{
+					ID:       gv.VideoID,
+					VideoUrl: gv.VideoUrl,
+					OEmbed:   gv.Oembed,
+					AddedAt:  gv.AddedAt,
+				},
+				Author: models.VideoAuthor{
+					TgID:     gv.TgID,
+					Username: gv.TgUsername,
+				},
+				Likes:    ldCount.Likes,
+				Dislikes: ldCount.Dislikes,
+			})
+
 			rounds[gv.RoundN] = round
 		}
 
