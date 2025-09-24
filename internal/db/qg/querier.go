@@ -6,7 +6,6 @@ package qg
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -14,20 +13,19 @@ import (
 type Querier interface {
 	AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerParams) (Video, error)
 	CountPlayersInGame(ctx context.Context, gameID int64) (int64, error)
-	CreateFinalResult(ctx context.Context, gameID int64, result json.RawMessage) (GameFinalResult, error)
+	CreateGameVideoResult(ctx context.Context, arg CreateGameVideoResultParams) (GameVideoResult, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
-	CreatePlayerStat(ctx context.Context, arg CreatePlayerStatParams) error
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	EnqueueGame(ctx context.Context, gameID int64) (GameUpdate, error)
 	EnqueueGames(ctx context.Context) ([]GameUpdate, error)
-	GetFinalResult(ctx context.Context, gameID int64, playerID int64) (GameFinalResult, error)
 	GetGameLock(ctx context.Context, gameID int64, updateKey pgtype.UUID) (GetGameLockRow, error)
 	GetGameRounds(ctx context.Context, gameID int64) ([]Round, error)
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)
 	GetGameVideoShareLock(ctx context.Context, gameVideoID int64, playerID int64) (GetGameVideoShareLockRow, error)
+	GetGameVideos(ctx context.Context, gameID int64, playerID int64) ([]GetGameVideosRow, error)
 	GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error)
-	GetPlayersStatsForGame(ctx context.Context, gameID int64, playerID int64) ([]PlayerStat, error)
+	GetPlayersResult(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error)
 	GetRounds(ctx context.Context, themeID int64) ([]Round, error)
 	GetSubmittedVideosByPlayers(ctx context.Context, gameID int64, roundN int32) ([]GetSubmittedVideosByPlayersRow, error)
 	GetTheme(ctx context.Context, id int64) (Theme, error)

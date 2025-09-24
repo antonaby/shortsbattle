@@ -11,18 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type ThemeRound struct {
+type Round struct {
 	RoundN      int32  `json:"round_n"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 }
 
 type ThemeWithRounds struct {
-	ID          int64        `json:"id"`
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	Mode        qg.GameMode  `json:"mode"`
-	Rounds      []ThemeRound `json:"rounds,omitempty"`
+	ID          int64       `json:"id"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	Mode        qg.GameMode `json:"mode"`
+	Rounds      []Round     `json:"rounds,omitempty"`
 }
 
 type LikeDislikeVoteValue string
@@ -44,8 +44,9 @@ type LikeDislikeVideoResult struct {
 	Dislikes    int   `json:"dislikes"`
 }
 
-type LikeDislikeFinalResult struct {
-	Results []LikeDislikeVideoResult `json:"results"`
+type LikeDislikeCount struct {
+	Likes    int `json:"likes"`
+	Dislikes int `json:"dislikes"`
 }
 
 type Video struct {
@@ -62,6 +63,41 @@ type GameVideo struct {
 	RoundN      int32              `json:"round_n"`
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 	Video       Video              `json:"video"`
+}
+
+type VideoAuthor struct {
+	TgID     int64  `json:"tgId"`
+	Username string `json:"username"`
+}
+
+type VideoResult struct {
+	Video    Video       `json:"video"`
+	Author   VideoAuthor `json:"author"`
+	Likes    int         `json:"likes"`
+	Dislikes int         `json:"dislikes"`
+}
+
+type RoundResult struct {
+	Round  Round         `json:"round"`
+	Videos []VideoResult `json:"videos"`
+}
+
+type PlayerResult struct {
+	TgID     int64  `json:"tgId"`
+	Username string `json:"username"`
+	Place    int    `json:"place"`
+	Likes    int    `json:"likes"`
+	Dislikes int    `json:"dislikes"`
+}
+
+type PlayerOutcome struct {
+	PlusEnergy int `json:"plusEnergy"`
+}
+
+type GameResult struct {
+	Players []PlayerResult `json:"players"`
+	Rounds  []RoundResult  `json:"rounds"`
+	Outcome PlayerOutcome  `json:"outcome"`
 }
 
 type MessageType string
@@ -97,7 +133,6 @@ type GameUpdate struct {
 	StateChangedAt    pgtype.Timestamptz `json:"state_changed_at"`
 	RemainingMs       int64              `json:"remaining_ms"`
 	Theme             *ThemeWithRounds   `json:"theme,omitempty"`
-	Result            *json.RawMessage   `json:"result,omitempty"`
 }
 
 func GetCfChannelName(gameId int64) string {

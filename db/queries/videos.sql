@@ -65,3 +65,30 @@ JOIN player_videos pv ON pv.player_id = gv.player_id AND pv.video_id = v.id
 WHERE gv.game_id = $1
   AND gv.round_n = $2
   AND gv.player_id <> $3;
+
+-- name: GetGameVideos :many
+SELECT 
+    gv.id as game_video_id,
+    gv.game_id,
+    gv.round_n,
+    gv.player_id,
+    gv.submitted_at,
+    v.id AS video_id,
+    v.video_url,
+    v.oembed,
+    pv.added_at,
+    p.tg_id,
+    p.tg_username,
+    r.title,
+    r.description
+FROM game_videos gv
+JOIN videos v ON gv.video_id = v.id
+JOIN player_videos pv ON pv.player_id = gv.player_id AND pv.video_id = v.id
+JOIN players p ON p.tg_id = pv.player_id
+JOIN games g ON g.id = gv.game_id
+JOIN rounds r ON r.theme_id = g.theme_id AND r.round_n = gv.round_n
+WHERE gv.game_id = $1
+  AND EXISTS (
+    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
+  )
+ORDER BY gv.round_n;

@@ -35,6 +35,84 @@ func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerPara
 	return i, err
 }
 
+const getGameVideos = `-- name: GetGameVideos :many
+SELECT 
+    gv.id as game_video_id,
+    gv.game_id,
+    gv.round_n,
+    gv.player_id,
+    gv.submitted_at,
+    v.id AS video_id,
+    v.video_url,
+    v.oembed,
+    pv.added_at,
+    p.tg_id,
+    p.tg_username,
+    r.title,
+    r.description
+FROM game_videos gv
+JOIN videos v ON gv.video_id = v.id
+JOIN player_videos pv ON pv.player_id = gv.player_id AND pv.video_id = v.id
+JOIN players p ON p.tg_id = pv.player_id
+JOIN games g ON g.id = gv.game_id
+JOIN rounds r ON r.theme_id = g.theme_id AND r.round_n = gv.round_n
+WHERE gv.game_id = $1
+  AND EXISTS (
+    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
+  )
+ORDER BY gv.round_n
+`
+
+type GetGameVideosRow struct {
+	GameVideoID int64              `json:"game_video_id"`
+	GameID      int64              `json:"game_id"`
+	RoundN      int32              `json:"round_n"`
+	PlayerID    int64              `json:"player_id"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+	VideoID     int64              `json:"video_id"`
+	VideoUrl    string             `json:"video_url"`
+	Oembed      json.RawMessage    `json:"oembed"`
+	AddedAt     pgtype.Timestamptz `json:"added_at"`
+	TgID        int64              `json:"tg_id"`
+	TgUsername  string             `json:"tg_username"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+}
+
+func (q *Queries) GetGameVideos(ctx context.Context, gameID int64, playerID int64) ([]GetGameVideosRow, error) {
+	rows, err := q.db.Query(ctx, getGameVideos, gameID, playerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetGameVideosRow
+	for rows.Next() {
+		var i GetGameVideosRow
+		if err := rows.Scan(
+			&i.GameVideoID,
+			&i.GameID,
+			&i.RoundN,
+			&i.PlayerID,
+			&i.SubmittedAt,
+			&i.VideoID,
+			&i.VideoUrl,
+			&i.Oembed,
+			&i.AddedAt,
+			&i.TgID,
+			&i.TgUsername,
+			&i.Title,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSubmittedVideosByPlayers = `-- name: GetSubmittedVideosByPlayers :many
 SELECT gp.game_id, gp.player_id, gv.id as game_video_id, gv.video_id, gv.round_n, gv.submitted_at
 FROM game_players gp

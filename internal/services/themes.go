@@ -91,9 +91,9 @@ func getTheme(ctx context.Context, q qg.Querier, themeId int64) (*models.ThemeWi
 		return nil, tmError(common.GetDbErrorCode(err), "failed to get rounds", err)
 	}
 
-	rounds := []models.ThemeRound{}
+	rounds := []models.Round{}
 	for _, i := range roundsRaw {
-		rounds = append(rounds, models.ThemeRound{
+		rounds = append(rounds, models.Round{
 			RoundN:      i.RoundN,
 			Title:       i.Title,
 			Description: i.Description.String,
@@ -109,14 +109,14 @@ func getTheme(ctx context.Context, q qg.Querier, themeId int64) (*models.ThemeWi
 	}, nil
 }
 
-func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*models.ThemeRound, error) {
-	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*models.ThemeRound, error) {
+func (ts *ThemeService) CreateRound(ctx context.Context, params qg.CreateRoundParams) (*models.Round, error) {
+	return db.WithTxVQ(ctx, ts.txm, func(ctx context.Context, q qg.Querier) (*models.Round, error) {
 		round, err := q.CreateRound(ctx, params)
 		if err != nil {
 			return nil, tmError(common.GetDbErrorCode(err), "failed to create round", err)
 		}
 
-		return &models.ThemeRound{
+		return &models.Round{
 			RoundN:      round.RoundN,
 			Title:       round.Title,
 			Description: round.Description.String,

@@ -149,12 +149,6 @@ type Game struct {
 	CompletedAt pgtype.Timestamptz `json:"completed_at"`
 }
 
-type GameFinalResult struct {
-	GameID       int64              `json:"game_id"`
-	Result       json.RawMessage    `json:"result"`
-	CalculatedAt pgtype.Timestamptz `json:"calculated_at"`
-}
-
 type GamePlayer struct {
 	GameID   int64              `json:"game_id"`
 	PlayerID int64              `json:"player_id"`
@@ -190,6 +184,13 @@ type GameVideo struct {
 	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
 }
 
+type GameVideoResult struct {
+	GameID       int64              `json:"game_id"`
+	GameVideoID  int64              `json:"game_video_id"`
+	Result       json.RawMessage    `json:"result"`
+	CalculatedAt pgtype.Timestamptz `json:"calculated_at"`
+}
+
 type GameVote struct {
 	GameVideoID int64              `json:"game_video_id"`
 	PlayerID    int64              `json:"player_id"`
@@ -204,11 +205,12 @@ type Player struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
-type PlayerStat struct {
-	PlayerID int64              `json:"player_id"`
-	GameID   int64              `json:"game_id"`
-	Points   int64              `json:"points"`
-	AddedAt  pgtype.Timestamptz `json:"added_at"`
+type PlayerResult struct {
+	PlayerID     int64              `json:"player_id"`
+	GameID       int64              `json:"game_id"`
+	Result       json.RawMessage    `json:"result"`
+	Points       int64              `json:"points"`
+	CalculatedAt pgtype.Timestamptz `json:"calculated_at"`
 }
 
 type PlayerVideo struct {

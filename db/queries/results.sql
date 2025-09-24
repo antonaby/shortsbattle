@@ -1,27 +1,13 @@
--- name: CreateFinalResult :one
-INSERT INTO game_final_results(game_id, result) 
-VALUES ($1, $2) 
-ON CONFLICT (game_id) DO UPDATE
-SET result = EXCLUDED.result,
-    calculated_at = now()
+-- name: CreateGameVideoResult :one
+INSERT INTO game_video_results(game_id, game_video_id, result)
+VALUES ($1, $2, $3)
+ON CONFLICT (game_id, game_video_id) DO UPDATE
+  SET result = EXCLUDED.result,
+      calculated_at = now()
 RETURNING *;
 
--- name: GetFinalResult :one
-SELECT f.* FROM game_final_results f
-WHERE f.game_id = $1
-  AND EXISTS (
-    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
-  );
-
--- name: CreatePlayerStat :exec
-INSERT INTO player_stats (player_id, game_id, points)
-VALUES ($1, $2, $3)
-ON CONFLICT (player_id, game_id) DO UPDATE
-SET points = EXCLUDED.points,
-    added_at = now();
-
--- name: GetPlayersStatsForGame :many
-SELECT ps.* FROM player_stats ps
+-- name: GetPlayersResult :many
+SELECT ps.* FROM player_results ps
 WHERE ps.game_id = $1
   AND EXISTS (
     SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2

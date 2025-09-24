@@ -367,30 +367,15 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to change game stage: %v", err)
 		}
 
-		// 5) advacne game and check result
+		// 5) advance game and check result
 		time.Sleep(1 * time.Second)
 		upd, err := gm.AdvanceGameNow(ctx, game.ID)
 		if err != nil {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
 		require.NotNil(t, upd)
-		require.NotNil(t, upd.Result)
-		var finalResult models.LikeDislikeFinalResult
-		if err := json.Unmarshal(*upd.Result, &finalResult); err != nil {
-			t.Fatalf("failed to unmarchal final result: %v", err)
-		}
-		require.Equal(t, 10, len(finalResult.Results))
 
-		// 6) get final result for player
-		fResult, err := gm.GetFinalResult(ctx, game.ID, players[0].TgID)
-		if err != nil {
-			t.Fatalf("failed to get final result (player 1): %v", err)
-		}
-
-		// it should return the same result
-		require.NotNil(t, fResult)
-		require.Equal(t, fResult.Result, *upd.Result)
-
+		// 6) check player scores
 		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
@@ -508,7 +493,6 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to advance test game: %v", err)
 		}
 		require.NotNil(t, upd)
-		require.NotNil(t, upd.Result)
 
 		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
 		if err != nil {

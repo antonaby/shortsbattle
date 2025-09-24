@@ -10,78 +10,56 @@ import (
 	"encoding/json"
 )
 
-const createFinalResult = `-- name: CreateFinalResult :one
-INSERT INTO game_final_results(game_id, result) 
-VALUES ($1, $2) 
-ON CONFLICT (game_id) DO UPDATE
-SET result = EXCLUDED.result,
-    calculated_at = now()
-RETURNING game_id, result, calculated_at
-`
-
-func (q *Queries) CreateFinalResult(ctx context.Context, gameID int64, result json.RawMessage) (GameFinalResult, error) {
-	row := q.db.QueryRow(ctx, createFinalResult, gameID, result)
-	var i GameFinalResult
-	err := row.Scan(&i.GameID, &i.Result, &i.CalculatedAt)
-	return i, err
-}
-
-const createPlayerStat = `-- name: CreatePlayerStat :exec
-INSERT INTO player_stats (player_id, game_id, points)
+const createGameVideoResult = `-- name: CreateGameVideoResult :one
+INSERT INTO game_video_results(game_id, game_video_id, result)
 VALUES ($1, $2, $3)
-ON CONFLICT (player_id, game_id) DO UPDATE
-SET points = EXCLUDED.points,
-    added_at = now()
+ON CONFLICT (game_id, game_video_id) DO UPDATE
+  SET result = EXCLUDED.result,
+      calculated_at = now()
+RETURNING game_id, game_video_id, result, calculated_at
 `
 
-type CreatePlayerStatParams struct {
-	PlayerID int64 `json:"player_id"`
-	GameID   int64 `json:"game_id"`
-	Points   int64 `json:"points"`
+type CreateGameVideoResultParams struct {
+	GameID      int64           `json:"game_id"`
+	GameVideoID int64           `json:"game_video_id"`
+	Result      json.RawMessage `json:"result"`
 }
 
-func (q *Queries) CreatePlayerStat(ctx context.Context, arg CreatePlayerStatParams) error {
-	_, err := q.db.Exec(ctx, createPlayerStat, arg.PlayerID, arg.GameID, arg.Points)
-	return err
-}
-
-const getFinalResult = `-- name: GetFinalResult :one
-SELECT f.game_id, f.result, f.calculated_at FROM game_final_results f
-WHERE f.game_id = $1
-  AND EXISTS (
-    SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
-  )
-`
-
-func (q *Queries) GetFinalResult(ctx context.Context, gameID int64, playerID int64) (GameFinalResult, error) {
-	row := q.db.QueryRow(ctx, getFinalResult, gameID, playerID)
-	var i GameFinalResult
-	err := row.Scan(&i.GameID, &i.Result, &i.CalculatedAt)
+func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideoResultParams) (GameVideoResult, error) {
+	row := q.db.QueryRow(ctx, createGameVideoResult, arg.GameID, arg.GameVideoID, arg.Result)
+	var i GameVideoResult
+	err := row.Scan(
+		&i.GameID,
+		&i.GameVideoID,
+		&i.Result,
+		&i.CalculatedAt,
+	)
 	return i, err
 }
 
-const getPlayersStatsForGame = `-- name: GetPlayersStatsForGame :many
-SELECT ps.player_id, ps.game_id, ps.points, ps.added_at FROM player_stats ps
+const getPlayersResult = `-- name: GetPlayersResult :many
+SELECT ps.player_id, ps.game_id, ps.result, ps.points, ps.calculated_at FROM player_results ps
 WHERE ps.game_id = $1
   AND EXISTS (
     SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
   )
 `
 
-func (q *Queries) GetPlayersStatsForGame(ctx context.Context, gameID int64, playerID int64) ([]PlayerStat, error) {
-	rows, err := q.db.Query(ctx, getPlayersStatsForGame, gameID, playerID)
+func (q *Queries) GetPlayersResult(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error) {
+	rows, err := q.db.Query(ctx, getPlayersResult, gameID, playerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []PlayerStat
+	var items []PlayerResult
 	for rows.Next() {
-		var i PlayerStat
+		var i PlayerResult
 		if err := rows.Scan(
 			&i.PlayerID,
 			&i.GameID,
+			&i.Result,
 			&i.Points,
-			&i.AddedAt,
+			&i.CalculatedAt,
 		); err != nil {
 			return nil, err
 		}

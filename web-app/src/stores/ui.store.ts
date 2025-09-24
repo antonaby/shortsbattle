@@ -15,19 +15,19 @@ export const useUIStore = defineStore("ui", () => {
 
   // TODO: prohibit moving back for all game stages
   function openGameLobby(gameId: number) {
-    router.push({ name: "game-lobby", params: { id: gameId } });
+    router.replace({ name: "game-lobby", params: { id: gameId } });
   }
 
   function openGameSubmit(gameId: number) {
-    router.push({ name: "game-submit", params: { id: gameId } });
+    router.replace({ name: "game-submit", params: { id: gameId } });
   }
 
   function openGameWatch(gameId: number) {
-    router.push({ name: "game-watch", params: { id: gameId } });
+    router.replace({ name: "game-watch", params: { id: gameId } });
   }
 
   function openGameComplete(gameId: number) {
-    router.push({ name: "game-complete", params: { id: gameId } });
+    router.replace({ name: "game-complete", params: { id: gameId } });
   }
 
   // TODO: show error modal

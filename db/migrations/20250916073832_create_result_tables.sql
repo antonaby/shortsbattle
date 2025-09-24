@@ -1,29 +1,34 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE
-  game_final_results (
+  game_video_results (
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
+    game_video_id BIGINT NOT NULL REFERENCES game_videos (id) ON DELETE CASCADE,
     result jsonb NOT NULL DEFAULT '{}'::jsonb,
     calculated_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    PRIMARY KEY (game_id),
+    PRIMARY KEY (game_id, game_video_id),
     CONSTRAINT value_is_object CHECK (jsonb_typeof(result) = 'object')
   );
 
 CREATE TABLE
-  player_stats (
+  player_results (
     player_id BIGINT NOT NULL REFERENCES players (tg_id) ON DELETE CASCADE,
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
+    result jsonb NOT NULL DEFAULT '{}'::jsonb,
     points BIGINT NOT NULL DEFAULT 0, 
-    added_at TIMESTAMPTZ NOT NULL DEFAULT now (),
-    PRIMARY KEY (player_id, game_id)
+    calculated_at TIMESTAMPTZ NOT NULL DEFAULT now (),
+    PRIMARY KEY (player_id, game_id),
+    CONSTRAINT value_is_object CHECK (jsonb_typeof(result) = 'object')
   );
 
-CREATE INDEX idx_player_stats_game ON player_stats (game_id);
+CREATE INDEX idx_player_results_game ON player_results (game_id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS game_final_results;
+DROP INDEX IF EXISTS idx_player_results_game;
 
-DROP TABLE IF EXISTS players_stats;
+DROP TABLE IF EXISTS game_video_results;
+
+DROP TABLE IF EXISTS player_results;
 -- +goose StatementEnd

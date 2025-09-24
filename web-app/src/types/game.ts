@@ -18,7 +18,6 @@ export interface GameUpdate {
   state_changed_at: string;
   remaining_ms: number;
   theme?: Theme;
-  result?: any;
 }
 
 export type PlayerMode = "submit_and_vote" | "only_vote";

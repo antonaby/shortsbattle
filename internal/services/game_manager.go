@@ -332,17 +332,6 @@ func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage
 	return gmError(common.ErrorBadData, "unknown game mode", nil)
 }
 
-func (gm *GameManager) GetFinalResult(ctx context.Context, gameId, playerId int64) (*qg.GameFinalResult, error) {
-	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GameFinalResult, error) {
-		fResult, err := q.GetFinalResult(ctx, gameId, playerId)
-		if err != nil {
-			return nil, gmDbError("failed to get final result", err)
-		}
-
-		return &fResult, nil
-	})
-}
-
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameUpdate, error) {
 		game, err := q.GetGameShareLock(ctx, gameId, playerId)
@@ -373,18 +362,31 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerStat, error) {
-	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerStat, error) {
-		stats, err := q.GetPlayersStatsForGame(ctx, gameId, playerId)
+// func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64) (*models.GameResult, error) {
+// 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameResult, error) {
+// 		gameVideos, err := q.GetGameVideos(ctx, gameId, playerId)
+// 		if err != nil {
+// 			return nil, gmDbError("failed to get game videos", err)
+// 		}
+
+// 		return &models.GameResult{
+
+// 		}, nil
+// 	})
+// }
+
+func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerResult, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerResult, error) {
+		results, err := q.GetPlayersResult(ctx, gameId, playerId)
 		if err != nil {
 			return nil, gmDbError("failed to get player stats", err)
 		}
 
-		if len(stats) == 0 {
-			return []qg.PlayerStat{}, nil
+		if len(results) == 0 {
+			return []qg.PlayerResult{}, nil
 		}
 
-		return stats, nil
+		return results, nil
 	})
 }
 
@@ -601,19 +603,15 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			return &upd, nil
 		}
 
+		// TODO: complete game itself also
 		status, err := q.UpdateGameStatusComplete(ctx, qg.GameStageComplete, game.GameID)
 		if err != nil {
 			return nil, gmDbError("failed to update game stage", err)
 		}
 
-		fResult, err := gm.calculateFinalResult(ctx, q, game)
+		err = gm.finalizeGame(ctx, q, game)
 		if err != nil {
 			return nil, err
-		}
-
-		var rawResult *json.RawMessage
-		if fResult != nil {
-			rawResult = &fResult.Result
 		}
 
 		reason := models.ReasonWatchCompleteGameComplete
@@ -625,7 +623,6 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			StateChangeReason: &reason,
 			RoundN:            status.RoundN,
 			StateChangedAt:    status.StateChangedAt,
-			Result:            rawResult,
 		}
 		return &upd, nil
 	}
@@ -650,69 +647,99 @@ func (gm *GameManager) updateGameStatus(
 	return &status, nil
 }
 
-func (gm *GameManager) calculateFinalResult(ctx context.Context, q qg.Querier, game qg.GetGameLockRow) (*qg.GameFinalResult, error) {
+func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.GetGameLockRow) error {
 	votes, err := q.GetVotes(ctx, game.GameID)
 	if err != nil {
-		return nil, gmDbError("failed to get votes", err)
+		return gmDbError("failed to get votes", err)
 	}
 
 	if len(votes) > 0 {
 		if game.Mode == qg.GameModeLikedislike {
 			likesDislikes, err := calculateLikesAndDislikes(votes)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			result, err := toRawLikeDislikeResult(likesDislikes)
+			err = createGameResults(ctx, q, likesDislikes, game)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			fResult, err := q.CreateFinalResult(ctx, game.GameID, result)
+			err = createPlayerResults(ctx, q, likesDislikes, game)
 			if err != nil {
-				return nil, gmDbError("failed to create final result", err)
+				return err
 			}
 
-			playerScores := calculatePlayerScores(likesDislikes, game.GameID)
-			for _, s := range playerScores {
-				if err := q.CreatePlayerStat(ctx, qg.CreatePlayerStatParams{
-					PlayerID: s.PlayerID,
-					GameID:   s.GameID,
-					Points:   s.Points,
-				}); err != nil {
-					return nil, gmDbError("failed to create player score", err)
-				}
-			}
-
-			return &fResult, nil
+			return nil
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
-func calculatePlayerScores(likesDislikes []models.LikeDislikeVideoResult, gameId int64) []qg.PlayerStat {
-	playerScores := make(map[int64]qg.PlayerStat)
+func createGameResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
+	for _, ld := range likesDislikes {
+		ldCount := models.LikeDislikeCount{
+			Likes:    ld.Likes,
+			Dislikes: ld.Dislikes,
+		}
+
+		ldCountRaw, err := json.Marshal(ldCount)
+		if err != nil {
+			return gmError(common.ErrorMarshal, "bad result data", err)
+		}
+
+		_, err = q.CreateGameVideoResult(ctx, qg.CreateGameVideoResultParams{
+			GameID:      game.GameID,
+			GameVideoID: ld.GameVideoID,
+			Result:      ldCountRaw,
+		})
+
+		if err != nil {
+			return gmDbError("failed to create game video result", err)
+		}
+	}
+
+	return nil
+}
+
+func createPlayerResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
+	playerLDCount := make(map[int64]models.LikeDislikeCount)
+	playerResults := make(map[int64]qg.PlayerResult)
 
 	for _, ld := range likesDislikes {
-		player, ok := playerScores[ld.AuthorID]
+		player, ok := playerResults[ld.AuthorID]
 		if !ok {
-			player = qg.PlayerStat{
+			player = qg.PlayerResult{
 				PlayerID: ld.AuthorID,
-				GameID:   gameId,
+				GameID:   game.GameID,
 			}
 		}
 
 		player.Points += int64(ld.Likes)
-		playerScores[ld.AuthorID] = player
+		playerResults[ld.AuthorID] = player
+
+		ldCount, ok := playerLDCount[ld.AuthorID] 
+		if !ok {
+			ldCount = models.LikeDislikeCount{}
+		}
+
+		ldCount.Likes += ld.Likes
+		ldCount.Dislikes += ld.Dislikes
 	}
 
-	fScores := make([]qg.PlayerStat, 0, len(playerScores))
-	for _, s := range playerScores {
-		fScores = append(fScores, s)
+	for playerId, result := range playerResults {
+		ldCount, ok := playerLDCount[playerId]
+		ldCountRaw, err := json.Marshal(ldCount)
+		if err != nil {
+			return gmError(common.ErrorMarshal, "bad result data", err)
+		}
+		if ok {
+			result.Result = ldCountRaw
+		}
 	}
 
-	return fScores
+	return nil
 }
 
 func calculateLikesAndDislikes(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeVideoResult, error) {
@@ -765,19 +792,6 @@ func calculateLikesAndDislikes(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeV
 	})
 
 	return results, nil
-}
-
-func toRawLikeDislikeResult(results []models.LikeDislikeVideoResult) (json.RawMessage, error) {
-	fResult := models.LikeDislikeFinalResult{
-		Results: results,
-	}
-
-	data, err := json.Marshal(fResult)
-	if err != nil {
-		return nil, gmError(common.ErrorMarshal, "bad result data", err)
-	}
-
-	return json.RawMessage(data), nil
 }
 
 func statusToGameUpdate(status *qg.UpdateGameStatusRow, reason models.StageChangeReason) models.GameUpdate {
