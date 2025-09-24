@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 .page-container {
-  @apply flex flex-col justify-start items-stretch gap-2 p-4 max-w-md w-full mx-auto;
+  @apply flex flex-col gap-2 p-4 max-w-md mx-auto;
 }
 
 .sub-container {
-  @apply flex flex-col justify-start items-stretch gap-2 w-full;
+  @apply flex flex-col gap-2;
 }
 
 .action-button {

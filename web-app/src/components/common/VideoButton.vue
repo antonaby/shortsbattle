@@ -4,7 +4,7 @@ import type { Video } from '../../types/game';
 import { detectVideoPlatform, type VideoPlatform } from '@/utils/players';
 
 const props = defineProps<{
-  video?: Video | null
+  video: Video
 }>();
 
 const emits = defineEmits<{
@@ -12,22 +12,16 @@ const emits = defineEmits<{
 }>();
 
 const platform = computed<VideoPlatform>(() => {
-  if (!props.video) {
-    return "unknown";
-  }
-
-  return detectVideoPlatform(props.video?.video_url);
+  return detectVideoPlatform(props.video.video_url);
 })
 
 function onClick() {
-  if (props.video) {
-    emits('click', props.video);
-  }
+  emits('click', props.video);
 }
 </script>
 
 <template>
-  <button v-if="video" class="flex gap-4 w-full items-start" @click="onClick">
+  <button class="flex gap-4 w-full items-start" @click="onClick">
     <div class="flex justify-center items-center bg-gray-100 rounded-xl overflow-hidden w-1/3">
       <img v-if="video.oembed.thumbnail_url" :src="video.oembed.thumbnail_url"
         :alt="video.oembed.title ?? 'Video thumbnail'" class="object-cover max-h-28" loading="lazy" />

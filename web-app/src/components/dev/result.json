@@ -1,0 +1,229 @@
+ {
+  "rounds": [
+    {
+      "round": {
+        "round_n": 1,
+        "title": "Funny & Viral",
+        "description": "A mix of funny pets, dance challenges, and cool tricks."
+      },
+      "videos": [
+        {
+          "video": {
+            "id": 1,
+            "video_url": "https://www.youtube.com/shorts/abc123xyz",
+            "oembed": {
+              "html": "<iframe src='https://www.youtube.com/embed/abc123xyz'></iframe>",
+              "type": "video",
+              "title": "Hilarious Dog Trick 🐶 Hilarious Dog Trick 🐶 Hilarious Dog Trick 🐶 Hilarious Dog Trick 🐶",
+              "width": 560,
+              "height": 315,
+              "author_name": "FunnyPets",
+              "provider_name": "YouTube Shorts",
+              "thumbnail_url": "https://img.youtube.com/vi/abc123xyz/0.jpg",
+              "thumbnail_width": 480,
+              "thumbnail_height": 360
+            },
+            "added_at": "2025-09-20T12:00:00Z"
+          },
+          "author": { "tgId": 201, "username": "john_doe" },
+          "likes": 120,
+          "dislikes": 5
+        },
+        {
+          "video": {
+            "id": 2,
+            "video_url": "https://www.tiktok.com/@dancequeen/video/6789012345",
+            "oembed": {
+              "html": "<iframe src='https://www.tiktok.com/embed/6789012345'></iframe>",
+              "type": "video",
+              "title": "Viral Dance Challenge 💃",
+              "width": 540,
+              "height": 960,
+              "author_name": "DanceQueen",
+              "provider_name": "TikTok",
+              "thumbnail_url": "https://p16-sign.tiktokcdn-us.com/tos-useast5-p-1234/abc123.jpeg",
+              "thumbnail_width": 540,
+              "thumbnail_height": 960
+            },
+            "added_at": "2025-09-21T09:30:00Z"
+          },
+          "author": { "tgId": 202, "username": "alice" },
+          "likes": 340,
+          "dislikes": 12
+        },
+        {
+          "video": {
+            "id": 3,
+            "video_url": "https://www.youtube.com/shorts/def456uvw",
+            "oembed": {
+              "html": "<iframe src='https://www.youtube.com/embed/def456uvw'></iframe>",
+              "type": "video",
+              "title": "Epic Skateboard Flip 🛹",
+              "width": 560,
+              "height": 315,
+              "author_name": "SkatePro",
+              "provider_name": "YouTube Shorts",
+              "thumbnail_url": "https://img.youtube.com/vi/def456uvw/0.jpg",
+              "thumbnail_width": 480,
+              "thumbnail_height": 360
+            },
+            "added_at": "2025-09-22T14:45:00Z"
+          },
+          "author": { "tgId": 203, "username": "mike_sk8" },
+          "likes": 220,
+          "dislikes": 4
+        }
+      ]
+    },
+    {
+      "round": {
+        "round_n": 2,
+        "title": "Food & Lifestyle",
+        "description": "Cooking hacks, travel views, and comedy moments."
+      },
+      "videos": [
+        {
+          "video": {
+            "id": 4,
+            "video_url": "https://www.tiktok.com/@foodie/video/9876543210",
+            "oembed": {
+              "html": "<iframe src='https://www.tiktok.com/embed/9876543210'></iframe>",
+              "type": "video",
+              "title": "Quick Pasta Recipe 🍝",
+              "width": 540,
+              "height": 960,
+              "author_name": "FoodieLife",
+              "provider_name": "TikTok",
+              "thumbnail_url": "https://p16-sign.tiktokcdn-us.com/tos-useast5-p-4321/xyz987.jpeg",
+              "thumbnail_width": 540,
+              "thumbnail_height": 960
+            },
+            "added_at": "2025-09-22T18:00:00Z"
+          },
+          "author": { "tgId": 204, "username": "chef_tony" },
+          "likes": 500,
+          "dislikes": 18
+        },
+        {
+          "video": {
+            "id": 5,
+            "video_url": "https://www.youtube.com/shorts/ghi789rst",
+            "oembed": {
+              "html": "<iframe src='https://www.youtube.com/embed/ghi789rst'></iframe>",
+              "type": "video",
+              "title": "Drone View of Alps 🏔️",
+              "width": 560,
+              "height": 315,
+              "author_name": "SkyView",
+              "provider_name": "YouTube Shorts",
+              "thumbnail_url": "https://img.youtube.com/vi/ghi789rst/0.jpg",
+              "thumbnail_width": 480,
+              "thumbnail_height": 360
+            },
+            "added_at": "2025-09-23T10:15:00Z"
+          },
+          "author": { "tgId": 205, "username": "drone_guy" },
+          "likes": 780,
+          "dislikes": 9
+        },
+        {
+          "video": {
+            "id": 6,
+            "video_url": "https://www.tiktok.com/@comedyclub/video/1234567890",
+            "oembed": {
+              "html": "<iframe src='https://www.tiktok.com/embed/1234567890'></iframe>",
+              "type": "video",
+              "title": "Stand-up Comedy 😂",
+              "width": 540,
+              "height": 960,
+              "author_name": "ComedyClub",
+              "provider_name": "TikTok",
+              "thumbnail_url": "https://p16-sign.tiktokcdn-us.com/tos-useast5-p-5678/qwe123.jpeg",
+              "thumbnail_width": 540,
+              "thumbnail_height": 960
+            },
+            "added_at": "2025-09-23T21:30:00Z"
+          },
+          "author": { "tgId": 206, "username": "comedian_jane" },
+          "likes": 650,
+          "dislikes": 20
+        }
+      ]
+    },
+    {
+      "round": {
+        "round_n": 3,
+        "title": "Music & Sports",
+        "description": "Relaxing sounds, short films, and action-packed highlights."
+      },
+      "videos": [
+        {
+          "video": {
+            "id": 7,
+            "video_url": "https://www.youtube.com/shorts/jkl012mno",
+            "oembed": {
+              "html": "<iframe src='https://www.youtube.com/embed/jkl012mno'></iframe>",
+              "type": "video",
+              "title": "Relaxing Piano 🎹",
+              "width": 560,
+              "height": 315,
+              "author_name": "PianoTime",
+              "provider_name": "YouTube Shorts",
+              "thumbnail_url": "https://img.youtube.com/vi/jkl012mno/0.jpg",
+              "thumbnail_width": 480,
+              "thumbnail_height": 360
+            },
+            "added_at": "2025-09-24T08:00:00Z"
+          },
+          "author": { "tgId": 207, "username": "sofia_music" },
+          "likes": 1500,
+          "dislikes": 11
+        },
+        {
+          "video": {
+            "id": 8,
+            "video_url": "https://www.tiktok.com/@filmclub/video/2468135790",
+            "oembed": {
+              "html": "<iframe src='https://www.tiktok.com/embed/2468135790'></iframe>",
+              "type": "video",
+              "title": "Indie Short Film 🎬",
+              "width": 540,
+              "height": 960,
+              "author_name": "FilmClub",
+              "provider_name": "TikTok",
+              "thumbnail_url": "https://p16-sign.tiktokcdn-us.com/tos-useast5-p-6789/film123.jpeg",
+              "thumbnail_width": 540,
+              "thumbnail_height": 960
+            },
+            "added_at": "2025-09-24T12:00:00Z"
+          },
+          "author": { "tgId": 208, "username": "cinema_bob" },
+          "likes": 890,
+          "dislikes": 25
+        },
+        {
+          "video": {
+            "id": 9,
+            "video_url": "https://www.youtube.com/shorts/pqr345stu",
+            "oembed": {
+              "html": "<iframe src='https://www.youtube.com/embed/pqr345stu'></iframe>",
+              "type": "video",
+              "title": "Soccer Highlights ⚽",
+              "width": 560,
+              "height": 315,
+              "author_name": "SportsFan",
+              "provider_name": "YouTube Shorts",
+              "thumbnail_url": "https://img.youtube.com/vi/pqr345stu/0.jpg",
+              "thumbnail_width": 480,
+              "thumbnail_height": 360
+            },
+            "added_at": "2025-09-24T19:15:00Z"
+          },
+          "author": { "tgId": 209, "username": "alex_football" },
+          "likes": 1320,
+          "dislikes": 30
+        }
+      ]
+    }
+  ]
+}

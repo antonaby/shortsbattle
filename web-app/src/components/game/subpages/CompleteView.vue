@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useGameStore } from '@/stores/game.store';
 import { useUIStore } from '@/stores/ui.store';
-import VHIcon from '@/components/common/VHIcon.vue';
+import VHIcon from '@/components/common/VHIconView.vue';
 import TabView from '@/components/common/TabView.vue';
 import type { Tab } from '@/types/components';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import VideoScoreView from '@/components/common/VideoScoreView.vue';
+import type { RoundResult } from '@/types/game';
+import RoundView from '@/components/common/RoundView.vue';
 
 const tabs: Tab[] = [
   {
@@ -26,6 +29,15 @@ function onTabSelect(tab: Tab) {
 
 const uiStore = useUIStore();
 const gameStore = useGameStore();
+
+const rounds = computed<RoundResult[]>(() => {
+  if (!gameStore.gameResult) {
+    return [];
+  }
+
+  return gameStore.gameResult?.rounds;
+})
+
 </script>
 
 <template>
@@ -90,9 +102,22 @@ const gameStore = useGameStore();
       @click="uiStore.returnToHub()">
       🎉 Finish
     </button>
-    <div class="sub-container">
-      <span class="text-lg font-medium w-full text-center">⚡Rounds⚡</span>
+    <div class="sub-container" v-if="rounds.length > 0">
       <TabView :tabs="tabs" :selected-key="activeTab.key" @select="onTabSelect" />
+
+      <template v-for="round in rounds" :key="round.round.round_n">
+        <RoundView :round="round.round" />
+        <template v-for="video in round.videos">
+          <VideoScoreView :videoResult="video" />
+        </template>
+      </template>
+
+
+
+
+
+
+
       <div class="flex items-center gap-4 bg-gray-100 px-2 py-2 rounded-lg my-2">
         <img src="https://cdn2.thecatapi.com/images/bpc.jpg" alt="Round" class="w-16 h-16 object-cover rounded-lg" />
         <div class="flex-1">
@@ -101,30 +126,6 @@ const gameStore = useGameStore();
         </div>
       </div>
       <!-- Video Info -->
-      <div class="flex gap-3 w-full items-start">
-        <div class="flex justify-center items-center bg-gray-100 rounded-lg overflow-hidden w-1/3">
-          <img src="https://i.ytimg.com/vi/fM9Xt04ieIM/hq2.jpg" alt="Video Info" class="object-cover max-h-28"
-            loading="lazy" />
-        </div>
-        <div class="flex-1 flex flex-col items-start gap-1">
-          <div class="flex flex-wrap items-center justify-start gap-1">
-            <div class="text-sm px-2 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
-              <span>👤</span>
-              <span class="font-semibold max-w-[120px] truncate">PlayerOne</span>
-            </div>
-            <VHIcon platform="tiktok" author="Lennovan" />
-          </div>
-          <span class="text-sm">that is not his first time #memes #funny #shorts"</span>
-          <div class="w-full flex gap-2">
-            <span
-              class="flex-1 px-2 py-1 rounded-lg text-center font-medium border border-green-300 text-green-700 text-sm">👍
-              10</span>
-            <span
-              class="flex-1 px-2 py-1 rounded-lg text-center font-medium border border-red-300 text-red-700 text-sm">👎
-              5</span>
-          </div>
-        </div>
-      </div>
       <!-- Video Info -->
       <div class="flex gap-3 w-full items-start">
         <div class="flex justify-center items-center bg-gray-100 rounded-xl overflow-hidden w-1/3">

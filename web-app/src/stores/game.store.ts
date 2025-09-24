@@ -5,6 +5,7 @@ import type {
   Video,
   GameVideo,
   VoteValue,
+  GameResult
 } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
@@ -28,6 +29,7 @@ export const useGameStore = defineStore("game", () => {
   const lastUpdate = ref<GameUpdate | undefined>(undefined);
   const playerVideo = ref<GameVideo | undefined>(undefined);
   const videosToWatch = ref<GameVideo[]>([]);
+  const gameResult = ref<GameResult | undefined>(undefined);
 
   let gameSub: Subscription | null = null;
   let intervalId: number | null = null;
@@ -80,6 +82,7 @@ export const useGameStore = defineStore("game", () => {
     lastUpdate.value = undefined;
     playerVideo.value = undefined;
     videosToWatch.value = [];
+    gameResult.value = undefined;
   }
 
   function handleSubscribed(ctx: SubscribedContext) {
@@ -235,6 +238,7 @@ export const useGameStore = defineStore("game", () => {
     lastUpdate,
     playerVideo,
     videosToWatch,
+    gameResult,
     joinGame,
     leaveGame,
     startTimer,

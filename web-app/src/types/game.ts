@@ -90,3 +90,24 @@ export interface Vote {
   value: LikeDislikeVote;
   voted_at: string;
 }
+
+export interface VideoAuthor {
+  tgId: number;
+  username: string;
+}
+
+export interface VideoResult {
+  video: Video;
+  author: VideoAuthor;
+  likes: number;
+  dislikes: number;
+}
+
+export interface RoundResult {
+  round: Round;
+  videos: VideoResult[];
+}
+
+export interface GameResult {
+  rounds: RoundResult[];
+}

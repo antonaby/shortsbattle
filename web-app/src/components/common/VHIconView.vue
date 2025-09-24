@@ -10,7 +10,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex items-center">
+  <div class="flex flex-wrap items-center gap-1">
     <img :src="tkIcon" alt="TikTok Icon" v-if="platform == 'tiktok'" class="vh-icon" />
     <img :src="ytIcon" alt="YouTube Icon" v-else class="vh-icon" />
     <span class="text-description">{{ author }}</span>
@@ -21,6 +21,6 @@ defineProps<{
 @import "tailwindcss";
 
 .vh-icon {
-  @apply object-cover w-7 h-7;
+  @apply object-cover w-6 h-6;
 }
 </style>
