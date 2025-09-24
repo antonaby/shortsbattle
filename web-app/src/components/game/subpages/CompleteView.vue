@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import { useGameStore } from '@/stores/game.store';
 import { useUIStore } from '@/stores/ui.store';
-import VHIcon from '@/components/common/VHIconView.vue';
 import TabView from '@/components/common/TabView.vue';
 import type { Tab } from '@/types/components';
 import { computed, ref } from 'vue';
 import VideoScoreView from '@/components/common/VideoScoreView.vue';
 import type { RoundResult } from '@/types/game';
 import RoundView from '@/components/common/RoundView.vue';
+import BottomView from '@/components/common/BottomView.vue';
+import { useUserStore } from '@/stores/user.store';
 
 const tabs: Tab[] = [
   {
     position: 0,
     label: "🎥 All Videos",
-    key: "new"
+    key: "all"
   },
   {
     position: 1,
     label: "👤 My Videos",
-    key: "library"
+    key: "my"
   },
 ];
 
@@ -29,13 +30,23 @@ function onTabSelect(tab: Tab) {
 
 const uiStore = useUIStore();
 const gameStore = useGameStore();
+const userStore = useUserStore();
 
 const rounds = computed<RoundResult[]>(() => {
   if (!gameStore.gameResult) {
     return [];
   }
 
-  return gameStore.gameResult?.rounds;
+  if (activeTab.value.key == 'all') {
+    return gameStore.gameResult.rounds;
+  }
+
+  return gameStore.gameResult.rounds
+    .map(round => ({
+      ...round,
+      videos: round.videos.filter(v => v.author.tgId === userStore.userId)
+    }))
+    .filter(round => round.videos.length > 0)
 })
 
 </script>
@@ -107,9 +118,10 @@ const rounds = computed<RoundResult[]>(() => {
       <template v-for="round in rounds" :key="round.round.round_n">
         <RoundView :round="round.round" />
         <template v-for="video in round.videos">
-          <VideoScoreView :videoResult="video" />
+          <VideoScoreView :videoResult="video" :player-id="userStore.userId" />
         </template>
       </template>
     </div>
+    <BottomView />
   </div>
 </template>

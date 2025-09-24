@@ -5,6 +5,7 @@ import { detectVideoPlatform, type VideoPlatform } from '@/utils/players';
 import { computed } from 'vue';
 
 const props = defineProps<{
+  playerId: number,
   videoResult: VideoResult
 }>();
 
@@ -39,7 +40,10 @@ const videoFrom = computed<string>(() => {
     </div>
     <div class="flex-1 flex flex-col gap-1">
       <div class="flex flex-wrap items-center justify-start gap-1">
-        <div class="text-sm px-2 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
+        <div class="text-sm px-2 py-1 rounded-lg  text-white"
+          :class="videoResult.author.tgId == playerId 
+            ? 'bg-gradient-to-r from-orange-400 to-pink-600' 
+            : 'bg-gradient-to-r from-cyan-500 to-blue-600'">
           <span>👤</span>
           <span class="font-semibold max-w-[120px] truncate">{{ videoResult.author.username }}</span>
         </div>
@@ -54,7 +58,7 @@ const videoFrom = computed<string>(() => {
 @import "tailwindcss";
 
 .thumbnail-container {
-  @apply flex justify-center items-center bg-gray-200 rounded-lg overflow-hidden w-1/3 min-w-28;
+  @apply flex justify-center items-center bg-gradient-to-br from-slate-50 to-slate-200 rounded-lg overflow-hidden w-1/3 min-w-28;
 }
 
 .ld-container {

@@ -6,6 +6,7 @@ import { jwtDecode, type JwtPayload } from "jwt-decode";
 
 export const useUserStore = defineStore("auth", () => {
   const token = ref<string | null>(null);
+  const userId = ref<number>(0); // TODO: get userId from initData
   const uiStore = useUIStore();
 
   let decodedToken: JwtPayload | null = null;
@@ -49,5 +50,5 @@ export const useUserStore = defineStore("auth", () => {
     return exp <= now + cooldown;
   }
 
-  return { token, getToken };
+  return { token, userId, getToken };
 });
