@@ -362,18 +362,48 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 	})
 }
 
-// func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64) (*models.GameResult, error) {
-// 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameResult, error) {
-// 		gameVideos, err := q.GetGameVideos(ctx, gameId, playerId)
-// 		if err != nil {
-// 			return nil, gmDbError("failed to get game videos", err)
-// 		}
+func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64) (*models.GameResult, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameResult, error) {
+		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})
+		if err != nil {
+			return nil, err
+		}
 
-// 		return &models.GameResult{
+		gameVideos, err := q.GetGameVideoResults(ctx, gameId)
+		if err != nil {
+			return nil, gmDbError("failed to get game videos", err)
+		}
 
-// 		}, nil
-// 	})
-// }
+		rounds := make(map[int32]models.RoundResult, 0)
+		for _, gv := range gameVideos {
+			round, ok := rounds[gv.RoundN]
+			if !ok {
+				round = models.RoundResult{
+					Round: models.Round{
+						RoundN:      gv.RoundN,
+						Title:       gv.RoundTitle,
+						Description: gv.RoundDescription.String,
+					},
+				}
+			}
+
+			rounds[gv.RoundN] = round
+		}
+
+		roundsRaw := make([]models.RoundResult, 0, len(rounds))
+		for _, r := range rounds {
+			roundsRaw = append(roundsRaw, r)
+		}
+
+		sort.Slice(roundsRaw, func(i, j int) bool {
+			return roundsRaw[i].Round.RoundN < roundsRaw[j].Round.RoundN
+		})
+
+		return &models.GameResult{
+			Rounds: roundsRaw,
+		}, nil
+	})
+}
 
 func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerResult, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerResult, error) {

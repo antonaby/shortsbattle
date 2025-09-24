@@ -520,6 +520,14 @@ func TestGameActions(t *testing.T) {
 		}
 		require.Equal(t, 1, count.Likes)
 		require.Equal(t, 1, count.Dislikes)
+
+		// 7) get game result
+		gameResult, err := gm.GetGameResult(ctx, game.ID, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get game result (player 1): %v", err)
+		}
+
+		require.Equal(t, 2, len(gameResult.Rounds))
 	})
 }
 
