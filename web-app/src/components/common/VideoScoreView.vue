@@ -33,7 +33,7 @@ const videoFrom = computed<string>(() => {
     </div>
     <div v-if="videoResult.video.oembed.thumbnail_url" class="thumbnail-container">
       <img :src="videoResult.video.oembed.thumbnail_url" :alt="videoResult.video.oembed.title || 'Video Cover'"
-        class="object-cover max-h-28" loading="lazy" />
+        class="object-cover min-h-62" loading="lazy" />
     </div>
     <div v-else class="thumbnail-container min-h-26 text-gray-600 font-light">
       <span>No Image</span>
