@@ -57,6 +57,14 @@ const players = computed<PlayerResult[]>(() => {
   return [...gameStore.gameResult.players].sort((a, b) => a.place - b.place);
 });
 
+const player = computed<PlayerResult | undefined>(() => {
+  if (!gameStore.gameResult) {
+    return undefined;
+  }
+
+  return gameStore.gameResult.players.find(p => p.tgId === userStore.userId)
+})
+
 function getPlaceMedal(place: number): string {
   switch (place) {
     case 1:
@@ -64,12 +72,11 @@ function getPlaceMedal(place: number): string {
     case 2:
       return "🥈";
     case 3:
-      return "🥉";    
+      return "🥉";
   }
 
   return "\u00A0"
 }
-
 </script>
 
 <template>
@@ -81,29 +88,30 @@ function getPlaceMedal(place: number): string {
       <div class="grid grid-cols-[25px_1fr_50px_50px] place-items-start gap-1">
         <template v-for="player in players" :key="player.tgId">
           <span>{{ getPlaceMedal(player.place) }}</span>
-          <span class="text-gray-700" :class="{'font-medium' : player.tgId == userStore.userId}">
+          <span class="text-gray-700" :class="{ 'font-medium': player.tgId == userStore.userId }">
             {{ player.username }}
           </span>
           <div class="ld-table">
             <span>👍</span>
-            <span class="text-green-700">{{ player.likes }}</span>
+            <span class="text-emerald-700">{{ player.likes }}</span>
           </div>
           <div class="ld-table">
             <span>👎</span>
-            <span class="text-red-700">{{ player.dislikes }}</span>
+            <span class="text-rose-700">{{ player.dislikes }}</span>
           </div>
         </template>
       </div>
     </div>
-    <div class="sub-container p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
-      <div class="text-lg font-medium w-full text-center text-gray-900">Your Stats</div>
-      <div class="text-lg font-semibold flex flex-wrap items-center justify-center gap-1 text-center">
+    <div v-if="player"
+      class="sub-container text-lg p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
+      <div class="font-medium text-center text-gray-900">Your Stats</div>
+      <div class="font-semibold flex flex-wrap items-center justify-center gap-1 text-center">
         <span class="min-w-4">👍</span>
-        <span class="text-emerald-700 min-w-6">10</span>
+        <span class="text-emerald-700 min-w-6">{{ player.likes }}</span>
         <span class="min-w-4">👎</span>
-        <span class="text-rose-700 min-w-6">2</span>
+        <span class="text-rose-700 min-w-6">{{ player.dislikes }}</span>
         <span class="min-w-4">⚡</span>
-        <span class="text-emerald-700 min-w-6">+200</span>
+        <span class="text-emerald-700 min-w-6">+{{ gameStore.gameResult?.outcome.plusEnergy }}</span>
       </div>
     </div>
     <button
@@ -130,5 +138,4 @@ function getPlaceMedal(place: number): string {
 .ld-table {
   @apply flex gap-1 text-xs place-self-center w-full;
 }
-
 </style>

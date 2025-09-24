@@ -32,7 +32,7 @@ const videoFrom = computed<string>(() => {
     </div>
     <div v-if="videoResult.video.oembed.thumbnail_url" class="thumbnail-container">
       <img :src="videoResult.video.oembed.thumbnail_url" :alt="videoResult.video.oembed.title || 'Video Cover'"
-        class="object-cover min-h-62" loading="lazy" />
+        class="object-cover min-h-74" loading="lazy" />
     </div>
     <div v-else class="thumbnail-container min-h-26 text-gray-600 font-light">
       <span>No Image</span>
@@ -57,7 +57,7 @@ const videoFrom = computed<string>(() => {
 @import "tailwindcss";
 
 .thumbnail-container {
-  @apply flex justify-center items-center bg-gradient-to-br from-slate-50 to-slate-200 rounded-lg overflow-hidden w-1/3 min-w-28;
+  @apply flex justify-center items-center bg-gradient-to-br from-slate-50 to-slate-200 rounded-lg overflow-hidden w-2/5 min-w-28;
 }
 
 .ld-container {
