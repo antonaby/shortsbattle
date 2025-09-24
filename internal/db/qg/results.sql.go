@@ -37,6 +37,41 @@ func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideo
 	return i, err
 }
 
+const createPlayerResult = `-- name: CreatePlayerResult :one
+INSERT INTO player_results(player_id, game_id, result, points)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (player_id, game_id) DO UPDATE
+  SET result = EXCLUDED.result,
+      points = EXCLUDED.points,
+      calculated_at = now()
+RETURNING player_id, game_id, result, points, calculated_at
+`
+
+type CreatePlayerResultParams struct {
+	PlayerID int64           `json:"player_id"`
+	GameID   int64           `json:"game_id"`
+	Result   json.RawMessage `json:"result"`
+	Points   int64           `json:"points"`
+}
+
+func (q *Queries) CreatePlayerResult(ctx context.Context, arg CreatePlayerResultParams) (PlayerResult, error) {
+	row := q.db.QueryRow(ctx, createPlayerResult,
+		arg.PlayerID,
+		arg.GameID,
+		arg.Result,
+		arg.Points,
+	)
+	var i PlayerResult
+	err := row.Scan(
+		&i.PlayerID,
+		&i.GameID,
+		&i.Result,
+		&i.Points,
+		&i.CalculatedAt,
+	)
+	return i, err
+}
+
 const getPlayersResult = `-- name: GetPlayersResult :many
 SELECT ps.player_id, ps.game_id, ps.result, ps.points, ps.calculated_at FROM player_results ps
 WHERE ps.game_id = $1

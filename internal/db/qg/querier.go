@@ -15,6 +15,7 @@ type Querier interface {
 	CountPlayersInGame(ctx context.Context, gameID int64) (int64, error)
 	CreateGameVideoResult(ctx context.Context, arg CreateGameVideoResultParams) (GameVideoResult, error)
 	CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error)
+	CreatePlayerResult(ctx context.Context, arg CreatePlayerResultParams) (PlayerResult, error)
 	CreateRound(ctx context.Context, arg CreateRoundParams) (Round, error)
 	CreateTheme(ctx context.Context, arg CreateThemeParams) (Theme, error)
 	EnqueueGame(ctx context.Context, gameID int64) (GameUpdate, error)

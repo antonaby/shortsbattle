@@ -660,12 +660,12 @@ func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.G
 				return err
 			}
 
-			err = createGameResults(ctx, q, likesDislikes, game)
+			err = createGameLDResults(ctx, q, likesDislikes, game)
 			if err != nil {
 				return err
 			}
 
-			err = createPlayerResults(ctx, q, likesDislikes, game)
+			err = createPlayerLDResults(ctx, q, likesDislikes, game)
 			if err != nil {
 				return err
 			}
@@ -677,7 +677,7 @@ func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.G
 	return nil
 }
 
-func createGameResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
+func createGameLDResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
 	for _, ld := range likesDislikes {
 		ldCount := models.LikeDislikeCount{
 			Likes:    ld.Likes,
@@ -703,7 +703,7 @@ func createGameResults(ctx context.Context, q qg.Querier, likesDislikes []models
 	return nil
 }
 
-func createPlayerResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
+func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
 	playerLDCount := make(map[int64]models.LikeDislikeCount)
 	playerResults := make(map[int64]qg.PlayerResult)
 
@@ -719,7 +719,7 @@ func createPlayerResults(ctx context.Context, q qg.Querier, likesDislikes []mode
 		player.Points += int64(ld.Likes)
 		playerResults[ld.AuthorID] = player
 
-		ldCount, ok := playerLDCount[ld.AuthorID] 
+		ldCount, ok := playerLDCount[ld.AuthorID]
 		if !ok {
 			ldCount = models.LikeDislikeCount{}
 		}
@@ -730,12 +730,25 @@ func createPlayerResults(ctx context.Context, q qg.Querier, likesDislikes []mode
 
 	for playerId, result := range playerResults {
 		ldCount, ok := playerLDCount[playerId]
-		ldCountRaw, err := json.Marshal(ldCount)
+		var count models.LikeDislikeCount
+		if ok {
+			count = ldCount
+		}
+
+		ldCountRaw, err := json.Marshal(count)
 		if err != nil {
 			return gmError(common.ErrorMarshal, "bad result data", err)
 		}
-		if ok {
-			result.Result = ldCountRaw
+
+		_, err = q.CreatePlayerResult(ctx, qg.CreatePlayerResultParams{
+			PlayerID: result.PlayerID,
+			GameID:   result.GameID,
+			Points:   result.Points,
+			Result:   ldCountRaw,
+		})
+
+		if err != nil {
+			return gmDbError("failed to create player result", err)
 		}
 	}
 
