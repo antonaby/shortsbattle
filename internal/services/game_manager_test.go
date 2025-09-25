@@ -30,13 +30,14 @@ func TestGameActions(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:             2,
-		MaxLobbyStage:          2 * time.Second,
-		MaxLobbyFullStage:      1 * time.Second,
-		MaxSubmitStage:         2 * time.Second,
-		MaxSubmitCompleteStage: 1 * time.Second,
-		MaxWatchStage:          2 * time.Second,
-		MaxWatchCompleteStage:  1 * time.Second,
+		MaxPlayers:                 2,
+		MaxLobbyStage:              2 * time.Second,
+		MaxLobbyFullStage:          1 * time.Second,
+		MaxSubmitStage:             2 * time.Second,
+		MaxSubmitCompleteStage:     1 * time.Second,
+		MaxWatchStage:              2 * time.Second,
+		MaxWatchCompleteStage:      1 * time.Second,
+		LikeDislikePointMultiplier: 1,
 	})
 
 	vs := NewVideosService(ts.DBManager)
@@ -535,13 +536,14 @@ func TestAdvanceGame(t *testing.T) {
 	ts := tests.NewDockerTestSuite(t)
 
 	gm := NewGameManager(ts.DBManager, GameConfig{
-		MaxPlayers:             2,
-		MaxLobbyStage:          2 * time.Second,
-		MaxLobbyFullStage:      1 * time.Second,
-		MaxSubmitStage:         2 * time.Second,
-		MaxSubmitCompleteStage: 1 * time.Second,
-		MaxWatchStage:          2 * time.Second,
-		MaxWatchCompleteStage:  1 * time.Second,
+		MaxPlayers:                 2,
+		MaxLobbyStage:              2 * time.Second,
+		MaxLobbyFullStage:          1 * time.Second,
+		MaxSubmitStage:             2 * time.Second,
+		MaxSubmitCompleteStage:     1 * time.Second,
+		MaxWatchStage:              2 * time.Second,
+		MaxWatchCompleteStage:      1 * time.Second,
+		LikeDislikePointMultiplier: 1,
 	})
 
 	t.Run("LobbyWithMaxPlayers", func(t *testing.T) {

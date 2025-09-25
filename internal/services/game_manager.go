@@ -41,13 +41,14 @@ func gmGameUpdError(id int64, err error) error {
 }
 
 type GameConfig struct {
-	MaxPlayers             int32
-	MaxLobbyStage          time.Duration
-	MaxLobbyFullStage      time.Duration
-	MaxSubmitStage         time.Duration
-	MaxSubmitCompleteStage time.Duration
-	MaxWatchStage          time.Duration
-	MaxWatchCompleteStage  time.Duration
+	MaxPlayers                 int32
+	MaxLobbyStage              time.Duration
+	MaxLobbyFullStage          time.Duration
+	MaxSubmitStage             time.Duration
+	MaxSubmitCompleteStage     time.Duration
+	MaxWatchStage              time.Duration
+	MaxWatchCompleteStage      time.Duration
+	LikeDislikePointMultiplier int
 }
 
 type GameManager struct {
@@ -655,7 +656,11 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 			return &upd, nil
 		}
 
-		// TODO: complete game itself also
+		_, err = q.SetGameComplete(ctx, game.GameID)
+		if err != nil {
+			return nil, gmDbError("failed to update game", err)
+		}
+	
 		status, err := q.UpdateGameStatusComplete(ctx, qg.GameStageComplete, game.GameID)
 		if err != nil {
 			return nil, gmDbError("failed to update game stage", err)
@@ -720,7 +725,7 @@ func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.G
 			return err
 		}
 
-		err = createPlayerLDResults(ctx, q, likesDislikes, game)
+		err = createPlayerLDResults(gm.config, ctx, q, likesDislikes, game)
 		if err != nil {
 			return err
 		}
@@ -748,12 +753,12 @@ func createGameLDResults(ctx context.Context, q qg.Querier, likesDislikes []mode
 	return nil
 }
 
-func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
-	playerLDCount := make(map[int64]models.LikeDislikeCount)
-	playerResults := make(map[int64]qg.PlayerResult)
+func createPlayerLDResults(config GameConfig, ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
+	likeDislikeCount := make(map[int64]models.LikeDislikeCount)
+	players := make(map[int64]qg.PlayerResult)
 
 	for _, ld := range likesDislikes {
-		player, ok := playerResults[ld.AuthorID]
+		player, ok := players[ld.AuthorID]
 		if !ok {
 			player = qg.PlayerResult{
 				PlayerID: ld.AuthorID,
@@ -761,30 +766,36 @@ func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []mo
 			}
 		}
 
-		player.Points += int64(ld.Likes)
-		playerResults[ld.AuthorID] = player
+		player.Points += int64(ld.Likes * config.LikeDislikePointMultiplier)
+		players[ld.AuthorID] = player
 
-		ldCount, ok := playerLDCount[ld.AuthorID]
-		if !ok {
-			ldCount = models.LikeDislikeCount{}
-		}
+		ldCount := likeDislikeCount[ld.AuthorID]
 
 		ldCount.Likes += ld.Likes
 		ldCount.Dislikes += ld.Dislikes
 
-		playerLDCount[ld.AuthorID] = ldCount
+		likeDislikeCount[ld.AuthorID] = ldCount
 	}
 
-	for playerId, result := range playerResults {
-		ldCount := playerLDCount[playerId]
+	playersOrder := make([]qg.PlayerResult, 0, len(players))
+	for _, player := range players {
+		playersOrder = append(playersOrder, player)
+	}
+
+	sort.Slice(playersOrder, func(i, j int) bool {
+		return playersOrder[i].Points > playersOrder[j].Points // ">" gives descending order
+	})
+
+	for playerId, player := range players {
+		ldCount := likeDislikeCount[playerId]
 
 		_, err := q.CreatePlayerResult(ctx, qg.CreatePlayerResultParams{
-			PlayerID: result.PlayerID,
-			GameID:   result.GameID,
+			PlayerID: player.PlayerID,
+			GameID:   player.GameID,
 			Likes:    int32(ldCount.Likes),
 			Dislikes: int32(ldCount.Dislikes),
-			Place:    0,
-			Points:   result.Points,
+			Place:    int32(playerPlace(playersOrder, playerId)),
+			Points:   player.Points,
 		})
 
 		if err != nil {
@@ -793,6 +804,16 @@ func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []mo
 	}
 
 	return nil
+}
+
+func playerPlace(slice []qg.PlayerResult, playerId int64) int {
+	for i, v := range slice {
+		if v.PlayerID == playerId {
+			return i
+		}
+	}
+
+	return 100 // not found
 }
 
 func calculateLikesAndDislikes(rawVotes []qg.GetLDVotesRow) ([]models.LikeDislikeVideoResult, error) {

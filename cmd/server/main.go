@@ -50,13 +50,14 @@ func main() {
 	defer redisClient.Close()
 
 	gameConfig := services.GameConfig{
-		MaxPlayers:             2,
-		MaxLobbyStage:          60 * time.Second,
-		MaxLobbyFullStage:      3 * time.Second,
-		MaxSubmitStage:         60 * time.Second,
-		MaxSubmitCompleteStage: 3 * time.Second,
-		MaxWatchStage:          600 * time.Second,
-		MaxWatchCompleteStage:  3 * time.Second,
+		MaxPlayers:                 2,
+		MaxLobbyStage:              60 * time.Second,
+		MaxLobbyFullStage:          3 * time.Second,
+		MaxSubmitStage:             60 * time.Second,
+		MaxSubmitCompleteStage:     3 * time.Second,
+		MaxWatchStage:              600 * time.Second,
+		MaxWatchCompleteStage:      3 * time.Second,
+		LikeDislikePointMultiplier: 75,
 	}
 
 	themeService := services.NewThemeService(dbManager)
