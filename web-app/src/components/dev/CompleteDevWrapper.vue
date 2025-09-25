@@ -9,7 +9,6 @@ gameStore.gameResult = result;
 
 const userStore = useUserStore();
 userStore.userId = 202;
-
 </script>
 
 <template>

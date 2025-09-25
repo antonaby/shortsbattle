@@ -29,6 +29,9 @@ export const useUserStore = defineStore("auth", () => {
         initData = `userId=${userId}&username=${username}&languageCode=${languageCode}`
       }
 
+      const updatedData = new URLSearchParams(initData);
+      userId.value = Number(updatedData.get("userId") || "0");
+
       let newToken = await AuthAPI.getToken(initData);
       decodedToken = jwtDecode<JwtPayload>(newToken);
       token.value = newToken;

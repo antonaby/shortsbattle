@@ -3,7 +3,7 @@ import { useGameStore } from '@/stores/game.store';
 import { useUIStore } from '@/stores/ui.store';
 import TabView from '@/components/common/TabView.vue';
 import type { Tab } from '@/types/components';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import VideoScoreView from '@/components/common/VideoScoreView.vue';
 import type { PlayerResult, RoundResult } from '@/types/game';
 import RoundView from '@/components/common/RoundView.vue';
@@ -77,6 +77,10 @@ function getPlaceMedal(place: number): string {
 
   return "\u00A0"
 }
+
+onMounted(() => {
+  gameStore.loadGameResult();
+});
 </script>
 
 <template>

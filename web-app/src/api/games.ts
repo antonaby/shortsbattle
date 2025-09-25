@@ -1,5 +1,6 @@
 import type {
   GameJoined,
+  GameResult,
   GameVideo,
   PlayerMode,
   Theme,
@@ -84,13 +85,16 @@ export const GamesAPI = {
     return response.data;
   },
   async voteForVideo(gameVideoId: number, value: VoteValue): Promise<Vote> {
-    const response = await api.put<Vote>(
-      `${import.meta.env.VITE_BASE_URL}/api/v1/votes/${gameVideoId}`,
-      {
-        value: {
-          value: value
-        },
-      }
+    const response = await api.put<Vote>(`/api/v1/votes/${gameVideoId}`, {
+      value: {
+        value: value,
+      },
+    });
+    return response.data;
+  },
+  async getGameResult(gameId: number): Promise<GameResult> {
+    const response = await api.get<GameResult>(
+      `/api/v1/games/${gameId}/result`
     );
     return response.data;
   },

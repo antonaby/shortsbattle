@@ -5,7 +5,7 @@ import type {
   Video,
   GameVideo,
   VoteValue,
-  GameResult
+  GameResult,
 } from "../types/game";
 import { computed, ref } from "vue";
 import { useWSStore } from "./ws.store";
@@ -137,6 +137,7 @@ export const useGameStore = defineStore("game", () => {
         uiStore.openGameWatch(upd.id);
         break;
       case "complete":
+        gameResult.value = undefined;
         stopTimer();
         uiStore.openGameComplete(upd.id);
         break;
@@ -232,6 +233,18 @@ export const useGameStore = defineStore("game", () => {
     // TODO: send to the backend
   }
 
+  async function loadGameResult() {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      gameResult.value = await GamesAPI.getGameResult(lastUpdate.value.id);
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
+  }
+
   return {
     theme,
     formattedTime,
@@ -247,5 +260,6 @@ export const useGameStore = defineStore("game", () => {
     loadVideosToWatch,
     voteForVideo,
     videoError,
+    loadGameResult,
   };
 });
