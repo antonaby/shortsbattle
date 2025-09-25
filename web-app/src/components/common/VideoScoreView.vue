@@ -40,7 +40,7 @@ const videoFrom = computed<string>(() => {
     <div class="flex-1 flex flex-col gap-1">
       <div class="flex flex-wrap items-center justify-start gap-1">
         <div class="text-sm px-2 py-1 rounded-lg  text-white"
-          :class="videoResult.author.tgId == playerId 
+          :class="videoResult.author.tg_id == playerId 
             ? 'bg-gradient-to-r from-orange-400 to-pink-600' 
             : 'bg-gradient-to-r from-cyan-500 to-blue-600'">
           <span>👤</span>

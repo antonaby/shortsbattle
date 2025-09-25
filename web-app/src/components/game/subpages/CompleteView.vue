@@ -44,7 +44,7 @@ const rounds = computed<RoundResult[]>(() => {
   return gameStore.gameResult.rounds
     .map(round => ({
       ...round,
-      videos: round.videos.filter(v => v.author.tgId === userStore.userId)
+      videos: round.videos.filter(v => v.author.tg_id === userStore.userId)
     }))
     .filter(round => round.videos.length > 0)
 })
@@ -69,11 +69,11 @@ const player = computed<PlayerResult | undefined>(() => {
 
 function getPlaceMedal(place: number): string {
   switch (place) {
-    case 1:
+    case 0:
       return "🥇";
-    case 2:
+    case 1:
       return "🥈";
-    case 3:
+    case 2:
       return "🥉";
   }
 

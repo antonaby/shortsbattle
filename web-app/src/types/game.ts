@@ -91,7 +91,7 @@ export interface Vote {
 }
 
 export interface VideoAuthor {
-  tgId: number;
+  tg_id: number;
   username: string;
 }
 

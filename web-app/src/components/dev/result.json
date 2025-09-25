@@ -65,7 +65,7 @@
             },
             "added_at": "2025-09-20T12:00:00Z"
           },
-          "author": { "tgId": 201, "username": "john_doe" },
+          "author": { "tg_id": 201, "username": "john_doe" },
           "likes": 2,
           "dislikes": 5
         },
@@ -87,7 +87,7 @@
             },
             "added_at": "2025-09-21T09:30:00Z"
           },
-          "author": { "tgId": 202, "username": "alice" },
+          "author": { "tg_id": 202, "username": "alice" },
           "likes": 340,
           "dislikes": 12
         },
@@ -108,7 +108,7 @@
             },
             "added_at": "2025-09-22T14:45:00Z"
           },
-          "author": { "tgId": 203, "username": "mike_sk8" },
+          "author": { "tg_id": 203, "username": "mike_sk8" },
           "likes": 220,
           "dislikes": 4
         }
@@ -139,7 +139,7 @@
             },
             "added_at": "2025-09-22T18:00:00Z"
           },
-          "author": { "tgId": 204, "username": "chef_tony" },
+          "author": { "tg_id": 204, "username": "chef_tony" },
           "likes": 500,
           "dislikes": 18
         },
@@ -161,7 +161,7 @@
             },
             "added_at": "2025-09-23T10:15:00Z"
           },
-          "author": { "tgId": 205, "username": "drone_guy" },
+          "author": { "tg_id": 205, "username": "drone_guy" },
           "likes": 780,
           "dislikes": 9
         },
@@ -183,7 +183,7 @@
             },
             "added_at": "2025-09-23T21:30:00Z"
           },
-          "author": { "tgId": 206, "username": "comedian_jane" },
+          "author": { "tg_id": 206, "username": "comedian_jane" },
           "likes": 650,
           "dislikes": 20
         }
@@ -214,7 +214,7 @@
             },
             "added_at": "2025-09-24T08:00:00Z"
           },
-          "author": { "tgId": 207, "username": "sofia_music" },
+          "author": { "tg_id": 207, "username": "sofia_music" },
           "likes": 1500,
           "dislikes": 11
         },
@@ -236,7 +236,7 @@
             },
             "added_at": "2025-09-24T12:00:00Z"
           },
-          "author": { "tgId": 208, "username": "cinema_bob" },
+          "author": { "tg_id": 208, "username": "cinema_bob" },
           "likes": 890,
           "dislikes": 25
         },
@@ -258,7 +258,7 @@
             },
             "added_at": "2025-09-24T19:15:00Z"
           },
-          "author": { "tgId": 209, "username": "alex_football" },
+          "author": { "tg_id": 209, "username": "alex_football" },
           "likes": 1320,
           "dislikes": 30
         }
