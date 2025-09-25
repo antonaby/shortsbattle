@@ -88,7 +88,57 @@ func (q *Queries) CreatePlayerResult(ctx context.Context, arg CreatePlayerResult
 	return i, err
 }
 
-const getPlayersResult = `-- name: GetPlayersResult :many
+const getPlayerLDResults = `-- name: GetPlayerLDResults :many
+SELECT 
+  p.tg_id,
+  p.tg_username,
+  ps.place,
+  ps.points,
+  COALESCE((ps.result -> 'likes')::int, 0)::int as likes,
+  COALESCE((ps.result -> 'dislikes')::int, 0)::int as dislikes
+FROM player_results ps
+JOIN players p ON p.tg_id = ps.player_id
+WHERE ps.game_id = $1
+ORDER BY ps.place
+`
+
+type GetPlayerLDResultsRow struct {
+	TgID       int64  `json:"tg_id"`
+	TgUsername string `json:"tg_username"`
+	Place      int32  `json:"place"`
+	Points     int64  `json:"points"`
+	Likes      int32  `json:"likes"`
+	Dislikes   int32  `json:"dislikes"`
+}
+
+func (q *Queries) GetPlayerLDResults(ctx context.Context, gameID int64) ([]GetPlayerLDResultsRow, error) {
+	rows, err := q.db.Query(ctx, getPlayerLDResults, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPlayerLDResultsRow
+	for rows.Next() {
+		var i GetPlayerLDResultsRow
+		if err := rows.Scan(
+			&i.TgID,
+			&i.TgUsername,
+			&i.Place,
+			&i.Points,
+			&i.Likes,
+			&i.Dislikes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPlayerRawResults = `-- name: GetPlayerRawResults :many
 SELECT ps.player_id, ps.game_id, ps.result, ps.points, ps.place, ps.calculated_at FROM player_results ps
 WHERE ps.game_id = $1
   AND EXISTS (
@@ -96,8 +146,8 @@ WHERE ps.game_id = $1
   )
 `
 
-func (q *Queries) GetPlayersResult(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error) {
-	rows, err := q.db.Query(ctx, getPlayersResult, gameID, playerID)
+func (q *Queries) GetPlayerRawResults(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error) {
+	rows, err := q.db.Query(ctx, getPlayerRawResults, gameID, playerID)
 	if err != nil {
 		return nil, err
 	}

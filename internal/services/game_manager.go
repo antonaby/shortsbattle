@@ -376,19 +376,22 @@ func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64
 		if game.Mode == qg.GameModeLikedislike {
 			gameVideos, err := q.GetGameVideoLDResults(ctx, gameId)
 			if err != nil {
-				return nil, gmDbError("failed to get game videos", err)
+				return nil, gmDbError("failed to get game videos results", err)
+			}
+
+			scores, err := q.GetPlayerLDResults(ctx, gameId)
+			if err != nil {
+				return nil, gmDbError("failed to get player results", err)
 			}
 
 			rounds := make(map[int32]models.RoundResult, 0)
 			for _, gv := range gameVideos {
 				round, ok := rounds[gv.RoundN]
 				if !ok {
-					round = models.RoundResult{
-						Round: models.Round{
-							RoundN:      gv.RoundN,
-							Title:       gv.RoundTitle,
-							Description: gv.RoundDescription.String,
-						},
+					round.Round = models.Round{
+						RoundN:      gv.RoundN,
+						Title:       gv.RoundTitle,
+						Description: gv.RoundDescription.String,
 					}
 				}
 
@@ -419,8 +422,32 @@ func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64
 				return roundsRaw[i].Round.RoundN < roundsRaw[j].Round.RoundN
 			})
 
+			var currentPlayer *qg.GetPlayerLDResultsRow
+
+			players := make([]models.PlayerResult, 0, len(scores))
+			for _, s := range scores {
+				if s.TgID == playerId {
+					currentPlayer = &s
+				}
+
+				players = append(players, models.PlayerResult{
+					TgID:     s.TgID,
+					Username: s.TgUsername,
+					Place:    int(s.Place),
+					Likes:    int(s.Likes),
+					Dislikes: int(s.Dislikes),
+				})
+			}
+
+			var outcome models.PlayerOutcome
+			if currentPlayer != nil {
+				outcome.PlusEnergy = int(currentPlayer.Points)
+			}
+
 			return &models.GameResult{
-				Rounds: roundsRaw,
+				Rounds:  roundsRaw,
+				Players: players,
+				Outcome: outcome,
 			}, nil
 		}
 
@@ -430,7 +457,7 @@ func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64
 
 func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerResult, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerResult, error) {
-		results, err := q.GetPlayersResult(ctx, gameId, playerId)
+		results, err := q.GetPlayerRawResults(ctx, gameId, playerId)
 		if err != nil {
 			return nil, gmDbError("failed to get player stats", err)
 		}
@@ -660,7 +687,7 @@ func (gm *GameManager) handleWatchComplete(ctx context.Context, q qg.Querier, ga
 		if err != nil {
 			return nil, gmDbError("failed to update game", err)
 		}
-	
+
 		status, err := q.UpdateGameStatusComplete(ctx, qg.GameStageComplete, game.GameID)
 		if err != nil {
 			return nil, gmDbError("failed to update game stage", err)

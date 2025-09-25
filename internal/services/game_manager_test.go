@@ -529,6 +529,7 @@ func TestGameActions(t *testing.T) {
 		}
 
 		require.Equal(t, 2, len(gameResult.Rounds))
+		require.Equal(t, 1, gameResult.Outcome.PlusEnergy)
 	})
 }
 

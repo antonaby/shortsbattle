@@ -21,7 +21,20 @@ ON CONFLICT (player_id, game_id) DO UPDATE
       calculated_at = now()
 RETURNING *;
 
--- name: GetPlayersResult :many
+-- name: GetPlayerLDResults :many
+SELECT 
+  p.tg_id,
+  p.tg_username,
+  ps.place,
+  ps.points,
+  COALESCE((ps.result -> 'likes')::int, 0)::int as likes,
+  COALESCE((ps.result -> 'dislikes')::int, 0)::int as dislikes
+FROM player_results ps
+JOIN players p ON p.tg_id = ps.player_id
+WHERE ps.game_id = $1
+ORDER BY ps.place;
+
+-- name: GetPlayerRawResults :many
 SELECT ps.* FROM player_results ps
 WHERE ps.game_id = $1
   AND EXISTS (
