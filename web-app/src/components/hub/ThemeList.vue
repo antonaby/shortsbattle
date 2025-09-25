@@ -8,12 +8,12 @@ import { useUIStore } from '@/stores/ui.store';
 const uiStore = useUIStore();
 const gameHubStore = useGameHubStore();
 
-async function openTheme(theme?: Theme) {
+function openTheme(theme: Theme) {
   if (!theme) {
     return;
   }
 
-  await uiStore.openTheme(theme.id);
+  uiStore.openTheme(theme.id);
 }
 
 onMounted(() => {
