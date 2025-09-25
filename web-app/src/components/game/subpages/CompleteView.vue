@@ -95,18 +95,22 @@ onMounted(() => {
       <span class="text-lg font-medium">Loading results...</span>
     </div>
     <div class="flex flex-col items-center" v-if="players.length > 0">
-      <div class="grid grid-cols-[25px_1fr_50px_50px] place-items-start gap-1">
+      <div class="grid grid-cols-[25px_1fr_30px_30px] place-items-start gap-1">
+        <div class="col-start-3 ld-table">
+          👍
+        </div>
+        <div class="ld-table">
+          👎
+        </div>
         <template v-for="player in players" :key="player.tg_id">
           <span>{{ getPlaceMedal(player.place) }}</span>
           <span class="text-gray-700" :class="{ 'font-medium': player.tg_id == userStore.userId }">
             {{ player.username }}
           </span>
           <div class="ld-table">
-            <span>👍</span>
             <span class="text-emerald-700">{{ player.likes }}</span>
           </div>
           <div class="ld-table">
-            <span>👎</span>
             <span class="text-rose-700">{{ player.dislikes }}</span>
           </div>
         </template>

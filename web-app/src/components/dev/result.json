@@ -3,35 +3,35 @@
     {
       "tg_id": 201,
       "username": "john_doe",
-      "place": 4,
+      "place": 0,
       "likes": 120,
       "dislikes": 5
     },
     {
       "tg_id": 202,
       "username": "alice",
-      "place": 3,
+      "place": 1,
       "likes": 340,
       "dislikes": 12
     },
     {
       "tg_id": 203,
       "username": "mike_sk8",
-      "place": 1,
+      "place": 2,
       "likes": 520,
       "dislikes": 9
     },
     {
       "tg_id": 204,
       "username": "chef_tony",
-      "place": 5,
+      "place": 3,
       "likes": 90,
       "dislikes": 20
     },
     {
       "tg_id": 205,
       "username": "sofia_music",
-      "place": 2,
+      "place": 4,
       "likes": 450,
       "dislikes": 7
     }
