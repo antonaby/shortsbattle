@@ -7,7 +7,6 @@ package qg
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -67,7 +66,7 @@ func (q *Queries) GetGameVideoShareLock(ctx context.Context, gameVideoID int64, 
 	return i, err
 }
 
-const getVotes = `-- name: GetVotes :many
+const getLDVotes = `-- name: GetLDVotes :many
 WITH players AS (
   SELECT gp.player_id
   FROM game_players gp
@@ -89,7 +88,7 @@ SELECT
   e.game_video_id,
   e.round_n,
   e.author_id,
-  gvt.value,
+  COALESCE(gvt.value ->> 'value', '')::text as value,
   gvt.voted_at
   FROM expected e
   LEFT JOIN game_votes gvt
@@ -98,24 +97,24 @@ SELECT
   ORDER BY e.round_n, e.game_video_id
 `
 
-type GetVotesRow struct {
+type GetLDVotesRow struct {
 	PlayerID    int64              `json:"player_id"`
 	GameVideoID int64              `json:"game_video_id"`
 	RoundN      int32              `json:"round_n"`
 	AuthorID    int64              `json:"author_id"`
-	Value       []byte             `json:"value"`
+	Value       string             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
 }
 
-func (q *Queries) GetVotes(ctx context.Context, gameID int64) ([]GetVotesRow, error) {
-	rows, err := q.db.Query(ctx, getVotes, gameID)
+func (q *Queries) GetLDVotes(ctx context.Context, gameID int64) ([]GetLDVotesRow, error) {
+	rows, err := q.db.Query(ctx, getLDVotes, gameID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetVotesRow
+	var items []GetLDVotesRow
 	for rows.Next() {
-		var i GetVotesRow
+		var i GetLDVotesRow
 		if err := rows.Scan(
 			&i.PlayerID,
 			&i.GameVideoID,
@@ -195,9 +194,9 @@ func (q *Queries) GetVotesForRound(ctx context.Context, gameID int64, roundN int
 	return items, nil
 }
 
-const voteForVideo = `-- name: VoteForVideo :one
+const voteForVideoLD = `-- name: VoteForVideoLD :one
 INSERT INTO game_votes (game_video_id, player_id, value)
-VALUES ($1, $2, $3)
+VALUES ($1, $2, jsonb_build_object('value', $3::text))
 ON CONFLICT (game_video_id, player_id)
 DO UPDATE 
 SET value = EXCLUDED.value, 
@@ -205,14 +204,14 @@ SET value = EXCLUDED.value,
 RETURNING game_video_id, player_id, value, voted_at
 `
 
-type VoteForVideoParams struct {
-	GameVideoID int64           `json:"game_video_id"`
-	PlayerID    int64           `json:"player_id"`
-	Value       json.RawMessage `json:"value"`
+type VoteForVideoLDParams struct {
+	GameVideoID int64  `json:"game_video_id"`
+	PlayerID    int64  `json:"player_id"`
+	Value       string `json:"value"`
 }
 
-func (q *Queries) VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error) {
-	row := q.db.QueryRow(ctx, voteForVideo, arg.GameVideoID, arg.PlayerID, arg.Value)
+func (q *Queries) VoteForVideoLD(ctx context.Context, arg VoteForVideoLDParams) (GameVote, error) {
+	row := q.db.QueryRow(ctx, voteForVideoLD, arg.GameVideoID, arg.PlayerID, arg.Value)
 	var i GameVote
 	err := row.Scan(
 		&i.GameVideoID,

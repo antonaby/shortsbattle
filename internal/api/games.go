@@ -242,7 +242,7 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 			if sErr.Code == common.ErrorBadData {
 				return sendInvalidReq(c)
 			}
-			if sErr.Code == common.ErrorNotFound {
+			if sErr.Code == common.ErrorNotFound || sErr.Code == common.ErrorConstraintViolation {
 				return sendNotFound(c, "game video")
 			}
 		}

@@ -12,7 +12,7 @@ import (
 
 const createGameVideoResult = `-- name: CreateGameVideoResult :one
 INSERT INTO game_video_results(game_id, game_video_id, result)
-VALUES ($1, $2, $3)
+VALUES ($1, $2, jsonb_build_object('likes', $3::int, 'dislikes', $4::int))
 ON CONFLICT (game_id, game_video_id) DO UPDATE
   SET result = EXCLUDED.result,
       calculated_at = now()
@@ -20,13 +20,19 @@ RETURNING game_id, game_video_id, result, calculated_at
 `
 
 type CreateGameVideoResultParams struct {
-	GameID      int64           `json:"game_id"`
-	GameVideoID int64           `json:"game_video_id"`
-	Result      json.RawMessage `json:"result"`
+	GameID      int64 `json:"game_id"`
+	GameVideoID int64 `json:"game_video_id"`
+	Likes       int32 `json:"likes"`
+	Dislikes    int32 `json:"dislikes"`
 }
 
 func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideoResultParams) (GameVideoResult, error) {
-	row := q.db.QueryRow(ctx, createGameVideoResult, arg.GameID, arg.GameVideoID, arg.Result)
+	row := q.db.QueryRow(ctx, createGameVideoResult,
+		arg.GameID,
+		arg.GameVideoID,
+		arg.Likes,
+		arg.Dislikes,
+	)
 	var i GameVideoResult
 	err := row.Scan(
 		&i.GameID,
@@ -44,7 +50,7 @@ ON CONFLICT (player_id, game_id) DO UPDATE
   SET result = EXCLUDED.result,
       points = EXCLUDED.points,
       calculated_at = now()
-RETURNING player_id, game_id, result, points, calculated_at
+RETURNING player_id, game_id, result, points, place, calculated_at
 `
 
 type CreatePlayerResultParams struct {
@@ -67,13 +73,14 @@ func (q *Queries) CreatePlayerResult(ctx context.Context, arg CreatePlayerResult
 		&i.GameID,
 		&i.Result,
 		&i.Points,
+		&i.Place,
 		&i.CalculatedAt,
 	)
 	return i, err
 }
 
 const getPlayersResult = `-- name: GetPlayersResult :many
-SELECT ps.player_id, ps.game_id, ps.result, ps.points, ps.calculated_at FROM player_results ps
+SELECT ps.player_id, ps.game_id, ps.result, ps.points, ps.place, ps.calculated_at FROM player_results ps
 WHERE ps.game_id = $1
   AND EXISTS (
     SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
@@ -94,6 +101,7 @@ func (q *Queries) GetPlayersResult(ctx context.Context, gameID int64, playerID i
 			&i.GameID,
 			&i.Result,
 			&i.Points,
+			&i.Place,
 			&i.CalculatedAt,
 		); err != nil {
 			return nil, err

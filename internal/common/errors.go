@@ -15,6 +15,7 @@ const (
 	ErrorBadData
 	ErrorNoData
 	ErrorWrongGameStage
+	ErrorWrongGameMode
 	ErrorConstraintViolation
 	ErrorOEmbedFailed
 	ErrorParse

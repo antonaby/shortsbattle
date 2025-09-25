@@ -15,7 +15,8 @@ CREATE TABLE
     player_id BIGINT NOT NULL REFERENCES players (tg_id) ON DELETE CASCADE,
     game_id BIGINT NOT NULL REFERENCES games (id) ON DELETE CASCADE,
     result jsonb NOT NULL DEFAULT '{}'::jsonb,
-    points BIGINT NOT NULL DEFAULT 0, 
+    points BIGINT NOT NULL DEFAULT 0,
+    place INT NOT NULL DEFAULT -1, 
     calculated_at TIMESTAMPTZ NOT NULL DEFAULT now (),
     PRIMARY KEY (player_id, game_id),
     CONSTRAINT value_is_object CHECK (jsonb_typeof(result) = 'object')

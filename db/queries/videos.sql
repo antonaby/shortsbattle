@@ -66,7 +66,7 @@ WHERE gv.game_id = $1
   AND gv.round_n = $2
   AND gv.player_id <> $3;
 
--- name: GetGameVideoResults :many
+-- name: GetGameVideoLDResults :many
 SELECT 
     gv.id as game_video_id,
     gv.game_id,
@@ -81,7 +81,8 @@ SELECT
     p.tg_username,
     r.title as round_title,
     r.description as round_description,
-    gr.result
+    COALESCE((gr.result -> 'likes')::int, 0)::int as likes,
+    COALESCE((gr.result -> 'dislikes')::int, 0)::int as dislikes
 FROM game_videos gv
 JOIN game_video_results gr ON gr.game_id = gv.game_id AND gr.game_video_id = gv.id
 JOIN videos v ON gv.video_id = v.id

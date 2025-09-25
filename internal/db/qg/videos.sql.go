@@ -35,7 +35,7 @@ func (q *Queries) AddVideoToPlayer(ctx context.Context, arg AddVideoToPlayerPara
 	return i, err
 }
 
-const getGameVideoResults = `-- name: GetGameVideoResults :many
+const getGameVideoLDResults = `-- name: GetGameVideoLDResults :many
 SELECT 
     gv.id as game_video_id,
     gv.game_id,
@@ -50,7 +50,8 @@ SELECT
     p.tg_username,
     r.title as round_title,
     r.description as round_description,
-    gr.result
+    COALESCE((gr.result -> 'likes')::int, 0)::int as likes,
+    COALESCE((gr.result -> 'dislikes')::int, 0)::int as dislikes
 FROM game_videos gv
 JOIN game_video_results gr ON gr.game_id = gv.game_id AND gr.game_video_id = gv.id
 JOIN videos v ON gv.video_id = v.id
@@ -62,7 +63,7 @@ WHERE gv.game_id = $1
 ORDER BY gv.round_n
 `
 
-type GetGameVideoResultsRow struct {
+type GetGameVideoLDResultsRow struct {
 	GameVideoID      int64              `json:"game_video_id"`
 	GameID           int64              `json:"game_id"`
 	RoundN           int32              `json:"round_n"`
@@ -76,18 +77,19 @@ type GetGameVideoResultsRow struct {
 	TgUsername       string             `json:"tg_username"`
 	RoundTitle       string             `json:"round_title"`
 	RoundDescription pgtype.Text        `json:"round_description"`
-	Result           json.RawMessage    `json:"result"`
+	Likes            int32              `json:"likes"`
+	Dislikes         int32              `json:"dislikes"`
 }
 
-func (q *Queries) GetGameVideoResults(ctx context.Context, gameID int64) ([]GetGameVideoResultsRow, error) {
-	rows, err := q.db.Query(ctx, getGameVideoResults, gameID)
+func (q *Queries) GetGameVideoLDResults(ctx context.Context, gameID int64) ([]GetGameVideoLDResultsRow, error) {
+	rows, err := q.db.Query(ctx, getGameVideoLDResults, gameID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetGameVideoResultsRow
+	var items []GetGameVideoLDResultsRow
 	for rows.Next() {
-		var i GetGameVideoResultsRow
+		var i GetGameVideoLDResultsRow
 		if err := rows.Scan(
 			&i.GameVideoID,
 			&i.GameID,
@@ -102,7 +104,8 @@ func (q *Queries) GetGameVideoResults(ctx context.Context, gameID int64) ([]GetG
 			&i.TgUsername,
 			&i.RoundTitle,
 			&i.RoundDescription,
-			&i.Result,
+			&i.Likes,
+			&i.Dislikes,
 		); err != nil {
 			return nil, err
 		}

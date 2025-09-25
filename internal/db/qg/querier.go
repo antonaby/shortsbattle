@@ -23,8 +23,9 @@ type Querier interface {
 	GetGameLock(ctx context.Context, gameID int64, updateKey pgtype.UUID) (GetGameLockRow, error)
 	GetGameRounds(ctx context.Context, gameID int64) ([]Round, error)
 	GetGameShareLock(ctx context.Context, gameID int64, playerID int64) (GetGameShareLockRow, error)
-	GetGameVideoResults(ctx context.Context, gameID int64) ([]GetGameVideoResultsRow, error)
+	GetGameVideoLDResults(ctx context.Context, gameID int64) ([]GetGameVideoLDResultsRow, error)
 	GetGameVideoShareLock(ctx context.Context, gameVideoID int64, playerID int64) (GetGameVideoShareLockRow, error)
+	GetLDVotes(ctx context.Context, gameID int64) ([]GetLDVotesRow, error)
 	GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error)
 	GetPlayersResult(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error)
 	GetRounds(ctx context.Context, themeID int64) ([]Round, error)
@@ -33,7 +34,6 @@ type Querier interface {
 	GetVideo(ctx context.Context, iD int64, playerID int64) (GetVideoRow, error)
 	GetVideosByPlayer(ctx context.Context, playerID int64) ([]GetVideosByPlayerRow, error)
 	GetVideosToWatch(ctx context.Context, arg GetVideosToWatchParams) ([]GetVideosToWatchRow, error)
-	GetVotes(ctx context.Context, gameID int64) ([]GetVotesRow, error)
 	GetVotesForRound(ctx context.Context, gameID int64, roundN int32) ([]GetVotesForRoundRow, error)
 	JoinGame(ctx context.Context, arg JoinGameParams) (int64, error)
 	ListAllThemes(ctx context.Context) ([]Theme, error)
@@ -52,7 +52,7 @@ type Querier interface {
 	UpdateGameStatus(ctx context.Context, arg UpdateGameStatusParams) (UpdateGameStatusRow, error)
 	UpdateGameStatusComplete(ctx context.Context, stage GameStage, gameID int64) (GameStatus, error)
 	UpsertGameVideoIfOwned(ctx context.Context, arg UpsertGameVideoIfOwnedParams) (GameVideo, error)
-	VoteForVideo(ctx context.Context, arg VoteForVideoParams) (GameVote, error)
+	VoteForVideoLD(ctx context.Context, arg VoteForVideoLDParams) (GameVote, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -295,41 +295,44 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 			return nil, nil, gmError(common.ErrorForbidden, "wrong game stage", err)
 		}
 
-		if err := gm.validateVoteValue(game.Mode, value); err != nil {
+		vote, err := gm.createVote(ctx, q, game, gameVideoId, playerId, value)
+		if err != nil {
 			return nil, nil, err
 		}
 
-		vote, err := q.VoteForVideo(ctx, qg.VoteForVideoParams{
-			GameVideoID: gameVideoId,
-			PlayerID:    playerId,
-			Value:       value,
-		})
-
-		if err != nil {
-			return nil, nil, gmDbError("failed to vote", err)
-		}
-
-		return &game, &vote, nil
+		return &game, vote, nil
 	})
 }
 
-func (gm *GameManager) validateVoteValue(mode qg.GameMode, value json.RawMessage) error {
-	if mode == qg.GameModeLikedislike {
+func (gm *GameManager) createVote(
+	ctx context.Context, q qg.Querier, game qg.GetGameVideoShareLockRow, 
+	gameVideoId, playerId int64, value json.RawMessage) (*qg.GameVote, error) {
+	if game.Mode == qg.GameModeLikedislike {
 		var vote models.LikeDislikeVote
 		err := json.Unmarshal(value, &vote)
 		if err != nil {
-			return gmError(common.ErrorBadData, "bad vote data", err)
+			return nil, gmError(common.ErrorBadData, "bad vote data", err)
 		}
 
 		err = gm.validator.Struct(vote)
 		if err != nil {
-			return gmError(common.ErrorBadData, "bad vote data", err)
+			return nil, gmError(common.ErrorBadData, "bad vote data", err)
 		}
 
-		return nil
+		gameVote, err := q.VoteForVideoLD(ctx, qg.VoteForVideoLDParams{
+			GameVideoID: gameVideoId,
+			PlayerID:    playerId,
+			Value:       string(vote.Value),
+		})
+
+		if err != nil {
+			return nil, gmDbError("failed to create vote", err)
+		}
+
+		return &gameVote, nil
 	}
 
-	return gmError(common.ErrorBadData, "unknown game mode", nil)
+	return nil, gmError(common.ErrorWrongGameMode, "unknown game mode", nil)
 }
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {
@@ -364,64 +367,63 @@ func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, play
 
 func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64) (*models.GameResult, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameResult, error) {
-		_, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})
+		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})
 		if err != nil {
 			return nil, err
 		}
 
-		gameVideos, err := q.GetGameVideoResults(ctx, gameId)
-		if err != nil {
-			return nil, gmDbError("failed to get game videos", err)
-		}
+		if game.Mode == qg.GameModeLikedislike {
+			gameVideos, err := q.GetGameVideoLDResults(ctx, gameId)
+			if err != nil {
+				return nil, gmDbError("failed to get game videos", err)
+			}
 
-		rounds := make(map[int32]models.RoundResult, 0)
-		for _, gv := range gameVideos {
-			round, ok := rounds[gv.RoundN]
-			if !ok {
-				round = models.RoundResult{
-					Round: models.Round{
-						RoundN:      gv.RoundN,
-						Title:       gv.RoundTitle,
-						Description: gv.RoundDescription.String,
-					},
+			rounds := make(map[int32]models.RoundResult, 0)
+			for _, gv := range gameVideos {
+				round, ok := rounds[gv.RoundN]
+				if !ok {
+					round = models.RoundResult{
+						Round: models.Round{
+							RoundN:      gv.RoundN,
+							Title:       gv.RoundTitle,
+							Description: gv.RoundDescription.String,
+						},
+					}
 				}
+
+				round.Videos = append(round.Videos, models.VideoResult{
+					Video: models.Video{
+						ID:       gv.VideoID,
+						VideoUrl: gv.VideoUrl,
+						OEmbed:   gv.Oembed,
+						AddedAt:  gv.AddedAt,
+					},
+					Author: models.VideoAuthor{
+						TgID:     gv.TgID,
+						Username: gv.TgUsername,
+					},
+					Likes:    int(gv.Likes),
+					Dislikes: int(gv.Dislikes),
+				})
+
+				rounds[gv.RoundN] = round
 			}
 
-			var ldCount models.LikeDislikeCount
-			if err := json.Unmarshal(gv.Result, &ldCount); err != nil {
-				return nil, gmError(common.ErrorBadData, "bad result data", err)
+			roundsRaw := make([]models.RoundResult, 0, len(rounds))
+			for _, r := range rounds {
+				roundsRaw = append(roundsRaw, r)
 			}
 
-			round.Videos = append(round.Videos, models.VideoResult{
-				Video: models.Video{
-					ID:       gv.VideoID,
-					VideoUrl: gv.VideoUrl,
-					OEmbed:   gv.Oembed,
-					AddedAt:  gv.AddedAt,
-				},
-				Author: models.VideoAuthor{
-					TgID:     gv.TgID,
-					Username: gv.TgUsername,
-				},
-				Likes:    ldCount.Likes,
-				Dislikes: ldCount.Dislikes,
+			sort.Slice(roundsRaw, func(i, j int) bool {
+				return roundsRaw[i].Round.RoundN < roundsRaw[j].Round.RoundN
 			})
 
-			rounds[gv.RoundN] = round
+			return &models.GameResult{
+				Rounds: roundsRaw,
+			}, nil
 		}
 
-		roundsRaw := make([]models.RoundResult, 0, len(rounds))
-		for _, r := range rounds {
-			roundsRaw = append(roundsRaw, r)
-		}
-
-		sort.Slice(roundsRaw, func(i, j int) bool {
-			return roundsRaw[i].Round.RoundN < roundsRaw[j].Round.RoundN
-		})
-
-		return &models.GameResult{
-			Rounds: roundsRaw,
-		}, nil
+		return nil, gmError(common.ErrorWrongGameMode, "unknow game mode", nil)
 	})
 }
 
@@ -698,30 +700,32 @@ func (gm *GameManager) updateGameStatus(
 }
 
 func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.GetGameLockRow) error {
-	votes, err := q.GetVotes(ctx, game.GameID)
-	if err != nil {
-		return gmDbError("failed to get votes", err)
-	}
+	if game.Mode == qg.GameModeLikedislike {
+		votes, err := q.GetLDVotes(ctx, game.GameID)
+		if err != nil {
+			return gmDbError("failed to get votes", err)
+		}
 
-	if len(votes) > 0 {
-		if game.Mode == qg.GameModeLikedislike {
-			likesDislikes, err := calculateLikesAndDislikes(votes)
-			if err != nil {
-				return err
-			}
-
-			err = createGameLDResults(ctx, q, likesDislikes, game)
-			if err != nil {
-				return err
-			}
-
-			err = createPlayerLDResults(ctx, q, likesDislikes, game)
-			if err != nil {
-				return err
-			}
-
+		if len(votes) == 0 {
 			return nil
 		}
+
+		likesDislikes, err := calculateLikesAndDislikes(votes)
+		if err != nil {
+			return err
+		}
+
+		err = createGameLDResults(ctx, q, likesDislikes, game)
+		if err != nil {
+			return err
+		}
+
+		err = createPlayerLDResults(ctx, q, likesDislikes, game)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	return nil
@@ -729,20 +733,11 @@ func (gm *GameManager) finalizeGame(ctx context.Context, q qg.Querier, game qg.G
 
 func createGameLDResults(ctx context.Context, q qg.Querier, likesDislikes []models.LikeDislikeVideoResult, game qg.GetGameLockRow) error {
 	for _, ld := range likesDislikes {
-		ldCount := models.LikeDislikeCount{
-			Likes:    ld.Likes,
-			Dislikes: ld.Dislikes,
-		}
-
-		ldCountRaw, err := json.Marshal(ldCount)
-		if err != nil {
-			return gmError(common.ErrorMarshal, "bad result data", err)
-		}
-
-		_, err = q.CreateGameVideoResult(ctx, qg.CreateGameVideoResultParams{
+		_, err := q.CreateGameVideoResult(ctx, qg.CreateGameVideoResultParams{
 			GameID:      game.GameID,
 			GameVideoID: ld.GameVideoID,
-			Result:      ldCountRaw,
+			Likes:       int32(ld.Likes),
+			Dislikes:    int32(ld.Dislikes),
 		})
 
 		if err != nil {
@@ -807,18 +802,12 @@ func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []mo
 	return nil
 }
 
-func calculateLikesAndDislikes(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeVideoResult, error) {
+func calculateLikesAndDislikes(rawVotes []qg.GetLDVotesRow) ([]models.LikeDislikeVideoResult, error) {
 	votes := make(map[int64]models.LikeDislikeVideoResult)
 
 	for _, rawVote := range rawVotes {
 		if !rawVote.VotedAt.Valid {
 			continue
-		}
-
-		var voteValue models.LikeDislikeVote
-		err := json.Unmarshal(rawVote.Value, &voteValue)
-		if err != nil {
-			return nil, gmError(common.ErrorBadData, "bad vote data", err)
 		}
 
 		res, ok := votes[rawVote.GameVideoID]
@@ -830,7 +819,7 @@ func calculateLikesAndDislikes(rawVotes []qg.GetVotesRow) ([]models.LikeDislikeV
 			}
 		}
 
-		switch voteValue.Value {
+		switch models.LikeDislikeVoteValue(rawVote.Value) {
 		case models.LikeValue:
 			res.Likes += 1
 		case models.DislikeValue:

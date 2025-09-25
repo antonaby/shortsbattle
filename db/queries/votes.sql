@@ -17,16 +17,16 @@ SELECT
     ) 
 FOR SHARE OF gs;
 
--- name: VoteForVideo :one
+-- name: VoteForVideoLD :one
 INSERT INTO game_votes (game_video_id, player_id, value)
-VALUES ($1, $2, $3)
+VALUES (sqlc.arg(game_video_id), sqlc.arg(player_id), jsonb_build_object('value', sqlc.arg(value)::text))
 ON CONFLICT (game_video_id, player_id)
 DO UPDATE 
 SET value = EXCLUDED.value, 
     voted_at = now()
 RETURNING *;
 
--- name: GetVotes :many
+-- name: GetLDVotes :many
 WITH players AS (
   SELECT gp.player_id
   FROM game_players gp
@@ -48,7 +48,7 @@ SELECT
   e.game_video_id,
   e.round_n,
   e.author_id,
-  gvt.value,
+  COALESCE(gvt.value ->> 'value', '')::text as value,
   gvt.voted_at
   FROM expected e
   LEFT JOIN game_votes gvt

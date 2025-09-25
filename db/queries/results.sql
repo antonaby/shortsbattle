@@ -1,6 +1,6 @@
 -- name: CreateGameVideoResult :one
 INSERT INTO game_video_results(game_id, game_video_id, result)
-VALUES ($1, $2, $3)
+VALUES (sqlc.arg(game_id), sqlc.arg(game_video_id), jsonb_build_object('likes', sqlc.arg(likes)::int, 'dislikes', sqlc.arg(dislikes)::int))
 ON CONFLICT (game_id, game_video_id) DO UPDATE
   SET result = EXCLUDED.result,
       calculated_at = now()

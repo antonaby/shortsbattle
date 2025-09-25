@@ -210,6 +210,7 @@ type PlayerResult struct {
 	GameID       int64              `json:"game_id"`
 	Result       json.RawMessage    `json:"result"`
 	Points       int64              `json:"points"`
+	Place        int32              `json:"place"`
 	CalculatedAt pgtype.Timestamptz `json:"calculated_at"`
 }
 
