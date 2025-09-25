@@ -62,7 +62,9 @@ const player = computed<PlayerResult | undefined>(() => {
     return undefined;
   }
 
-  return gameStore.gameResult.players.find(p => p.tgId === userStore.userId)
+  let player = gameStore.gameResult.players.find(p => p.tg_id === userStore.userId)
+
+  return player
 })
 
 function getPlaceMedal(place: number): string {
@@ -90,9 +92,9 @@ onMounted(() => {
     </div>
     <div class="flex flex-col items-center" v-if="players.length > 0">
       <div class="grid grid-cols-[25px_1fr_50px_50px] place-items-start gap-1">
-        <template v-for="player in players" :key="player.tgId">
+        <template v-for="player in players" :key="player.tg_id">
           <span>{{ getPlaceMedal(player.place) }}</span>
-          <span class="text-gray-700" :class="{ 'font-medium': player.tgId == userStore.userId }">
+          <span class="text-gray-700" :class="{ 'font-medium': player.tg_id == userStore.userId }">
             {{ player.username }}
           </span>
           <div class="ld-table">

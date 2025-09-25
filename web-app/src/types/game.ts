@@ -108,7 +108,7 @@ export interface RoundResult {
 }
 
 export interface PlayerResult {
-  tgId: number;
+  tg_id: number;
   username: string;
   place: number;
   likes: number;
