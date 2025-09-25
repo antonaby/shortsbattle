@@ -33,10 +33,11 @@ type CentrifugeServer struct {
 	node    *centrifuge.Node
 	manager *services.GameManager
 	auth    *services.AuthService
+	players *services.CachedPlayerService
 	config  WsConnectionConfig
 }
 
-func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, config WsConnectionConfig) (*CentrifugeServer, error) {
+func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, players *services.CachedPlayerService, config WsConnectionConfig) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{})
 	if err != nil {
 		return nil, cfError(common.ErrorInit, "failed to create server", err)
@@ -46,6 +47,7 @@ func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthServi
 		node:    node,
 		manager: manager,
 		auth:    auth,
+		players: players,
 		config:  config,
 	}
 
@@ -73,7 +75,6 @@ func (cf *CentrifugeServer) Run() error {
 	return nil
 }
 
-// TODO: apply shutdown logic in web-app
 func (cf *CentrifugeServer) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -123,6 +124,21 @@ func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.C
 func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	// TODO: add online/ofline player statuses
 	// TODO: add private channel
+
+	tgId, err := common.ParseTgId(client.UserID())
+	if err != nil {
+		log.Error().Err(err).Stack().Msgf("failed to parse user id: %s", client.UserID())
+		client.Disconnect(centrifuge.DisconnectServerError)
+		return
+	}
+
+	err = cf.updateOnlineStatus(tgId, true)
+	if err != nil {
+		log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
+		client.Disconnect(centrifuge.DisconnectServerError)
+		return
+	}
+
 	client.OnSubscribe(func(e centrifuge.SubscribeEvent, cb centrifuge.SubscribeCallback) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -130,13 +146,6 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		gameId, err := models.ParseCfChannelName(e.Channel)
 		if err != nil {
 			log.Error().Err(err).Stack().Msgf("can't parse channel name: %s", e.Channel)
-			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
-			return
-		}
-
-		tgId, err := common.ParseTgId(client.UserID())
-		if err != nil {
-			log.Error().Err(err).Stack().Msgf("can't parse user id: %s", client.UserID())
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
 			return
 		}
@@ -177,6 +186,13 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 			return
 		}
 
+		err = cf.updateOnlineStatus(tgId, true)
+		if err != nil {
+			log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
+			client.Disconnect(centrifuge.DisconnectServerError)
+			return
+		}
+
 		cb(centrifuge.RefreshReply{
 			Expired:  false,
 			ExpireAt: time.Now().Add(cf.config.ConnectionExpTime).Unix(),
@@ -184,10 +200,20 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	})
 
 	client.OnUnsubscribe(func(e centrifuge.UnsubscribeEvent) {
-
+		log.Debug().Msg("client unsubscribed")
 	})
 
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
-
+		err = cf.updateOnlineStatus(tgId, false)
+		if err != nil {
+			log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
+		}
 	})
+}
+
+func (cf *CentrifugeServer) updateOnlineStatus(tgId int64, status bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return  cf.players.SetPlayerOnline(ctx, tgId, status)
 }

@@ -32,7 +32,8 @@ func main() {
 		log.Fatal().Err(err).Send()
 	}
 
-	dbManager, err := db.NewDbManager(dbHost)
+	// TODO: add as debug flag
+	dbManager, err := db.NewDbManager(dbHost, false)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -82,7 +83,7 @@ func main() {
 		ConnectionExpTime: 1 * time.Minute,
 	}
 
-	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, wsConfig)
+	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, playerService, wsConfig)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}

@@ -15,6 +15,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func psError(code common.ErrorCode, msg string, err error) error {
+	return common.ServiceError{
+		Code:    code,
+		Message: fmt.Sprintf("player service: %s", msg),
+		Cause:   err,
+	}
+}
+
 type CachedPlayerService struct {
 	txm db.TxManager
 	rc  *redis.Client
@@ -25,6 +33,25 @@ func NewCachedPlayerService(txm db.TxManager, rc *redis.Client) *CachedPlayerSer
 		txm: txm,
 		rc:  rc,
 	}
+}
+
+func (ps *CachedPlayerService) SetPlayerOnline(ctx context.Context, playerId int64, online bool) error {
+	return db.WithTxQ(ctx, ps.txm, func(ctx context.Context, q qg.Querier) error {
+		var err error
+		if online {
+			_, err = q.SetPlayerOnline(ctx, playerId)
+
+		} else {
+			_, err = q.SetPlayerOffline(ctx, playerId)
+
+		}
+
+		if err != nil {
+			return psError(common.GetDbErrorCode(err), "failed to update player online status", err)
+		}
+
+		return nil
+	})
 }
 
 func (ps *CachedPlayerService) CheckPlayerExistsOrCreate(ctx context.Context, params qg.CreatePlayerParams) (*qg.Player, error) {

@@ -203,6 +203,8 @@ type Player struct {
 	TgUsername     string             `json:"tg_username"`
 	TgLanguageCode string             `json:"tg_language_code"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	LastOnline     pgtype.Timestamptz `json:"last_online"`
+	IsOnline       pgtype.Timestamptz `json:"is_online"`
 }
 
 type PlayerResult struct {

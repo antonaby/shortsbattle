@@ -10,7 +10,7 @@ import (
 )
 
 const createPlayer = `-- name: CreatePlayer :one
-INSERT INTO players (tg_id, tg_username, tg_language_code) VALUES ($1, $2, $3) RETURNING tg_id, tg_username, tg_language_code, created_at
+INSERT INTO players (tg_id, tg_username, tg_language_code) VALUES ($1, $2, $3) RETURNING tg_id, tg_username, tg_language_code, created_at, last_online, is_online
 `
 
 type CreatePlayerParams struct {
@@ -27,12 +27,14 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 		&i.TgUsername,
 		&i.TgLanguageCode,
 		&i.CreatedAt,
+		&i.LastOnline,
+		&i.IsOnline,
 	)
 	return i, err
 }
 
 const getPlayerByTgId = `-- name: GetPlayerByTgId :one
-SELECT tg_id, tg_username, tg_language_code, created_at FROM players WHERE tg_id = $1
+SELECT tg_id, tg_username, tg_language_code, created_at, last_online, is_online FROM players WHERE tg_id = $1
 `
 
 func (q *Queries) GetPlayerByTgId(ctx context.Context, tgID int64) (Player, error) {
@@ -43,6 +45,51 @@ func (q *Queries) GetPlayerByTgId(ctx context.Context, tgID int64) (Player, erro
 		&i.TgUsername,
 		&i.TgLanguageCode,
 		&i.CreatedAt,
+		&i.LastOnline,
+		&i.IsOnline,
+	)
+	return i, err
+}
+
+const setPlayerOffline = `-- name: SetPlayerOffline :one
+UPDATE players 
+  SET 
+    is_online = NULL 
+  WHERE tg_id = $1 RETURNING tg_id, tg_username, tg_language_code, created_at, last_online, is_online
+`
+
+func (q *Queries) SetPlayerOffline(ctx context.Context, tgID int64) (Player, error) {
+	row := q.db.QueryRow(ctx, setPlayerOffline, tgID)
+	var i Player
+	err := row.Scan(
+		&i.TgID,
+		&i.TgUsername,
+		&i.TgLanguageCode,
+		&i.CreatedAt,
+		&i.LastOnline,
+		&i.IsOnline,
+	)
+	return i, err
+}
+
+const setPlayerOnline = `-- name: SetPlayerOnline :one
+UPDATE players 
+  SET 
+    last_online = now(), 
+    is_online = now() 
+  WHERE tg_id = $1 RETURNING tg_id, tg_username, tg_language_code, created_at, last_online, is_online
+`
+
+func (q *Queries) SetPlayerOnline(ctx context.Context, tgID int64) (Player, error) {
+	row := q.db.QueryRow(ctx, setPlayerOnline, tgID)
+	var i Player
+	err := row.Scan(
+		&i.TgID,
+		&i.TgUsername,
+		&i.TgLanguageCode,
+		&i.CreatedAt,
+		&i.LastOnline,
+		&i.IsOnline,
 	)
 	return i, err
 }

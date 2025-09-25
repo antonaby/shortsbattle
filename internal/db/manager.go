@@ -64,7 +64,7 @@ type DbManager struct {
 	DSN  string
 }
 
-func NewDbManager(dsn string) (*DbManager, error) {
+func NewDbManager(dsn string, enableLogger bool) (*DbManager, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
@@ -74,8 +74,9 @@ func NewDbManager(dsn string) (*DbManager, error) {
 		return nil, err
 	}
 
-	// TODO: add flag for enabling/disabling logger
-	config.ConnConfig.Tracer = &QueryTracer{}
+	if enableLogger {
+		config.ConnConfig.Tracer = &QueryTracer{}
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
