@@ -90,6 +90,10 @@ onMounted(() => {
     <div class="stage-header">
       <span>🎉 Game Complete</span>
     </div>
+    <div v-if="!gameStore.gameResult" class="loader-container gap-2 my-4">
+      <div class="loader-big"></div>
+      <span class="text-lg font-medium">Loading results...</span>
+    </div>
     <div class="flex flex-col items-center" v-if="players.length > 0">
       <div class="grid grid-cols-[25px_1fr_50px_50px] place-items-start gap-1">
         <template v-for="player in players" :key="player.tg_id">
@@ -108,8 +112,7 @@ onMounted(() => {
         </template>
       </div>
     </div>
-    <div v-if="player"
-      class="sub-container text-lg p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
+    <div v-if="player" class="sub-container text-lg p-2 rounded-lg bg-gradient-to-br from-slate-50 to-slate-200">
       <div class="font-medium text-center text-gray-900">Your Stats</div>
       <div class="font-semibold flex flex-wrap items-center justify-center gap-1 text-center">
         <span class="min-w-4">👍</span>
@@ -140,8 +143,7 @@ onMounted(() => {
 
 <style>
 @import "tailwindcss";
-
 .ld-table {
-  @apply flex gap-1 text-xs place-self-center w-full;
+  @apply flex justify-center items-center text-xs place-self-center w-full;
 }
 </style>

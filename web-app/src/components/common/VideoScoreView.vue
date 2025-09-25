@@ -30,7 +30,7 @@ const videoFrom = computed<string>(() => {
         <p>{{ videoResult.dislikes }}</p>
       </div>
     </div>
-    <div v-if="videoResult.video.oembed.thumbnail_url" class="thumbnail-container">
+    <div v-if="videoResult.video.oembed.thumbnail_url" class="thumbnail-container border border-gray-100">
       <img :src="videoResult.video.oembed.thumbnail_url" :alt="videoResult.video.oembed.title || 'Video Cover'"
         class="object-cover min-h-74" loading="lazy" />
     </div>
