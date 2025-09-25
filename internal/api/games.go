@@ -256,3 +256,29 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, vote)
 }
+
+func (api *HttpApi) getGameResult(c echo.Context) error {
+	tgId, err := tgId(c)
+	if err != nil {
+		return sendUnauthorized(c)
+	}
+
+	gameId, err := param64(c, "id")
+	if err != nil {
+		return sendInvalidId(c)
+	}
+
+	ctx := c.Request().Context()
+	result, err := api.games.GetGameResult(ctx, gameId, tgId)
+	if err != nil {
+		if sErr, ok := isServErr(err); ok {
+			if sErr.Code == common.ErrorForbidden {
+				return sendForbidden(c)
+			}
+		}
+
+		return logAndSendUnknowError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, result)
+}
