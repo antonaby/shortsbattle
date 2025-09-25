@@ -16,12 +16,14 @@ import {
   type Subscription,
 } from "centrifuge";
 import { GamesAPI } from "@/api/games";
+import { useUserStore } from "./user.store";
 
 const SUB_READY_TIMEOUT = 10000; // 10 sec
 
 export const useGameStore = defineStore("game", () => {
   const wsStore = useWSStore();
   const uiStore = useUIStore();
+  const userStore = useUserStore();
 
   const remainingTimeMs = ref<number>(-1);
 
@@ -49,7 +51,7 @@ export const useGameStore = defineStore("game", () => {
   });
 
   async function joinGame(gameId: number): Promise<void> {
-    gameSub = wsStore.subscribe(`game_${gameId}`, {
+    gameSub = wsStore.subscribe(gameId, userStore.userId, {
       subscribed: handleSubscribed,
       publication: handlePublication,
       unsubscribed: (ctx) => {

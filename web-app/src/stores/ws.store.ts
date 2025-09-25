@@ -53,7 +53,8 @@ export const useWSStore = defineStore("ws", () => {
   }
 
   function subscribe(
-    channel: string,
+    gameId: number,
+    userId: number,
     handlers: {
       subscribed?: (ctx: SubscribedContext) => void;
       unsubscribed?: (ctx: UnsubscribedContext) => void;
@@ -65,13 +66,17 @@ export const useWSStore = defineStore("ws", () => {
       throw new Error("Socket not connected");
     }
 
+    let channel = `game_${gameId}`;
+
     let sub = client.getSubscription(channel);
     if (sub && sub.state == SubscriptionState.Subscribed) {
       sub.unsubscribe();
     }
 
     if (!sub) {
-      sub = client.newSubscription(channel);
+      sub = client.newSubscription(channel, {
+        getToken: () => Promise.resolve(`gameId=${gameId}&userId=${userId}`)
+      });
     }
 
     if (handlers.publication) {

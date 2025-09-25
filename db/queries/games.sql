@@ -8,6 +8,22 @@ SELECT join_game(
   sqlc.arg(player_mode)
 ) AS game_id;
 
+-- name: SetGamePlayerOnline :one
+UPDATE game_players 
+  SET 
+    is_active = true,
+    is_online = now() 
+  WHERE game_id = $1 AND player_id = $2
+RETURNING *;
+
+-- name: SetGamePlayerOffline :one
+UPDATE game_players 
+  SET 
+    is_active = false,
+    is_online = NULL 
+  WHERE game_id = $1 AND player_id = $2
+RETURNING *;
+
 -- name: EnqueueGames :many
 WITH cte AS (
   SELECT game_id

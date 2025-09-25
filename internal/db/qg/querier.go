@@ -40,6 +40,8 @@ type Querier interface {
 	ListAllThemes(ctx context.Context) ([]Theme, error)
 	ListThemes(ctx context.Context, limit int32, offset int32) ([]Theme, error)
 	SetGameComplete(ctx context.Context, gameID int64) (Game, error)
+	SetGamePlayerOffline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error)
+	SetGamePlayerOnline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error)
 	SetPlayerOffline(ctx context.Context, tgID int64) (Player, error)
 	SetPlayerOnline(ctx context.Context, tgID int64) (Player, error)
 	TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error)

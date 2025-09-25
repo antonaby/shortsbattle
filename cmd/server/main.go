@@ -80,7 +80,8 @@ func main() {
 	authService := services.NewAuthService(keyManager, playerService, authConfig)
 
 	wsConfig := ws.WsConnectionConfig{
-		ConnectionExpTime: 1 * time.Minute,
+		ConnectionExpTime:   1 * time.Minute,
+		SubscriptionExpTime: 30 * time.Second,
 	}
 
 	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, playerService, wsConfig)

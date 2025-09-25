@@ -286,11 +286,57 @@ func (q *Queries) SetGameComplete(ctx context.Context, gameID int64) (Game, erro
 	return i, err
 }
 
+const setGamePlayerOffline = `-- name: SetGamePlayerOffline :one
+UPDATE game_players 
+  SET 
+    is_active = false,
+    is_online = NULL 
+  WHERE game_id = $1 AND player_id = $2
+RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+`
+
+func (q *Queries) SetGamePlayerOffline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, setGamePlayerOffline, gameID, playerID)
+	var i GamePlayer
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
+		&i.IsOnline,
+	)
+	return i, err
+}
+
+const setGamePlayerOnline = `-- name: SetGamePlayerOnline :one
+UPDATE game_players 
+  SET 
+    is_active = true,
+    is_online = now() 
+  WHERE game_id = $1 AND player_id = $2
+RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+`
+
+func (q *Queries) SetGamePlayerOnline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
+	row := q.db.QueryRow(ctx, setGamePlayerOnline, gameID, playerID)
+	var i GamePlayer
+	err := row.Scan(
+		&i.GameID,
+		&i.PlayerID,
+		&i.Mode,
+		&i.IsActive,
+		&i.JoinedAt,
+		&i.IsOnline,
+	)
+	return i, err
+}
+
 const updateGameMode = `-- name: UpdateGameMode :one
 UPDATE game_players 
 SET mode = $3
 WHERE game_id = $1 AND player_id = $2
-RETURNING game_id, player_id, mode, is_active, joined_at
+RETURNING game_id, player_id, mode, is_active, joined_at, is_online
 `
 
 type UpdateGameModeParams struct {
@@ -308,6 +354,7 @@ func (q *Queries) UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) 
 		&i.Mode,
 		&i.IsActive,
 		&i.JoinedAt,
+		&i.IsOnline,
 	)
 	return i, err
 }

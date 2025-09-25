@@ -155,6 +155,7 @@ type GamePlayer struct {
 	Mode     PlayerGameMode     `json:"mode"`
 	IsActive pgtype.Bool        `json:"is_active"`
 	JoinedAt pgtype.Timestamptz `json:"joined_at"`
+	IsOnline pgtype.Timestamptz `json:"is_online"`
 }
 
 type GameStatus struct {
