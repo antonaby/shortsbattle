@@ -27,6 +27,7 @@ export const useWSStore = defineStore("ws", () => {
   ) {
     client = new Centrifuge(
       `${import.meta.env.VITE_WS_BASE_URL}/api/v1/games/updates`,
+      // TODO: add connections delays and other properties
       {
         getToken: tokenProvider, // TODO: check token provider errors
       }

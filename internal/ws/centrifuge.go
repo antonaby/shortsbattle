@@ -26,6 +26,7 @@ func cfError(code common.ErrorCode, msg string, err error) error {
 }
 
 type WsConnectionConfig struct {
+	ClientPingInterval  time.Duration
 	ConnectionExpTime   time.Duration
 	SubscriptionExpTime time.Duration
 }
@@ -39,7 +40,9 @@ type CentrifugeServer struct {
 }
 
 func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, players *services.CachedPlayerService, config WsConnectionConfig) (*CentrifugeServer, error) {
-	node, err := centrifuge.New(centrifuge.Config{})
+	node, err := centrifuge.New(centrifuge.Config{
+		ClientPresenceUpdateInterval: config.ClientPingInterval,
+	})
 	if err != nil {
 		return nil, cfError(common.ErrorInit, "failed to create server", err)
 	}
@@ -263,10 +266,17 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 		}, nil)
 	})
 
+	client.OnAlive(func() {
+		err = cf.updateOnlineStatus(tgId, true)
+		if err != nil {
+			log.Error().Err(err).Stack().Msgf("failed to set player offline: %s", client.UserID())
+		}
+	})
+
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
 		err = cf.updateOnlineStatus(tgId, false)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
+			log.Error().Err(err).Stack().Msgf("failed to set player offline: %s", client.UserID())
 		}
 	})
 }

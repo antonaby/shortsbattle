@@ -80,6 +80,7 @@ func main() {
 	authService := services.NewAuthService(keyManager, playerService, authConfig)
 
 	wsConfig := ws.WsConnectionConfig{
+		ClientPingInterval:  5 * time.Second,
 		ConnectionExpTime:   1 * time.Minute,
 		SubscriptionExpTime: 30 * time.Second,
 	}
