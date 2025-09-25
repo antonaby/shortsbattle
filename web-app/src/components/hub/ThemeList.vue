@@ -3,15 +3,17 @@ import { onMounted } from 'vue'
 import { useGameHubStore } from '../../stores/hub.store';
 import ThemeButtonView from './ThemeButtonView.vue';
 import type { Theme } from '@/types/game';
+import { useUIStore } from '@/stores/ui.store';
 
+const uiStore = useUIStore();
 const gameHubStore = useGameHubStore();
 
-async function joinAndOpenGame(theme?: Theme) {
+async function openTheme(theme?: Theme) {
   if (!theme) {
     return;
   }
-  
-  await gameHubStore.openGameDetails(theme);
+
+  await uiStore.openTheme(theme.id);
 }
 
 onMounted(() => {
@@ -20,12 +22,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <ul>
-    <li v-for="theme in gameHubStore.themes" v-if="gameHubStore.themes.length > 0">
-      <ThemeButtonView :theme="theme" @join="joinAndOpenGame" />
-    </li>
-    <li v-for="n in 3" :key="n" v-else>
-      <ThemeButtonView />
+  <ul v-if="gameHubStore.themes.length > 0">
+    <li v-for="theme in gameHubStore.themes">
+      <ThemeButtonView :theme="theme" @open="openTheme" />
     </li>
   </ul>
+  <div v-else class="loader-container gap-2 my-4">
+    <div class="loader-big"></div>
+    <span class="text-lg font-medium">Loading...</span>
+  </div>
 </template>

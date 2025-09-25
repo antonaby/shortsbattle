@@ -13,7 +13,6 @@ export const useUIStore = defineStore("ui", () => {
     router.replace({ name: "hub" });
   }
 
-  // TODO: prohibit moving back for all game stages
   function openGameLobby(gameId: number) {
     router.replace({ name: "game-lobby", params: { id: gameId } });
   }

@@ -16,9 +16,5 @@ export const useGameHubStore = defineStore("gamehub", () => {
     }
   }
 
-  async function openGameDetails(theme: Theme) {
-    uiStore.openTheme(theme.id);
-  }
-
-  return { themes, fetchThemes, openGameDetails };
+  return { themes, fetchThemes };
 });
