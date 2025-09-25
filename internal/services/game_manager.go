@@ -305,7 +305,7 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 }
 
 func (gm *GameManager) createVote(
-	ctx context.Context, q qg.Querier, game qg.GetGameVideoShareLockRow, 
+	ctx context.Context, q qg.Querier, game qg.GetGameVideoShareLockRow,
 	gameVideoId, playerId int64, value json.RawMessage) (*qg.GameVote, error) {
 	if game.Mode == qg.GameModeLikedislike {
 		var vote models.LikeDislikeVote
@@ -776,22 +776,15 @@ func createPlayerLDResults(ctx context.Context, q qg.Querier, likesDislikes []mo
 	}
 
 	for playerId, result := range playerResults {
-		ldCount, ok := playerLDCount[playerId]
-		var count models.LikeDislikeCount
-		if ok {
-			count = ldCount
-		}
+		ldCount := playerLDCount[playerId]
 
-		ldCountRaw, err := json.Marshal(count)
-		if err != nil {
-			return gmError(common.ErrorMarshal, "bad result data", err)
-		}
-
-		_, err = q.CreatePlayerResult(ctx, qg.CreatePlayerResultParams{
+		_, err := q.CreatePlayerResult(ctx, qg.CreatePlayerResultParams{
 			PlayerID: result.PlayerID,
 			GameID:   result.GameID,
+			Likes:    int32(ldCount.Likes),
+			Dislikes: int32(ldCount.Dislikes),
+			Place:    0,
 			Points:   result.Points,
-			Result:   ldCountRaw,
 		})
 
 		if err != nil {

@@ -7,7 +7,6 @@ package qg
 
 import (
 	"context"
-	"encoding/json"
 )
 
 const createGameVideoResult = `-- name: CreateGameVideoResult :one
@@ -44,8 +43,14 @@ func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideo
 }
 
 const createPlayerResult = `-- name: CreatePlayerResult :one
-INSERT INTO player_results(player_id, game_id, result, points)
-VALUES ($1, $2, $3, $4)
+INSERT INTO player_results(player_id, game_id, result, place, points)
+VALUES (
+  $1, 
+  $2, 
+  jsonb_build_object('likes', $3::int, 'dislikes', $4::int), 
+  $5,
+  $6
+  )
 ON CONFLICT (player_id, game_id) DO UPDATE
   SET result = EXCLUDED.result,
       points = EXCLUDED.points,
@@ -54,17 +59,21 @@ RETURNING player_id, game_id, result, points, place, calculated_at
 `
 
 type CreatePlayerResultParams struct {
-	PlayerID int64           `json:"player_id"`
-	GameID   int64           `json:"game_id"`
-	Result   json.RawMessage `json:"result"`
-	Points   int64           `json:"points"`
+	PlayerID int64 `json:"player_id"`
+	GameID   int64 `json:"game_id"`
+	Likes    int32 `json:"likes"`
+	Dislikes int32 `json:"dislikes"`
+	Place    int32 `json:"place"`
+	Points   int64 `json:"points"`
 }
 
 func (q *Queries) CreatePlayerResult(ctx context.Context, arg CreatePlayerResultParams) (PlayerResult, error) {
 	row := q.db.QueryRow(ctx, createPlayerResult,
 		arg.PlayerID,
 		arg.GameID,
-		arg.Result,
+		arg.Likes,
+		arg.Dislikes,
+		arg.Place,
 		arg.Points,
 	)
 	var i PlayerResult

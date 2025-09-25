@@ -7,8 +7,14 @@ ON CONFLICT (game_id, game_video_id) DO UPDATE
 RETURNING *;
 
 -- name: CreatePlayerResult :one
-INSERT INTO player_results(player_id, game_id, result, points)
-VALUES ($1, $2, $3, $4)
+INSERT INTO player_results(player_id, game_id, result, place, points)
+VALUES (
+  sqlc.arg(player_id), 
+  sqlc.arg(game_id), 
+  jsonb_build_object('likes', sqlc.arg(likes)::int, 'dislikes', sqlc.arg(dislikes)::int), 
+  sqlc.arg(place),
+  sqlc.arg(points)
+  )
 ON CONFLICT (player_id, game_id) DO UPDATE
   SET result = EXCLUDED.result,
       points = EXCLUDED.points,
