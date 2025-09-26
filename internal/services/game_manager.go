@@ -929,6 +929,10 @@ func calculateLikesAndDislikes(rawVotes []qg.GetLDVotesRow) ([]models.LikeDislik
 			res.Dislikes += 1
 		}
 
+		if rawVote.IsErr.Bool {
+			res.Errors += 1
+		}
+
 		votes[rawVote.GameVideoID] = res
 	}
 

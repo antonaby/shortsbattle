@@ -89,7 +89,9 @@ SELECT
   e.round_n,
   e.author_id,
   COALESCE(gvt.value ->> 'value', '')::text as value,
-  gvt.voted_at
+  gvt.voted_at,
+  gvt.is_err,
+  gvt.err_msg
   FROM expected e
   LEFT JOIN game_votes gvt
     ON gvt.game_video_id = e.game_video_id
@@ -104,6 +106,8 @@ type GetLDVotesRow struct {
 	AuthorID    int64              `json:"author_id"`
 	Value       string             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+	IsErr       pgtype.Bool        `json:"is_err"`
+	ErrMsg      pgtype.Text        `json:"err_msg"`
 }
 
 func (q *Queries) GetLDVotes(ctx context.Context, gameID int64) ([]GetLDVotesRow, error) {
@@ -122,6 +126,8 @@ func (q *Queries) GetLDVotes(ctx context.Context, gameID int64) ([]GetLDVotesRow
 			&i.AuthorID,
 			&i.Value,
 			&i.VotedAt,
+			&i.IsErr,
+			&i.ErrMsg,
 		); err != nil {
 			return nil, err
 		}
@@ -155,7 +161,9 @@ SELECT
   e.player_id,
   e.game_video_id,
   gvt.value,
-  gvt.voted_at
+  gvt.voted_at,
+  gvt.is_err,
+  gvt.err_msg
   FROM expected e
   LEFT JOIN game_votes gvt
     ON gvt.game_video_id = e.game_video_id
@@ -167,6 +175,8 @@ type GetVotesForRoundRow struct {
 	GameVideoID int64              `json:"game_video_id"`
 	Value       []byte             `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+	IsErr       pgtype.Bool        `json:"is_err"`
+	ErrMsg      pgtype.Text        `json:"err_msg"`
 }
 
 func (q *Queries) GetVotesForRound(ctx context.Context, gameID int64, roundN int32) ([]GetVotesForRoundRow, error) {
@@ -183,6 +193,8 @@ func (q *Queries) GetVotesForRound(ctx context.Context, gameID int64, roundN int
 			&i.GameVideoID,
 			&i.Value,
 			&i.VotedAt,
+			&i.IsErr,
+			&i.ErrMsg,
 		); err != nil {
 			return nil, err
 		}

@@ -42,6 +42,7 @@ type LikeDislikeVideoResult struct {
 	AuthorID    int64 `json:"author_id"`
 	Likes       int   `json:"likes"`
 	Dislikes    int   `json:"dislikes"`
+	Errors      int   `json:"errors"`
 }
 
 type LikeDislikeCount struct {

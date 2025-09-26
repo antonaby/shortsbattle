@@ -58,7 +58,9 @@ SELECT
   e.round_n,
   e.author_id,
   COALESCE(gvt.value ->> 'value', '')::text as value,
-  gvt.voted_at
+  gvt.voted_at,
+  gvt.is_err,
+  gvt.err_msg
   FROM expected e
   LEFT JOIN game_votes gvt
     ON gvt.game_video_id = e.game_video_id
@@ -87,7 +89,9 @@ SELECT
   e.player_id,
   e.game_video_id,
   gvt.value,
-  gvt.voted_at
+  gvt.voted_at,
+  gvt.is_err,
+  gvt.err_msg
   FROM expected e
   LEFT JOIN game_votes gvt
     ON gvt.game_video_id = e.game_video_id

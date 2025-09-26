@@ -531,6 +531,106 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, 2, len(gameResult.Rounds))
 		require.Equal(t, 1, gameResult.Outcome.PlusEnergy)
 	})
+
+	t.Run("VoteErr", func(t *testing.T) {
+		testVideos := []string{
+			"https://www.youtube.com/shorts/WYfhopYduI0",
+			"https://www.youtube.com/shorts/vjrDd1tg-7U",
+		}
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFunc()
+
+		theme, err := tests.CreateTestTheme(ctx, ts.DBManager, 1, qg.GameModeLikedislike)
+		if err != nil {
+			t.Fatalf("failed to create test theme: %v", err)
+		}
+
+		players, err := tests.CreateTestPlayers(ctx, ts.DBManager, 2, 50)
+		if err != nil {
+			t.Fatalf("failed to create test players: %v", err)
+		}
+
+		// 1) create game and add players
+		game, err := tests.CreateGameWithStage(ctx, ts.DBManager, theme.ID, qg.GameModeLikedislike, qg.GameStageLobby, 1)
+		if err != nil {
+			t.Fatalf("failed to create test game: %v", err)
+		}
+		for _, p := range players {
+			_, err = tests.AddPlayerToGame(ctx, ts.DBManager, game.ID, p.TgID, qg.PlayerGameModeSubmitAndVote)
+			if err != nil {
+				t.Fatalf("failed to add player to game (player %d): %v", p.TgID, err)
+			}
+		}
+
+		// 2) change game state to submit videos
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageSubmit)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+
+		gameVideos := []models.GameVideo{}
+		// round 1
+		for i, p := range players {
+			url := testVideos[i]
+			_, vd, err := gm.SubmitNewVideo(ctx, game.ID, url, p.TgID, 1)
+			if err != nil {
+				t.Fatalf("failed to submit video (player %d): %v", p.TgID, err)
+			}
+			gameVideos = append(gameVideos, *vd)
+		}
+
+		// 3) change game state to watch and vote
+		_, err = tests.ChangeGameStage(ctx, ts.DBManager, game.ID, qg.GameStageWatch)
+		if err != nil {
+			t.Fatalf("failed to change game stage: %v", err)
+		}
+		// round 1 player 1
+		vote := []byte(`{"value": "like"}`)
+		_, _, err = gm.VoteForVideo(ctx, gameVideos[1].ID, players[0].TgID, vote)
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 1): %v", err)
+		}
+		// round 1 player 2 votes as Err
+		_, _, err = gm.SetVoteErr(ctx, gameVideos[0].ID, players[1].TgID, "test")
+		if err != nil {
+			t.Fatalf("failed to vote for video (player 2): %v", err)
+		}
+
+		// 4) advacne game, it should move to watch complete as all votes submitted
+		upd, err := gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageWatchComplete, upd.Stage)
+
+		// 5) advacne game and check result, it should move to complete
+		time.Sleep(1 * time.Second)
+		upd, err = gm.AdvanceGameNow(ctx, game.ID)
+		if err != nil {
+			t.Fatalf("failed to advance test game: %v", err)
+		}
+		require.NotNil(t, upd)
+		require.Equal(t, qg.GameStageComplete, upd.Stage)
+
+		// 6) get player scores
+		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		if err != nil {
+			t.Fatalf("failed to get player scores (player 1): %v", err)
+		}
+
+		// check points, player 1 got 0 poins as its video voted with Err
+		require.Equal(t, 2, len(scores))
+
+		// player 2 on the first place
+		require.Equal(t, players[1].TgID, scores[0].PlayerID)
+		require.Equal(t, int64(1), scores[0].Points)
+		
+		// player 1 on the second place
+		require.Equal(t, players[0].TgID, scores[1].PlayerID)
+		require.Equal(t, int64(0), scores[1].Points)
+	})
 }
 
 func TestAdvanceGame(t *testing.T) {
