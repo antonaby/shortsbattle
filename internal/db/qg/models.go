@@ -153,7 +153,6 @@ type GamePlayer struct {
 	GameID   int64              `json:"game_id"`
 	PlayerID int64              `json:"player_id"`
 	Mode     PlayerGameMode     `json:"mode"`
-	IsActive pgtype.Bool        `json:"is_active"`
 	JoinedAt pgtype.Timestamptz `json:"joined_at"`
 	IsOnline pgtype.Timestamptz `json:"is_online"`
 }

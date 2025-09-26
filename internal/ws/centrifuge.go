@@ -3,7 +3,6 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"time"
@@ -17,12 +16,21 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	ErrOnlineStatus = "failed to update players online status: %s"
+	ErrChannelName  = "failed to parse channel name: %s"
+)
+
 func cfError(code common.ErrorCode, msg string, err error) error {
 	return common.ServiceError{
 		Code:    code,
 		Message: fmt.Sprintf("centrifuge: %s", msg),
 		Cause:   err,
 	}
+}
+
+func logError(err error, msgf string, args ...any) {
+	log.Error().Stack().Err(err).Msgf(msgf, args...)
 }
 
 type WsConnectionConfig struct {
@@ -125,19 +133,17 @@ func (cf *CentrifugeServer) handleConnecting(ctx context.Context, e centrifuge.C
 	}, nil
 }
 
+// TODO: add private channel
 func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
-	// TODO: add private channel
-
 	tgId, err := common.ParseTgId(client.UserID())
 	if err != nil {
-		log.Error().Err(err).Stack().Msgf("failed to parse user id: %s", client.UserID())
+		logError(err, "failed to parse user id: %s", client.UserID())
 		client.Disconnect(centrifuge.DisconnectServerError)
 		return
 	}
 
-	err = cf.updateOnlineStatus(tgId, true)
+	err = cf.updatePlayerStatus(tgId, true)
 	if err != nil {
-		log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
 		client.Disconnect(centrifuge.DisconnectServerError)
 		return
 	}
@@ -148,44 +154,38 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 
 		gameId, err := models.ParseCfChannelName(e.Channel)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to parse channel name: %s", e.Channel)
+			logError(err, ErrChannelName, e.Channel)
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorBadRequest)
 			return
 		}
 
 		details, err := cf.manager.GetGameDetailsForPlayer(ctx, gameId, tgId)
 		if err != nil {
-			var gErr common.ServiceError
-			if errors.As(err, &gErr) {
-				if gErr.Code == common.ErrorForbidden {
-					cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
-					return
-				}
+			if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorForbidden {
+				cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
+				return
 			}
 
-			log.Error().Err(err).Stack().Msgf("failed to get game state: %s", e.Channel)
+			logError(err, "failed to get game state: %s", e.Channel)
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
 
 		err = cf.manager.SetPlayerOnlineStatus(ctx, gameId, tgId, true)
 		if err != nil {
-			var gErr common.ServiceError
-			if errors.As(err, &gErr) {
-				if gErr.Code == common.ErrorNotFound {
-					cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
-					return
-				}
+			if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorNotFound {
+				cb(centrifuge.SubscribeReply{}, centrifuge.ErrorPermissionDenied)
+				return
 			}
 
-			log.Error().Err(err).Stack().Msgf("failed to update players online status: %s", e.Channel)
+			logError(err, ErrOnlineStatus, client.UserID())
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
 
 		updBytes, err := json.Marshal(details)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to convert game update to bytes: %s", e.Channel)
+			logError(err, "failed to convert game update to bytes: %s", e.Channel)
 			cb(centrifuge.SubscribeReply{}, centrifuge.ErrorInternal)
 			return
 		}
@@ -205,22 +205,19 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 
 		gameId, err := models.ParseCfChannelName(e.Channel)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to parse channel name: %s", e.Channel)
+			logError(err, ErrChannelName, e.Channel)
 			cb(centrifuge.SubRefreshReply{}, centrifuge.ErrorBadRequest)
 			return
 		}
 
 		err = cf.manager.SetPlayerOnlineStatus(ctx, gameId, tgId, true)
 		if err != nil {
-			var gErr common.ServiceError
-			if errors.As(err, &gErr) {
-				if gErr.Code == common.ErrorNotFound {
-					cb(centrifuge.SubRefreshReply{}, centrifuge.ErrorPermissionDenied)
-					return
-				}
+			if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorNotFound {
+				cb(centrifuge.SubRefreshReply{}, centrifuge.ErrorPermissionDenied)
+				return
 			}
 
-			log.Error().Err(err).Stack().Msgf("failed to update players online status: %s", e.Channel)
+			logError(err, ErrOnlineStatus, client.UserID())
 			cb(centrifuge.SubRefreshReply{}, centrifuge.ErrorInternal)
 			return
 		}
@@ -236,13 +233,17 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 
 		gameId, err := models.ParseCfChannelName(e.Channel)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to parse channel name: %s", e.Channel)
+			logError(err, ErrChannelName, e.Channel)
 			return
 		}
 
 		err = cf.manager.SetPlayerOnlineStatus(ctx, gameId, tgId, false)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to update players online status: %s", e.Channel)
+			if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorNotFound {
+				return
+			}
+
+			logError(err, ErrOnlineStatus, client.UserID())
 		}
 	})
 
@@ -253,9 +254,8 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 			return
 		}
 
-		err = cf.updateOnlineStatus(tgId, true)
+		err = cf.updatePlayerStatus(tgId, true)
 		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to set player online: %s", client.UserID())
 			client.Disconnect(centrifuge.DisconnectServerError)
 			return
 		}
@@ -267,24 +267,28 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	})
 
 	client.OnAlive(func() {
-		err = cf.updateOnlineStatus(tgId, true)
-		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to set player offline: %s", client.UserID())
-		}
+		cf.updatePlayerStatus(tgId, true)
 	})
 
 	client.OnDisconnect(func(e centrifuge.DisconnectEvent) {
-		err = cf.updateOnlineStatus(tgId, false)
-		if err != nil {
-			log.Error().Err(err).Stack().Msgf("failed to set player offline: %s", client.UserID())
-		}
+		cf.updatePlayerStatus(tgId, false)
 	})
 }
 
 // TODO: if false set all active games to false
-func (cf *CentrifugeServer) updateOnlineStatus(tgId int64, status bool) error {
+func (cf *CentrifugeServer) updatePlayerStatus(tgId int64, status bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	return cf.players.SetPlayerOnline(ctx, tgId, status)
+	err := cf.players.SetPlayerOnlineStatus(ctx, tgId, status)
+	if err != nil {
+		if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorNotFound {
+			return nil
+		}
+
+		logError(err, ErrOnlineStatus, fmt.Sprint(tgId))
+		return err
+	}
+
+	return nil
 }

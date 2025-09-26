@@ -177,7 +177,7 @@ SELECT
   gs.game_id, gs.theme_id, gs.mode, gs.stage, gs.round_n, gs.state_changed_at, gs.update_key, gs.next_game_update_at, 
   gp.player_id, 
   gp.mode as player_mode, 
-  gp.is_active, 
+  gp.is_online, 
   gp.joined_at,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
@@ -205,7 +205,7 @@ type GetGameShareLockRow struct {
 	NextGameUpdateAt pgtype.Timestamptz `json:"next_game_update_at"`
 	PlayerID         int64              `json:"player_id"`
 	PlayerMode       PlayerGameMode     `json:"player_mode"`
-	IsActive         pgtype.Bool        `json:"is_active"`
+	IsOnline         pgtype.Timestamptz `json:"is_online"`
 	JoinedAt         pgtype.Timestamptz `json:"joined_at"`
 	RemainingMs      int64              `json:"remaining_ms"`
 	PastMs           int64              `json:"past_ms"`
@@ -225,7 +225,7 @@ func (q *Queries) GetGameShareLock(ctx context.Context, gameID int64, playerID i
 		&i.NextGameUpdateAt,
 		&i.PlayerID,
 		&i.PlayerMode,
-		&i.IsActive,
+		&i.IsOnline,
 		&i.JoinedAt,
 		&i.RemainingMs,
 		&i.PastMs,
@@ -289,10 +289,9 @@ func (q *Queries) SetGameComplete(ctx context.Context, gameID int64) (Game, erro
 const setGamePlayerOffline = `-- name: SetGamePlayerOffline :one
 UPDATE game_players 
   SET 
-    is_active = false,
     is_online = NULL 
   WHERE game_id = $1 AND player_id = $2
-RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+RETURNING game_id, player_id, mode, joined_at, is_online
 `
 
 func (q *Queries) SetGamePlayerOffline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
@@ -302,7 +301,6 @@ func (q *Queries) SetGamePlayerOffline(ctx context.Context, gameID int64, player
 		&i.GameID,
 		&i.PlayerID,
 		&i.Mode,
-		&i.IsActive,
 		&i.JoinedAt,
 		&i.IsOnline,
 	)
@@ -312,10 +310,9 @@ func (q *Queries) SetGamePlayerOffline(ctx context.Context, gameID int64, player
 const setGamePlayerOnline = `-- name: SetGamePlayerOnline :one
 UPDATE game_players 
   SET 
-    is_active = true,
     is_online = now() 
   WHERE game_id = $1 AND player_id = $2
-RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+RETURNING game_id, player_id, mode, joined_at, is_online
 `
 
 func (q *Queries) SetGamePlayerOnline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error) {
@@ -325,7 +322,6 @@ func (q *Queries) SetGamePlayerOnline(ctx context.Context, gameID int64, playerI
 		&i.GameID,
 		&i.PlayerID,
 		&i.Mode,
-		&i.IsActive,
 		&i.JoinedAt,
 		&i.IsOnline,
 	)
@@ -336,7 +332,7 @@ const updateGameMode = `-- name: UpdateGameMode :one
 UPDATE game_players 
 SET mode = $3
 WHERE game_id = $1 AND player_id = $2
-RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+RETURNING game_id, player_id, mode, joined_at, is_online
 `
 
 type UpdateGameModeParams struct {
@@ -352,7 +348,6 @@ func (q *Queries) UpdateGameMode(ctx context.Context, arg UpdateGameModeParams) 
 		&i.GameID,
 		&i.PlayerID,
 		&i.Mode,
-		&i.IsActive,
 		&i.JoinedAt,
 		&i.IsOnline,
 	)

@@ -19,7 +19,7 @@ INSERT INTO game_players (
 ) VALUES (
   $1, $2, $3
 )
-RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+RETURNING game_id, player_id, mode, joined_at, is_online
 `
 
 type TestAddPlayerToGameParams struct {
@@ -35,7 +35,6 @@ func (q *Queries) TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGa
 		&i.GameID,
 		&i.PlayerID,
 		&i.Mode,
-		&i.IsActive,
 		&i.JoinedAt,
 		&i.IsOnline,
 	)
@@ -257,7 +256,7 @@ func (q *Queries) TestUpdateGameStageAndUpdateAt(ctx context.Context, arg TestUp
 const testUpdatePlayerMode = `-- name: TestUpdatePlayerMode :one
 UPDATE game_players 
 SET mode = $2 
-WHERE player_id = $1 RETURNING game_id, player_id, mode, is_active, joined_at, is_online
+WHERE player_id = $1 RETURNING game_id, player_id, mode, joined_at, is_online
 `
 
 func (q *Queries) TestUpdatePlayerMode(ctx context.Context, playerID int64, mode PlayerGameMode) (GamePlayer, error) {
@@ -267,7 +266,6 @@ func (q *Queries) TestUpdatePlayerMode(ctx context.Context, playerID int64, mode
 		&i.GameID,
 		&i.PlayerID,
 		&i.Mode,
-		&i.IsActive,
 		&i.JoinedAt,
 		&i.IsOnline,
 	)

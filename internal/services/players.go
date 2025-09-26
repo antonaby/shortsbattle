@@ -35,7 +35,7 @@ func NewCachedPlayerService(txm db.TxManager, rc *redis.Client) *CachedPlayerSer
 	}
 }
 
-func (ps *CachedPlayerService) SetPlayerOnline(ctx context.Context, playerId int64, online bool) error {
+func (ps *CachedPlayerService) SetPlayerOnlineStatus(ctx context.Context, playerId int64, online bool) error {
 	return db.WithTxQ(ctx, ps.txm, func(ctx context.Context, q qg.Querier) error {
 		var err error
 		if online {

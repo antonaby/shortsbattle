@@ -59,8 +59,8 @@ func (api *HttpApi) NewEchoServer() *echo.Echo {
 				log.
 					Error().
 					Timestamp().
-					Err(v.Error).
 					Stack().
+					Err(v.Error).
 					Str("URI", v.URI).
 					Int("status", v.Status).
 					Str("method", v.Method).

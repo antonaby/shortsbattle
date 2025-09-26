@@ -1,6 +1,9 @@
 package common
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
 
 func ParseTgId(str string) (int64, error) {
 	value, err := strconv.ParseInt(str, 10, 64)
@@ -9,4 +12,13 @@ func ParseTgId(str string) (int64, error) {
 	}
 
 	return value, nil
+}
+
+func IsServErr(err error) (ServiceError, bool) {
+	var sErr ServiceError
+	if errors.As(err, &sErr) {
+		return sErr, true
+	}
+
+	return sErr, false
 }

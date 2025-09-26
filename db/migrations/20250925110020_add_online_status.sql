@@ -5,6 +5,7 @@ ALTER TABLE players
   ADD COLUMN is_online TIMESTAMPTZ;
 
 ALTER TABLE game_players
+  DROP COLUMN is_active,
   ADD COLUMN is_online TIMESTAMPTZ;
 -- +goose StatementEnd
 

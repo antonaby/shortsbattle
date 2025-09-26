@@ -11,7 +11,6 @@ SELECT join_game(
 -- name: SetGamePlayerOnline :one
 UPDATE game_players 
   SET 
-    is_active = true,
     is_online = now() 
   WHERE game_id = $1 AND player_id = $2
 RETURNING *;
@@ -19,7 +18,6 @@ RETURNING *;
 -- name: SetGamePlayerOffline :one
 UPDATE game_players 
   SET 
-    is_active = false,
     is_online = NULL 
   WHERE game_id = $1 AND player_id = $2
 RETURNING *;
@@ -56,7 +54,7 @@ SELECT
   gs.*, 
   gp.player_id, 
   gp.mode as player_mode, 
-  gp.is_active, 
+  gp.is_online, 
   gp.joined_at,
   GREATEST(
     COALESCE((EXTRACT(EPOCH FROM (gs.next_game_update_at - now())) * 1000)::bigint, 0),
