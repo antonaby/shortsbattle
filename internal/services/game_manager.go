@@ -909,10 +909,6 @@ func calculateLikesAndDislikes(rawVotes []qg.GetLDVotesRow) ([]models.LikeDislik
 	votes := make(map[int64]models.LikeDislikeVideoResult)
 
 	for _, rawVote := range rawVotes {
-		if !rawVote.VotedAt.Valid {
-			continue
-		}
-
 		res, ok := votes[rawVote.GameVideoID]
 		if !ok {
 			res = models.LikeDislikeVideoResult{
@@ -922,15 +918,17 @@ func calculateLikesAndDislikes(rawVotes []qg.GetLDVotesRow) ([]models.LikeDislik
 			}
 		}
 
-		switch models.LikeDislikeVoteValue(rawVote.Value) {
-		case models.LikeValue:
-			res.Likes += 1
-		case models.DislikeValue:
-			res.Dislikes += 1
-		}
+		if rawVote.VotedAt.Valid {
+			switch models.LikeDislikeVoteValue(rawVote.Value) {
+			case models.LikeValue:
+				res.Likes += 1
+			case models.DislikeValue:
+				res.Dislikes += 1
+			}
 
-		if rawVote.IsErr.Bool {
-			res.Errors += 1
+			if rawVote.IsErr.Bool {
+				res.Errors += 1
+			}
 		}
 
 		votes[rawVote.GameVideoID] = res
