@@ -92,6 +92,12 @@ export const GamesAPI = {
     });
     return response.data;
   },
+  async sendVideoError(gameVideoId: number, errorMsg: string): Promise<Vote> {
+    const response = await api.put<Vote>(`/api/v1/votes/${gameVideoId}/error`, {
+      error_msg: errorMsg,
+    });
+    return response.data;
+  },
   async getGameResult(gameId: number): Promise<GameResult> {
     const response = await api.get<GameResult>(
       `/api/v1/games/${gameId}/result`

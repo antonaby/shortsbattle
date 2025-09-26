@@ -18,7 +18,7 @@ const props = defineProps<{
 
 const emits = defineEmits<{
   (e: 'vote', video: GameVideo, value: VoteValue): void
-  (e: 'error', video: GameVideo, error: any): void
+  (e: 'error', video: GameVideo, error: string): void
 }>();
 
 const showMenu = ref<boolean>(false);
@@ -61,9 +61,10 @@ function handleStateChange(state: YT.PlayerState) {
   }
 }
 
+// TODO: check how error videos are handled
 function handleError(error: any) {
   let video = props.videos[currentVideoIndex.value];
-  emits('error', video, error);
+  emits('error', video, String(error));
   nextVideo();
 }
 </script>

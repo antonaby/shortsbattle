@@ -230,9 +230,16 @@ export const useGameStore = defineStore("game", () => {
     }
   }
 
-  async function videoError(gameVideo: GameVideo, error: any) {
-    console.log(gameVideo, error);
-    // TODO: send to the backend
+  async function videoError(gameVideo: GameVideo, errorMsg: string) {
+    if (!lastUpdate.value) {
+      return;
+    }
+
+    try {
+      await GamesAPI.sendVideoError(gameVideo.id, errorMsg);
+    } catch (error) {
+      uiStore.handleNetworkError(error);
+    }
   }
 
   async function loadGameResult() {
