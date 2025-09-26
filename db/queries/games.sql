@@ -22,6 +22,13 @@ UPDATE game_players
   WHERE game_id = $1 AND player_id = $2
 RETURNING *;
 
+-- name: SetPlayerOfflineForActiveGames :many
+UPDATE game_players 
+  SET 
+    is_online = NULL 
+  WHERE player_id = $1
+RETURNING game_id;
+
 -- name: EnqueueGames :many
 WITH cte AS (
   SELECT game_id

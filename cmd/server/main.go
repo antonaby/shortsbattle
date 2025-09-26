@@ -79,13 +79,16 @@ func main() {
 
 	authService := services.NewAuthService(keyManager, playerService, authConfig)
 
+	watchdogClient := watchdog.NewWatchdogClient(redisHost)
+	defer watchdogClient.Close()
+
 	wsConfig := ws.WsConnectionConfig{
 		ClientPingInterval:  5 * time.Second,
 		ConnectionExpTime:   1 * time.Minute,
 		SubscriptionExpTime: 30 * time.Second,
 	}
 
-	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, playerService, wsConfig)
+	centrifugeServer, err := ws.NewCentrifugeServer(gameManager, authService, playerService, watchdogClient, wsConfig)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -100,9 +103,6 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
-
-	watchdogClient := watchdog.NewWatchdogClient(redisHost)
-	defer watchdogClient.Close()
 
 	advanceAtProcessor := watchdog.NewAdvanceGameAtProcessor(gameManager, centrifugeServer)
 	advanceNowProcessor := watchdog.NewAdvanceGameNowProcessor(gameManager, centrifugeServer)

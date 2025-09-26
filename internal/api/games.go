@@ -39,11 +39,6 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 		})
 	}
 
-	err = api.watchdog.AdvanceGameNow(ctx, gameId)
-	if err != nil {
-		c.Echo().Logger.Errorf("failed to schedule game advancing: %w", err)
-	}
-
 	return c.JSON(http.StatusOK, models.OkGameIdReposne{
 		Msg:    "game joined",
 		GameId: gameId,

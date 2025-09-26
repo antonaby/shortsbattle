@@ -5,8 +5,11 @@ ALTER TABLE players
   ADD COLUMN is_online TIMESTAMPTZ;
 
 ALTER TABLE game_players
-  DROP COLUMN is_active,
+  DROP COLUMN IF EXISTS is_active,
   ADD COLUMN is_online TIMESTAMPTZ;
+
+CREATE INDEX idx_game_players_player_id
+  ON game_players (player_id);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -17,4 +20,6 @@ ALTER TABLE players
 
 ALTER TABLE game_players
   DROP COLUMN IF EXISTS is_online;
+
+DROP INDEX IF EXISTS idx_game_players_player_id;
 -- +goose StatementEnd

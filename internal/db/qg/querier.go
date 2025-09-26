@@ -43,6 +43,7 @@ type Querier interface {
 	SetGamePlayerOffline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error)
 	SetGamePlayerOnline(ctx context.Context, gameID int64, playerID int64) (GamePlayer, error)
 	SetPlayerOffline(ctx context.Context, tgID int64) (Player, error)
+	SetPlayerOfflineForActiveGames(ctx context.Context, playerID int64) ([]int64, error)
 	SetPlayerOnline(ctx context.Context, tgID int64) (Player, error)
 	TestAddPlayerToGame(ctx context.Context, arg TestAddPlayerToGameParams) (GamePlayer, error)
 	TestCreateGame(ctx context.Context, themeID int64) (Game, error)

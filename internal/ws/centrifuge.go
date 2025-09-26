@@ -12,6 +12,7 @@ import (
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
 	"github.com/antonaby/shortsbattle/game-server/internal/models"
 	"github.com/antonaby/shortsbattle/game-server/internal/services"
+	"github.com/antonaby/shortsbattle/game-server/internal/watchdog"
 	"github.com/centrifugal/centrifuge"
 	"github.com/rs/zerolog/log"
 )
@@ -19,6 +20,7 @@ import (
 const (
 	ErrOnlineStatus = "failed to update players online status: %s"
 	ErrChannelName  = "failed to parse channel name: %s"
+	ErrGameAdvance  = "failed to advance game %d"
 )
 
 func cfError(code common.ErrorCode, msg string, err error) error {
@@ -40,14 +42,18 @@ type WsConnectionConfig struct {
 }
 
 type CentrifugeServer struct {
-	node    *centrifuge.Node
-	manager *services.GameManager
-	auth    *services.AuthService
-	players *services.CachedPlayerService
-	config  WsConnectionConfig
+	node     *centrifuge.Node
+	manager  *services.GameManager
+	auth     *services.AuthService
+	players  *services.CachedPlayerService
+	wdClient *watchdog.WatchdogClient
+	config   WsConnectionConfig
 }
 
-func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthService, players *services.CachedPlayerService, config WsConnectionConfig) (*CentrifugeServer, error) {
+func NewCentrifugeServer(
+	manager *services.GameManager, auth *services.AuthService,
+	players *services.CachedPlayerService, wdClient *watchdog.WatchdogClient,
+	config WsConnectionConfig) (*CentrifugeServer, error) {
 	node, err := centrifuge.New(centrifuge.Config{
 		ClientPresenceUpdateInterval: config.ClientPingInterval,
 	})
@@ -56,11 +62,12 @@ func NewCentrifugeServer(manager *services.GameManager, auth *services.AuthServi
 	}
 
 	r := &CentrifugeServer{
-		node:    node,
-		manager: manager,
-		auth:    auth,
-		players: players,
-		config:  config,
+		node:     node,
+		manager:  manager,
+		auth:     auth,
+		players:  players,
+		wdClient: wdClient,
+		config:   config,
 	}
 
 	node.OnConnecting(r.handleConnecting)
@@ -197,6 +204,10 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 				Data:     updBytes,
 			},
 		}, nil)
+
+		if err := cf.wdClient.AdvanceGameNow(ctx, gameId); err != nil {
+			logError(err, ErrGameAdvance, gameId)
+		}
 	})
 
 	client.OnSubRefresh(func(e centrifuge.SubRefreshEvent, cb centrifuge.SubRefreshCallback) {
@@ -245,6 +256,10 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 
 			logError(err, ErrOnlineStatus, client.UserID())
 		}
+
+		if err := cf.wdClient.AdvanceGameNow(ctx, gameId); err != nil {
+			logError(err, ErrGameAdvance, gameId)
+		}
 	})
 
 	client.OnRefresh(func(e centrifuge.RefreshEvent, cb centrifuge.RefreshCallback) {
@@ -275,12 +290,11 @@ func (cf *CentrifugeServer) handleConnection(client *centrifuge.Client) {
 	})
 }
 
-// TODO: if false set all active games to false
-func (cf *CentrifugeServer) updatePlayerStatus(tgId int64, status bool) error {
+func (cf *CentrifugeServer) updatePlayerStatus(tgId int64, online bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := cf.players.SetPlayerOnlineStatus(ctx, tgId, status)
+	err := cf.players.SetPlayerOnlineStatus(ctx, tgId, online)
 	if err != nil {
 		if sErr, ok := common.IsServErr(err); ok && sErr.Code == common.ErrorNotFound {
 			return nil
@@ -288,6 +302,22 @@ func (cf *CentrifugeServer) updatePlayerStatus(tgId int64, status bool) error {
 
 		logError(err, ErrOnlineStatus, fmt.Sprint(tgId))
 		return err
+	}
+
+	if !online {
+		games, err := cf.manager.SetPlayerOfflineForActiveGames(ctx, tgId)
+		if err != nil {
+			logError(err, ErrOnlineStatus, fmt.Sprint(tgId))
+			return err
+		}
+
+		if len(games) > 0 {
+			for _, gId := range games {
+				if err := cf.wdClient.AdvanceGameNow(ctx, gId); err != nil {
+					logError(err, ErrGameAdvance, gId)
+				}
+			}
+		}
 	}
 
 	return nil

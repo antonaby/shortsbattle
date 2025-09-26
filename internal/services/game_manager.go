@@ -383,6 +383,17 @@ func (gm *GameManager) SetPlayerOnlineStatus(ctx context.Context, gameId, player
 	})
 }
 
+func (gm *GameManager) SetPlayerOfflineForActiveGames(ctx context.Context, playerId int64) ([]int64, error) {
+	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]int64, error) {
+		games, err := q.SetPlayerOfflineForActiveGames(ctx, playerId)
+		if err != nil {
+			return nil, gmDbError("failed to update offline status", err)
+		}
+
+		return games, nil
+	})
+}
+
 func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64) (*models.GameResult, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*models.GameResult, error) {
 		game, err := gm.findGame(ctx, q, gameId, playerId, []qg.GameStage{qg.GameStageComplete})

@@ -328,6 +328,34 @@ func (q *Queries) SetGamePlayerOnline(ctx context.Context, gameID int64, playerI
 	return i, err
 }
 
+const setPlayerOfflineForActiveGames = `-- name: SetPlayerOfflineForActiveGames :many
+UPDATE game_players 
+  SET 
+    is_online = NULL 
+  WHERE player_id = $1
+RETURNING game_id
+`
+
+func (q *Queries) SetPlayerOfflineForActiveGames(ctx context.Context, playerID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, setPlayerOfflineForActiveGames, playerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var game_id int64
+		if err := rows.Scan(&game_id); err != nil {
+			return nil, err
+		}
+		items = append(items, game_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateGameMode = `-- name: UpdateGameMode :one
 UPDATE game_players 
 SET mode = $3
