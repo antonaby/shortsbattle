@@ -517,7 +517,7 @@ func (gm *GameManager) GetGameResult(ctx context.Context, gameId, playerId int64
 	})
 }
 
-func (gm *GameManager) GetPlayerScores(ctx context.Context, gameId, playerId int64) ([]qg.PlayerResult, error) {
+func (gm *GameManager) GetPlayerResults(ctx context.Context, gameId, playerId int64) ([]qg.PlayerResult, error) {
 	return db.WithTxVQ(ctx, gm.txm, func(ctx context.Context, q qg.Querier) ([]qg.PlayerResult, error) {
 		results, err := q.GetPlayerRawResults(ctx, gameId, playerId)
 		if err != nil {
@@ -832,6 +832,7 @@ func createGameLDResults(ctx context.Context, q qg.Querier, likesDislikes []mode
 			GameVideoID: ld.GameVideoID,
 			Likes:       int32(ld.Likes),
 			Dislikes:    int32(ld.Dislikes),
+			Errors:      int32(ld.Errors),
 		})
 
 		if err != nil {

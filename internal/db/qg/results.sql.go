@@ -11,7 +11,11 @@ import (
 
 const createGameVideoResult = `-- name: CreateGameVideoResult :one
 INSERT INTO game_video_results(game_id, game_video_id, result)
-VALUES ($1, $2, jsonb_build_object('likes', $3::int, 'dislikes', $4::int))
+VALUES (
+  $1, 
+  $2, 
+  jsonb_build_object('likes', $3::int, 'dislikes', $4::int, 'errors', $5::int)
+)
 ON CONFLICT (game_id, game_video_id) DO UPDATE
   SET result = EXCLUDED.result,
       calculated_at = now()
@@ -23,6 +27,7 @@ type CreateGameVideoResultParams struct {
 	GameVideoID int64 `json:"game_video_id"`
 	Likes       int32 `json:"likes"`
 	Dislikes    int32 `json:"dislikes"`
+	Errors      int32 `json:"errors"`
 }
 
 func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideoResultParams) (GameVideoResult, error) {
@@ -31,6 +36,7 @@ func (q *Queries) CreateGameVideoResult(ctx context.Context, arg CreateGameVideo
 		arg.GameVideoID,
 		arg.Likes,
 		arg.Dislikes,
+		arg.Errors,
 	)
 	var i GameVideoResult
 	err := row.Scan(
@@ -144,6 +150,7 @@ WHERE ps.game_id = $1
   AND EXISTS (
     SELECT 1 FROM game_players gp WHERE gp.game_id = $1 AND gp.player_id = $2
   )
+ORDER BY ps.place
 `
 
 func (q *Queries) GetPlayerRawResults(ctx context.Context, gameID int64, playerID int64) ([]PlayerResult, error) {

@@ -377,7 +377,7 @@ func TestGameActions(t *testing.T) {
 		require.NotNil(t, upd)
 
 		// 6) check player scores
-		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		scores, err := gm.GetPlayerResults(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
 		}
@@ -496,7 +496,7 @@ func TestGameActions(t *testing.T) {
 		require.NotNil(t, upd)
 
 		// 6) get player scores
-		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		scores, err := gm.GetPlayerResults(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
 		}
@@ -615,7 +615,7 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, qg.GameStageComplete, upd.Stage)
 
 		// 6) get player scores
-		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		scores, err := gm.GetPlayerResults(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
 		}
@@ -725,21 +725,20 @@ func TestGameActions(t *testing.T) {
 		require.Equal(t, qg.GameStageComplete, upd.Stage)
 
 		// 6) get player scores
-		scores, err := gm.GetPlayerScores(ctx, game.ID, players[0].TgID)
+		scores, err := gm.GetPlayerResults(ctx, game.ID, players[0].TgID)
 		if err != nil {
 			t.Fatalf("failed to get player scores (player 1): %v", err)
 		}
 
-		// check points, player 1 got 0 poins as its video voted with Err
 		require.Equal(t, 3, len(scores))
 
 		// player 2 on the first place
-		// require.Equal(t, players[1].TgID, scores[0].PlayerID)
-		// require.Equal(t, int64(1), scores[0].Points)
+		require.Equal(t, players[1].TgID, scores[0].PlayerID)
+		require.Equal(t, int64(1), scores[0].Points)
 
-		// player 1 on the second place
-		// require.Equal(t, players[0].TgID, scores[1].PlayerID)
-		// require.Equal(t, int64(0), scores[1].Points)
+		// player 1 and 3 have 0 points
+		require.Equal(t, int64(0), scores[1].Points)
+		require.Equal(t, int64(0), scores[2].Points)
 	})
 }
 
