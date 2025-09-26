@@ -196,6 +196,8 @@ type GameVote struct {
 	PlayerID    int64              `json:"player_id"`
 	Value       json.RawMessage    `json:"value"`
 	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+	IsErr       bool               `json:"is_err"`
+	ErrMsg      pgtype.Text        `json:"err_msg"`
 }
 
 type Player struct {

@@ -194,14 +194,44 @@ func (q *Queries) GetVotesForRound(ctx context.Context, gameID int64, roundN int
 	return items, nil
 }
 
+const setVoteErr = `-- name: SetVoteErr :one
+INSERT INTO game_votes (game_video_id, player_id, is_err, err_msg)
+VALUES ($1, $2, true, $3)
+ON CONFLICT (game_video_id, player_id)
+DO UPDATE 
+SET err_msg = EXCLUDED.err_msg, 
+    voted_at = now()
+RETURNING game_video_id, player_id, value, voted_at, is_err, err_msg
+`
+
+type SetVoteErrParams struct {
+	GameVideoID int64       `json:"game_video_id"`
+	PlayerID    int64       `json:"player_id"`
+	ErrMsg      pgtype.Text `json:"err_msg"`
+}
+
+func (q *Queries) SetVoteErr(ctx context.Context, arg SetVoteErrParams) (GameVote, error) {
+	row := q.db.QueryRow(ctx, setVoteErr, arg.GameVideoID, arg.PlayerID, arg.ErrMsg)
+	var i GameVote
+	err := row.Scan(
+		&i.GameVideoID,
+		&i.PlayerID,
+		&i.Value,
+		&i.VotedAt,
+		&i.IsErr,
+		&i.ErrMsg,
+	)
+	return i, err
+}
+
 const voteForVideoLD = `-- name: VoteForVideoLD :one
-INSERT INTO game_votes (game_video_id, player_id, value)
-VALUES ($1, $2, jsonb_build_object('value', $3::text))
+INSERT INTO game_votes (game_video_id, player_id, value, is_err, err_msg)
+VALUES ($1, $2, jsonb_build_object('value', $3::text), false, NULL)
 ON CONFLICT (game_video_id, player_id)
 DO UPDATE 
 SET value = EXCLUDED.value, 
     voted_at = now()
-RETURNING game_video_id, player_id, value, voted_at
+RETURNING game_video_id, player_id, value, voted_at, is_err, err_msg
 `
 
 type VoteForVideoLDParams struct {
@@ -218,6 +248,8 @@ func (q *Queries) VoteForVideoLD(ctx context.Context, arg VoteForVideoLDParams) 
 		&i.PlayerID,
 		&i.Value,
 		&i.VotedAt,
+		&i.IsErr,
+		&i.ErrMsg,
 	)
 	return i, err
 }

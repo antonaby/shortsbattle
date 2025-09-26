@@ -283,32 +283,66 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 
 func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
 	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
-		game, err := q.GetGameVideoShareLock(ctx, gameVideoId, playerId)
-		if err != nil {
-			if db.IsNoRows(err) {
-				return nil, nil, gmError(common.ErrorForbidden, "player not in the game or player tried to vote for its own video", err)
-			}
-
-			return nil, nil, gmDbError("failed to vote", err)
-		}
-
-		if !slices.Contains([]qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete}, game.Stage) {
-			return nil, nil, gmError(common.ErrorForbidden, "wrong game stage", err)
-		}
-
-		vote, err := gm.createVote(ctx, q, game, gameVideoId, playerId, value)
+		gameVideo, err := gm.findGameVideo(ctx, q, gameVideoId, playerId, []qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete})
 		if err != nil {
 			return nil, nil, err
 		}
 
-		return &game, vote, nil
+		vote, err := gm.createVote(ctx, q, gameVideo, playerId, value)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return gameVideo, vote, nil
 	})
 }
 
+func (gm *GameManager) SetVoteErr(ctx context.Context, gameVideoId, playerId int64, errMsg string) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+		gameVideo, err := gm.findGameVideo(ctx, q, gameVideoId, playerId, []qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		vote, err := q.SetVoteErr(ctx, qg.SetVoteErrParams{
+			GameVideoID: gameVideo.GameVideoID,
+			PlayerID:    playerId,
+			ErrMsg: pgtype.Text{
+				String: errMsg,
+				Valid:  true,
+			},
+		})
+
+		if err != nil {
+			return nil, nil, gmDbError("failed to set err vote", err)
+		}
+
+		return gameVideo, &vote, nil
+	})
+}
+
+func (gm *GameManager) findGameVideo(ctx context.Context, q qg.Querier, gameVideoId, playerId int64, stages []qg.GameStage) (*qg.GetGameVideoShareLockRow, error) {
+	game, err := q.GetGameVideoShareLock(ctx, gameVideoId, playerId)
+	if err != nil {
+		if db.IsNoRows(err) {
+			return nil, gmError(common.ErrorForbidden, "player not in the game or player tried to vote for its own video", err)
+		}
+
+		return nil, gmDbError("failed to get game video", err)
+	}
+
+	if slices.Contains(stages, game.Stage) {
+		return &game, nil
+	}
+
+	return nil, gmError(common.ErrorForbidden, "wrong game stage", err)
+}
+
 func (gm *GameManager) createVote(
-	ctx context.Context, q qg.Querier, game qg.GetGameVideoShareLockRow,
-	gameVideoId, playerId int64, value json.RawMessage) (*qg.GameVote, error) {
-	if game.Mode == qg.GameModeLikedislike {
+	ctx context.Context, q qg.Querier,
+	gameVideo *qg.GetGameVideoShareLockRow, playerId int64,
+	value json.RawMessage) (*qg.GameVote, error) {
+	if gameVideo.Mode == qg.GameModeLikedislike {
 		var vote models.LikeDislikeVote
 		err := json.Unmarshal(value, &vote)
 		if err != nil {
@@ -321,7 +355,7 @@ func (gm *GameManager) createVote(
 		}
 
 		gameVote, err := q.VoteForVideoLD(ctx, qg.VoteForVideoLDParams{
-			GameVideoID: gameVideoId,
+			GameVideoID: gameVideo.GameVideoID,
 			PlayerID:    playerId,
 			Value:       string(vote.Value),
 		})

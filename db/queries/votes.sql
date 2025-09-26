@@ -18,11 +18,20 @@ SELECT
 FOR SHARE OF gs;
 
 -- name: VoteForVideoLD :one
-INSERT INTO game_votes (game_video_id, player_id, value)
-VALUES (sqlc.arg(game_video_id), sqlc.arg(player_id), jsonb_build_object('value', sqlc.arg(value)::text))
+INSERT INTO game_votes (game_video_id, player_id, value, is_err, err_msg)
+VALUES (sqlc.arg(game_video_id), sqlc.arg(player_id), jsonb_build_object('value', sqlc.arg(value)::text), false, NULL)
 ON CONFLICT (game_video_id, player_id)
 DO UPDATE 
 SET value = EXCLUDED.value, 
+    voted_at = now()
+RETURNING *;
+
+-- name: SetVoteErr :one
+INSERT INTO game_votes (game_video_id, player_id, is_err, err_msg)
+VALUES ($1, $2, true, $3)
+ON CONFLICT (game_video_id, player_id)
+DO UPDATE 
+SET err_msg = EXCLUDED.err_msg, 
     voted_at = now()
 RETURNING *;
 
