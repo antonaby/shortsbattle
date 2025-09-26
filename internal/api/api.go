@@ -127,6 +127,7 @@ func (api *HttpApi) addSecuredEndpoints(g *echo.Group) {
 
 	// votes
 	v1group.PUT("/votes/:id", api.voteForVideo)
+	v1group.PUT("/votes/:id/error", api.videoErr)
 
 	// players and videos
 	v1group.POST("/videos", api.addVideo)

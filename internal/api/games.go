@@ -225,6 +225,44 @@ func (api *HttpApi) voteForVideo(c echo.Context) error {
 	return c.JSON(http.StatusOK, vote)
 }
 
+func (api *HttpApi) videoErr(c echo.Context) error {
+	gameVideoId, err := param64(c, "id")
+	if err != nil {
+		return sendInvalidId(c)
+	}
+
+	tgId, err := tgId(c)
+	if err != nil {
+		return sendUnauthorized(c)
+	}
+
+	request, err := bindAndValidate[models.VideoErrRequest](c)
+	if err != nil {
+		return sendInvalidReq(c)
+	}
+
+	ctx := c.Request().Context()
+	game, vote, err := api.games.VideoErr(ctx, gameVideoId, tgId, request.ErrMsg)
+	if err != nil {
+		if sErr, ok := isServErr(err); ok {
+			if sErr.Code == common.ErrorForbidden {
+				return sendForbidden(c)
+			}
+			if sErr.Code == common.ErrorNotFound || sErr.Code == common.ErrorConstraintViolation {
+				return sendNotFound(c, "game video")
+			}
+		}
+
+		return logAndSendUnknowError(c, err)
+	}
+
+	err = api.watchdog.AdvanceGameNow(ctx, game.GameID)
+	if err != nil {
+		c.Echo().Logger.Errorf("failed to schedule game advancing: %w", err)
+	}
+	return c.JSON(http.StatusOK, vote)
+}
+
 func (api *HttpApi) getGameResult(c echo.Context) error {
 	tgId, err := tgId(c)
 	if err != nil {

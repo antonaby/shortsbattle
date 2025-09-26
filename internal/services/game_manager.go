@@ -281,8 +281,8 @@ func (gm *GameManager) GetVideosToWatch(ctx context.Context, gameId, playerId in
 	})
 }
 
-func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId int64, value json.RawMessage) (*qg.GetGameVideoShareLockRow, *models.Vote, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *models.Vote, error) {
 		gameVideo, err := gm.findGameVideo(ctx, q, gameVideoId, playerId, []qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete})
 		if err != nil {
 			return nil, nil, err
@@ -293,12 +293,12 @@ func (gm *GameManager) VoteForVideo(ctx context.Context, gameVideoId, playerId i
 			return nil, nil, err
 		}
 
-		return gameVideo, vote, nil
+		return gameVideo, toVoteModel(*vote), nil
 	})
 }
 
-func (gm *GameManager) SetVoteErr(ctx context.Context, gameVideoId, playerId int64, errMsg string) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
-	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *qg.GameVote, error) {
+func (gm *GameManager) VideoErr(ctx context.Context, gameVideoId, playerId int64, errMsg string) (*qg.GetGameVideoShareLockRow, *models.Vote, error) {
+	return db.WithTxVQ2(ctx, gm.txm, func(ctx context.Context, q qg.Querier) (*qg.GetGameVideoShareLockRow, *models.Vote, error) {
 		gameVideo, err := gm.findGameVideo(ctx, q, gameVideoId, playerId, []qg.GameStage{qg.GameStageWatch, qg.GameStageWatchComplete})
 		if err != nil {
 			return nil, nil, err
@@ -317,7 +317,7 @@ func (gm *GameManager) SetVoteErr(ctx context.Context, gameVideoId, playerId int
 			return nil, nil, gmDbError("failed to set err vote", err)
 		}
 
-		return gameVideo, &vote, nil
+		return gameVideo, toVoteModel(vote), nil
 	})
 }
 
@@ -368,6 +368,17 @@ func (gm *GameManager) createVote(
 	}
 
 	return nil, gmError(common.ErrorWrongGameMode, "unknown game mode", nil)
+}
+
+func toVoteModel(vote qg.GameVote) *models.Vote {
+	return &models.Vote{
+		GameVideoID: vote.GameVideoID,
+		PlayerID:    vote.PlayerID,
+		Value:       vote.Value,
+		VotedAt:     vote.VotedAt,
+		IsErr:       vote.IsErr,
+		ErrMsg:      vote.ErrMsg.String,
+	}
 }
 
 func (gm *GameManager) GetGameDetailsForPlayer(ctx context.Context, gameId, playerId int64) (*models.GameUpdate, error) {
@@ -588,6 +599,7 @@ func (gm *GameManager) advanceGame(ctx context.Context, q qg.Querier, game qg.Ge
 // TODO: count only players in submit_and_vote mode
 // TODO: check only active users
 // TODO: add bots if nPlayers less than MaxPlayers
+// TODO: handle users in only_watch mode
 func (gm *GameManager) handleLobby(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	probablyTimeout := game.PastMs >= gm.config.MaxLobbyStage.Milliseconds() || isTimeout
 	if probablyTimeout {
@@ -635,6 +647,7 @@ func (gm *GameManager) handleLobbyFull(ctx context.Context, q qg.Querier, game q
 
 // TODO: handle users in only watching mode
 // TODO: add bots in case some players inactive
+// TODO: player that haven't submitted videos after timeout should be moved into only watch mode
 func (gm *GameManager) handleSubmit(ctx context.Context, q qg.Querier, game qg.GetGameLockRow, isTimeout bool) (*models.GameUpdate, error) {
 	probablyTimeout := game.PastMs >= gm.config.MaxSubmitStage.Milliseconds() || isTimeout
 	if probablyTimeout {

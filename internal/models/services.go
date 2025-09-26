@@ -101,6 +101,15 @@ type GameResult struct {
 	Outcome PlayerOutcome  `json:"outcome"`
 }
 
+type Vote struct {
+	GameVideoID int64              `json:"game_video_id"`
+	PlayerID    int64              `json:"player_id"`
+	Value       json.RawMessage    `json:"value"`
+	VotedAt     pgtype.Timestamptz `json:"voted_at"`
+	IsErr       bool               `json:"is_err,omitempty"`
+	ErrMsg      string             `json:"err_msg,omitempty"`
+}
+
 type MessageType string
 
 const (

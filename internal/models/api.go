@@ -53,6 +53,10 @@ type VoteForVideoRequest struct {
 	Value json.RawMessage `json:"value" validate:"required"`
 }
 
+type VideoErrRequest struct {
+	ErrMsg string `json:"error_msg" validate:"required"`
+}
+
 type TgUserAuthRequest struct {
 	InitData string `json:"init_data" validate:"required"`
 }

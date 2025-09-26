@@ -592,7 +592,7 @@ func TestGameActions(t *testing.T) {
 			t.Fatalf("failed to vote for video (player 1): %v", err)
 		}
 		// round 1 player 2 votes as Err
-		_, _, err = gm.SetVoteErr(ctx, gameVideos[0].ID, players[1].TgID, "test")
+		_, _, err = gm.VideoErr(ctx, gameVideos[0].ID, players[1].TgID, "test")
 		if err != nil {
 			t.Fatalf("failed to vote for video (player 2): %v", err)
 		}
@@ -704,7 +704,7 @@ func TestGameActions(t *testing.T) {
 		}
 		// round 1 player 2
 		// votes as Err for video from player 1
-		_, _, err = gm.SetVoteErr(ctx, gameVideos[0].ID, players[1].TgID, "test")
+		_, _, err = gm.VideoErr(ctx, gameVideos[0].ID, players[1].TgID, "test")
 		if err != nil {
 			t.Fatalf("failed to vote for video (player 2): %v", err)
 		}

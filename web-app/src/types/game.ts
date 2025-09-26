@@ -88,6 +88,8 @@ export interface Vote {
   player_id: number;
   value: LikeDislikeVote;
   voted_at: string;
+  is_err?: boolean;
+  err_msg?: string;
 }
 
 export interface VideoAuthor {
