@@ -50,6 +50,7 @@ type CentrifugeServer struct {
 	config   WsConnectionConfig
 }
 
+// TODO: add global context if needed
 func NewCentrifugeServer(
 	manager *services.GameManager, auth *services.AuthService,
 	players *services.CachedPlayerService, wdClient *watchdog.WatchdogClient,

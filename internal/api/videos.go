@@ -26,9 +26,7 @@ func (api *HttpApi) addVideo(c echo.Context) error {
 	if err != nil {
 		if sErr, ok := isServErr(err); ok {
 			if sErr.Code == common.ErrorOEmbedFailed {
-				return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-					Error: "wrong video url",
-				})
+				return sendInvalidReq(c)
 			}
 		}
 

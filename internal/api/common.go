@@ -13,16 +13,6 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
-const (
-	InvalidIdFormatMsg        = "invalid id format"
-	InvalidRequestFormatMsg   = "invalid request format"
-	RequestValidationErrorMsg = "request validation error"
-	UnathorizedErrorMsg       = "invalid credentials"
-	GameActionForbiddenMsg    = "player not in game or game is in the wrong stage"
-	ResourceNotFoundMsg       = "video or game not found"
-	SomethingWentWrongMsg     = "something went wrong"
-)
-
 type CustomValidator struct {
 	validator *validator.Validate
 }
@@ -109,7 +99,7 @@ func param64(c echo.Context, name string) (int64, error) {
 
 func sendInvalidId(c echo.Context) error {
 	return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-		Error: InvalidIdFormatMsg,
+		Error: "invalid id format",
 	})
 }
 
@@ -124,13 +114,13 @@ func tgId(c echo.Context) (int64, error) {
 
 func sendUnauthorized(c echo.Context) error {
 	return c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-		Error: UnathorizedErrorMsg,
+		Error: "invalid credentials",
 	})
 }
 
 func sendForbidden(c echo.Context) error {
 	return c.JSON(http.StatusForbidden, models.ErrorResponse{
-		Error: GameActionForbiddenMsg,
+		Error: "player not in game or game is in a wrong stage",
 	})
 }
 
@@ -149,7 +139,7 @@ func bindAndValidate[T any](c echo.Context) (T, error) {
 
 func sendInvalidReq(c echo.Context) error {
 	return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-		Error: InvalidRequestFormatMsg,
+		Error: "invalid request format",
 	})
 }
 

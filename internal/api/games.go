@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/antonaby/shortsbattle/game-server/internal/common"
@@ -24,19 +23,11 @@ func (api *HttpApi) joinGame(c echo.Context) error {
 	gameId, err := api.games.JoinGame(ctx, request.ThemeID, tgId, request.Mode)
 
 	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
-			if sErr.Code == common.ErrorNotFound {
-				return c.JSON(http.StatusNotFound, models.ErrorResponse{
-					Error: "theme not found",
-				})
-			}
+		if sErr, ok := isServErr(err); ok && sErr.Code == common.ErrorNotFound {
+			return sendNotFound(c, "theme")
 		}
 
-		c.Echo().Logger.Errorf("failed to join game: %w", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, models.OkGameIdReposne{
@@ -65,24 +56,16 @@ func (api *HttpApi) updateGameMode(c echo.Context) error {
 
 	gp, err := api.games.UpdateGameMode(ctx, gameId, tgId, request.Mode)
 	if err != nil {
-		var sErr common.ServiceError
-		if errors.As(err, &sErr) {
+		if sErr, ok := isServErr(err); ok {
 			if sErr.Code == common.ErrorNotFound {
-				return c.JSON(http.StatusNotFound, models.ErrorResponse{
-					Error: ResourceNotFoundMsg,
-				})
+				return sendNotFound(c, "game")
 			}
 			if sErr.Code == common.ErrorForbidden {
-				return c.JSON(http.StatusForbidden, models.ErrorResponse{
-					Error: GameActionForbiddenMsg,
-				})
+				return sendForbidden(c)
 			}
 		}
 
-		c.Echo().Logger.Errorf("failed to udpate game mode: %w", err)
-		return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-			Error: SomethingWentWrongMsg,
-		})
+		return logAndSendUnknowError(c, err)
 	}
 
 	err = api.watchdog.AdvanceGameNow(ctx, gp.GameID)
@@ -154,29 +137,19 @@ func (api *HttpApi) submitNewVideo(c echo.Context, gameId int64, videoUrl string
 }
 
 func handleVideoSubmissionError(c echo.Context, err error) error {
-	var sErr common.ServiceError
-	if errors.As(err, &sErr) {
+	if sErr, ok := isServErr(err); ok {
 		if sErr.Code == common.ErrorNotFound {
-			return c.JSON(http.StatusNotFound, models.ErrorResponse{
-				Error: ResourceNotFoundMsg,
-			})
+			return sendNotFound(c, "game")
 		}
 		if sErr.Code == common.ErrorOEmbedFailed {
-			return c.JSON(http.StatusBadRequest, models.ErrorResponse{
-				Error: "bad video url",
-			})
+			return sendInvalidReq(c)
 		}
 		if sErr.Code == common.ErrorForbidden {
-			return c.JSON(http.StatusForbidden, models.ErrorResponse{
-				Error: GameActionForbiddenMsg,
-			})
+			return sendForbidden(c)
 		}
 	}
 
-	c.Echo().Logger.Errorf("failed to submit video: %w", err)
-	return c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-		Error: SomethingWentWrongMsg,
-	})
+	return logAndSendUnknowError(c, err)
 }
 
 func (api *HttpApi) getVideosForGame(c echo.Context) error {
