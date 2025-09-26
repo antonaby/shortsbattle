@@ -58,5 +58,5 @@ type TgUserAuthRequest struct {
 }
 
 type OkTgUserTokenResponse struct {
-	Token []byte `json:"token"`
+	Token string `json:"token"`
 }

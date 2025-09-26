@@ -27,6 +27,6 @@ func (api *HttpApi) getTokenForTgUser(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, models.OkTgUserTokenResponse{
-		Token: token,
+		Token: string(token),
 	})
 }
